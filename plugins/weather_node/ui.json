@@ -1,0 +1,47 @@
+{
+  "type": "weather",
+  "name": "Погода",
+  "icon": "🌤",
+  "color": "#0ea5e9",
+  "description": "Спросить город и показать погоду на сегодня (Open-Meteo, без API-ключа)",
+  "palette": true,
+  "connectable": true,
+  "outputs": 1,
+  "defaults": {
+    "inputPrompt": "В каком городе вы находитесь? Напишите название города.",
+    "cityField": "weather_city",
+    "errorNotFound": "Город не найден. Попробуйте другое название, например: Москва, Санкт-Петербург.",
+    "errorApi": "Не удалось получить данные о погоде. Попробуйте позже."
+  },
+  "fields": [
+    {
+      "type": "info",
+      "label": "Open-Meteo",
+      "text": "Бесплатный открытый API без регистрации. Бот спросит город, затем отправит температуру и условия на сегодня."
+    },
+    {
+      "key": "inputPrompt",
+      "type": "textarea",
+      "label": "Вопрос пользователю",
+      "placeholder": "В каком городе вы находитесь?",
+      "rows": 2
+    },
+    {
+      "key": "cityField",
+      "type": "text",
+      "label": "Поле БД для города",
+      "hint": "Имя поля в user_data, куда сохранится ответ пользователя",
+      "placeholder": "weather_city"
+    },
+    {
+      "key": "errorNotFound",
+      "type": "text",
+      "label": "Сообщение: город не найден"
+    },
+    {
+      "key": "errorApi",
+      "type": "text",
+      "label": "Сообщение: ошибка API"
+    }
+  ]
+}

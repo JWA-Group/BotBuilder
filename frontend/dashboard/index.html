@@ -1,0 +1,111 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="application-name" content="BotBuilder" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/shared/icons/BBico.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/shared/icons/BBico.ico" />
+    <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+    <title>BotBuilder</title>
+    <link rel="stylesheet" href="/shared/css/page-shell.css" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <header class="dashboard-header dashboard-header--home">
+        <h1 class="page-title" data-i18n="app.title">BotBuilder</h1>
+      </header>
+
+      <main class="dashboard-content">
+        <p class="welcome-lead" data-i18n="welcome.subtitle">
+          Build, deploy, and manage Telegram and VK chat bots from one desktop app.
+        </p>
+        <div class="menu-grid">
+          <a href="/analytics/" class="menu-card">
+            <div class="icon">📊</div>
+            <h2 data-i18n="menu.analytics.title">Analytics</h2>
+            <p data-i18n="menu.analytics.desc">Charts, activity, calendar — visualization only</p>
+          </a>
+
+          <a href="/database/" class="menu-card">
+            <div class="icon">🗄️</div>
+            <h2 data-i18n="menu.database.title">Database</h2>
+            <p data-i18n="menu.database.desc">View and edit user_data.db, import .db / .json</p>
+          </a>
+
+          <a href="/mailing/" class="menu-card">
+            <div class="icon">📣</div>
+            <h2 data-i18n="menu.mailing.title">Broadcasts</h2>
+            <p data-i18n="menu.mailing.desc">HTML messages with media, filter by roles and subscriber tags</p>
+          </a>
+
+          <a href="/monitor/" class="menu-card">
+            <div class="icon">🖥️</div>
+            <h2 data-i18n="menu.monitor.title">Monitoring</h2>
+            <p data-i18n="menu.monitor.desc">CPU/RAM, active bot processes, streaming API and LLM logs</p>
+          </a>
+
+          <a href="/deployment/" class="menu-card">
+            <div class="icon">🚀</div>
+            <h2 data-i18n="menu.deployment.title">Deploy</h2>
+            <p data-i18n="menu.deployment.desc">Docker archive for local runs or auto-deploy to VPS via SSH</p>
+          </a>
+
+          <a href="/bots/index.html" class="menu-card">
+            <div class="icon">🤖</div>
+            <h2 data-i18n="menu.bots.title">Chat bots</h2>
+            <p data-i18n="menu.bots.desc">My bots, scenario editor, admin panel, broadcasts</p>
+          </a>
+
+          <a href="/templates/" class="menu-card">
+            <div class="icon">📋</div>
+            <h2 data-i18n="menu.templates.title">Template library</h2>
+            <p data-i18n="menu.templates.desc">Gallery, import/export .bbpack.json, preview and install on bots</p>
+          </a>
+
+          <a href="/plugins/" class="menu-card">
+            <div class="icon">📦</div>
+            <h2 data-i18n="menu.plugins.title">Plugins</h2>
+            <p data-i18n="menu.plugins.desc">All blocks: built-in (view) and custom (edit)</p>
+          </a>
+
+          <a href="/plugin-builder/" class="menu-card">
+            <div class="icon">🧩</div>
+            <h2 data-i18n="menu.plugin_builder.title">Component wizard</h2>
+            <p data-i18n="menu.plugin_builder.desc">Create custom blocks: property fields, color, Python handler template</p>
+          </a>
+        </div>
+        <p id="plugin-created-banner" class="plugin-created-banner" hidden></p>
+      </main>
+    </div>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search || "");
+        var created = params.get("plugin_created");
+        if (!created) return;
+        var banner = document.getElementById("plugin-created-banner");
+        if (!banner) return;
+        banner.hidden = false;
+        banner.textContent =
+          typeof t === "function"
+            ? t("plugin_created_banner", { name: created })
+            : "Component «" + created + "» is published.";
+      })();
+    </script>
+  </body>
+</html>

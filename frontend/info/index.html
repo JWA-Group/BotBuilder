@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+  <head>
+
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title data-i18n="info.title">Help</title>
+
+    <link rel="icon" href="/shared/icons/BBico.ico" type="image/x-icon" />
+
+    <link rel="stylesheet" href="/shared/css/app-shell.css" />
+
+    <script>
+
+      (function () {
+
+        try {
+
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+
+          document.documentElement.classList.add("theme-" + t);
+
+        } catch (e) {
+
+          document.documentElement.classList.add("theme-light");
+
+        }
+
+      })();
+
+    </script>
+
+    <script src="/shared/js/theme.js"></script>
+
+    <script src="/shared/js/locales.js"></script>
+
+    <script src="/shared/js/info-locales.js"></script>
+
+    <script src="/shared/js/i18n.js"></script>
+
+
+
+    <link rel="stylesheet" href="/shared/css/page-shell.css" />
+
+    <link rel="stylesheet" href="info.css" />
+
+  </head>
+
+  <body>
+
+    <div class="dashboard">
+
+      <header class="dashboard-header">
+
+        <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
+
+        <h1 class="page-title" data-i18n="info.title">Help</h1>
+
+      </header>
+
+
+
+      <div class="info-layout">
+
+        <nav class="info-nav" data-i18n-aria="info.nav_aria" aria-label="Contents">
+
+          <p class="info-nav-title" data-i18n="info.nav_title">Contents</p>
+
+          <a href="#about" data-i18n="info.nav.about">About</a>
+
+          <a href="#modules" data-i18n="info.nav.modules">Menu sections</a>
+
+          <a href="#quickstart" data-i18n="info.nav.quickstart">Quick start</a>
+
+          <a href="#bots" data-i18n="info.nav.bots">Chat bots</a>
+
+          <a href="#scenario" data-i18n="info.nav.scenario">Scenario editor</a>
+
+          <a href="#plugins" data-i18n="info.nav.plugins">Plugins & blocks</a>
+
+          <a href="#templates" data-i18n="info.nav.templates">Templates</a>
+
+          <a href="#analytics" data-i18n="info.nav.analytics">Analytics & data</a>
+
+          <a href="#mailing" data-i18n="info.nav.mailing">Broadcasts</a>
+
+          <a href="#monitor" data-i18n="info.nav.monitor">Monitoring</a>
+
+          <a href="#deploy" data-i18n="info.nav.deploy">Deploy</a>
+
+          <a href="#tips" data-i18n="info.nav.tips">Tips</a>
+
+        </nav>
+
+
+
+        <main class="info-main">
+
+          <div class="info-hero" id="about">
+
+            <h1 data-i18n="app.title">BotBuilder</h1>
+
+            <p data-i18n="info.hero.desc">
+
+              A desktop app for building Telegram and VK bots without manual project setup.
+
+            </p>
+
+          </div>
+
+
+
+          <section class="info-section" id="modules">
+
+            <h2 data-i18n="info.modules.title">Main menu sections</h2>
+
+            <p data-i18n="info.modules.intro">Each section is a separate module. Briefly, what it does:</p>
+
+            <div class="info-modules">
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.bots.title_html"><a href="/bots/">Chat bots</a></h3>
+
+                <p data-i18n="info.modules.bots.desc">Bot list, tokens, start/stop, open the scenario builder.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.scenario.title_html"><a href="/editor/scenario/">Scenario editor</a></h3>
+
+                <p data-i18n="info.modules.scenario.desc">Canvas with blocks and connections.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.plugins.title_html"><a href="/plugins/">Plugins</a></h3>
+
+                <p data-i18n="info.modules.plugins.desc">Block catalog: built-in and custom.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.builder.title_html"><a href="/plugin-builder/">Component wizard</a></h3>
+
+                <p data-i18n="info.modules.builder.desc">Create and edit custom blocks.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.templates.title_html"><a href="/templates/">Template library</a></h3>
+
+                <p data-i18n="info.modules.templates.desc">Ready scenarios, import/export .bbpack.json.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.analytics.title_html"><a href="/analytics/">Analytics</a></h3>
+
+                <p data-i18n="info.modules.analytics.desc">Activity charts and calendar.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.database.title_html"><a href="/database/">Database</a></h3>
+
+                <p data-i18n="info.modules.database.desc">View and edit user_data.db.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.mailing.title_html"><a href="/mailing/">Broadcasts</a></h3>
+
+                <p data-i18n="info.modules.mailing.desc">HTML messages with media.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.monitor.title_html"><a href="/monitor/">Monitoring</a></h3>
+
+                <p data-i18n="info.modules.monitor.desc">CPU/RAM, bot processes, logs.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.deploy.title_html"><a href="/deployment/">Deploy</a></h3>
+
+                <p data-i18n="info.modules.deploy.desc">Docker archive or VPS via SSH.</p>
+
+              </article>
+
+            </div>
+
+          </section>
+
+
+
+          <section class="info-section" id="quickstart">
+
+            <h2 data-i18n="info.quickstart.title">Quick start</h2>
+
+            <ol class="info-steps">
+
+              <li data-i18n-html="info.quickstart.step1_html">Create a bot in the messenger.</li>
+
+              <li data-i18n-html="info.quickstart.step2_html">Open Chat bots and add a bot.</li>
+
+              <li data-i18n-html="info.quickstart.step3_html">Open the scenario builder.</li>
+
+              <li data-i18n-html="info.quickstart.step4_html">Save the scenario and start the bot.</li>
+
+              <li data-i18n-html="info.quickstart.step5_html">Test in Telegram or VK.</li>
+
+            </ol>
+
+            <div class="info-callout" data-i18n-html="info.quickstart.tip_html">
+
+              <strong>Tip.</strong> For VK you can apply a default scenario from the bot card.
+
+            </div>
+
+          </section>
+
+
+
+          <section class="info-section" id="bots">
+
+            <h2 data-i18n="info.bots.title">Chat bots</h2>
+
+            <p data-i18n-html="info.bots.intro_html">The Chat bots section is the hub for your projects.</p>
+
+            <h3 data-i18n="info.bots.actions_title">What you can do</h3>
+
+            <ul>
+
+              <li data-i18n="info.bots.action1">Add and remove bots (Telegram / VK).</li>
+
+              <li data-i18n="info.bots.action2">Start and stop the bot process.</li>
+
+              <li data-i18n="info.bots.action3">Open the visual scenario builder.</li>
+
+              <li data-i18n="info.bots.action4">For VK — verify the token and apply a template scenario.</li>
+
+            </ul>
+
+            <div class="info-callout" data-i18n-html="info.bots.note_html">
+
+              <strong>Important.</strong> After changing the scenario you usually need to restart the bot.
+
+            </div>
+
+          </section>
+
+
+
+          <section class="info-section" id="scenario">
+
+            <h2 data-i18n="info.scenario.title">Scenario editor</h2>
+
+            <p data-i18n-html="info.scenario.intro_html">Opens from the bot card. A scenario is a graph of nodes and connections.</p>
+
+            <h3 data-i18n="info.scenario.how_title">How to build logic</h3>
+
+            <ol class="info-steps">
+
+              <li data-i18n="info.scenario.how1">Drag a block from the palette onto the canvas.</li>
+
+              <li data-i18n="info.scenario.how2">Click a block to open properties on the right.</li>
+
+              <li data-i18n="info.scenario.how3">Connect one block's output to another's input.</li>
+
+              <li data-i18n="info.scenario.how4">Save the scenario. Version history lets you roll back.</li>
+
+            </ol>
+
+            <h3 data-i18n="info.scenario.blocks_title">Common blocks</h3>
+
+            <ul>
+
+              <li data-i18n-html="info.scenario.block_start_html"><strong>Start</strong> — entry point.</li>
+
+              <li data-i18n-html="info.scenario.block_message_html"><strong>Message</strong> — text to the user.</li>
+
+              <li data-i18n-html="info.scenario.block_menu_html"><strong>Menu</strong> — buttons and transitions.</li>
+
+              <li data-i18n-html="info.scenario.block_condition_html"><strong>Condition</strong> — branch by data.</li>
+
+              <li data-i18n-html="info.scenario.block_data_html"><strong>Command / data</strong> — commands and fields.</li>
+
+              <li data-i18n-html="info.scenario.block_custom"><strong>Custom plugins</strong> — your published blocks.</li>
+
+            </ul>
+
+          </section>
+
+
+
+          <section class="info-section" id="plugins">
+
+            <h2 data-i18n="info.plugins.title">Plugins & blocks</h2>
+
+            <p data-i18n="info.plugins.intro">A plugin is a reusable scenario block with UI fields and a Python handler.</p>
+
+
+
+            <h3 data-i18n="info.plugins.manage_title">View and manage</h3>
+
+            <p data-i18n-html="info.plugins.manage_html">Open Plugins: list of all blocks.</p>
+
+
+
+            <h3 data-i18n="info.plugins.create_title">Creating a custom block</h3>
+
+            <ol class="info-steps">
+
+              <li data-i18n-html="info.plugins.create1_html">Component wizard → set ID, name, color.</li>
+
+              <li data-i18n="info.plugins.create2">Add property fields — they appear in the editor panel.</li>
+
+              <li data-i18n-html="info.plugins.create3_html">Write or edit the Python handler template (Jinja2).</li>
+
+              <li data-i18n="info.plugins.create4">Publish the component — it appears in the palette.</li>
+
+            </ol>
+
+
+
+            <h3 data-i18n="info.plugins.import_title">Import and sharing</h3>
+
+            <ul>
+
+              <li data-i18n-html="info.plugins.import1_html">Scenarios ship in .bbpack.json via the Template library.</li>
+
+              <li data-i18n="info.plugins.import2">If plugins are missing, the app will warn you.</li>
+
+              <li data-i18n="info.plugins.import3">Custom plugins live in the app user data folder.</li>
+
+            </ul>
+
+            <div class="info-callout" data-i18n-html="info.plugins.error405_html">
+
+              <strong>If plugin save fails (405).</strong> Fully restart BotBuilder.
+
+            </div>
+
+          </section>
+
+
+
+          <section class="info-section" id="templates">
+
+            <h2 data-i18n="info.templates.title">Template library</h2>
+
+            <p data-i18n-html="info.templates.intro_html">In Templates — local and marketplace packages.</p>
+
+            <ul>
+
+              <li data-i18n-html="info.templates.item1_html"><strong>Preview</strong> — view the graph before installing.</li>
+
+              <li data-i18n-html="info.templates.item2_html"><strong>Install on bot</strong> — apply to a project.</li>
+
+              <li data-i18n-html="info.templates.item3_html"><strong>Import / export</strong> — share files.</li>
+
+              <li data-i18n-html="info.templates.item4_html"><strong>Edit template</strong> — scenario editor in template mode.</li>
+
+            </ul>
+
+          </section>
+
+
+
+          <section class="info-section" id="analytics">
+
+            <h2 data-i18n="info.analytics.title">Analytics & database</h2>
+
+            <h3 data-i18n="info.analytics.section_title">Analytics</h3>
+
+            <p data-i18n-html="info.analytics.desc_html">Analytics shows activity for the selected bot.</p>
+
+            <h3 data-i18n="info.database.section_title">Database</h3>
+
+            <p data-i18n-html="info.database.desc_html">Database opens the project user_data.db.</p>
+
+          </section>
+
+
+
+          <section class="info-section" id="mailing">
+
+            <h2 data-i18n="info.mailing.title">Broadcasts</h2>
+
+            <p data-i18n-html="info.mailing.desc_html">Send HTML messages with media to subscribers.</p>
+
+            <div class="info-callout" data-i18n="info.mailing.note">
+
+              The bot must be available (valid token).
+
+            </div>
+
+          </section>
+
+
+
+          <section class="info-section" id="monitor">
+
+            <h2 data-i18n="info.monitor.title">Monitoring</h2>
+
+            <p data-i18n-html="info.monitor.desc_html">Monitoring shows load, processes and streaming logs.</p>
+
+          </section>
+
+
+
+          <section class="info-section" id="deploy">
+
+            <h2 data-i18n="info.deploy.title">Deploy</h2>
+
+            <p data-i18n-html="info.deploy.intro_html">Deploy prepares the bot to run outside your PC:</p>
+
+            <ul>
+
+              <li data-i18n-html="info.deploy.item1_html"><strong>Docker archive</strong> — download a package.</li>
+
+              <li data-i18n-html="info.deploy.item2_html"><strong>VPS via SSH</strong> — upload and start the service.</li>
+
+            </ul>
+
+            <p data-i18n="info.deploy.outro">Before deploy, ensure the scenario is saved and the token is current.</p>
+
+          </section>
+
+
+
+          <section class="info-section" id="tips">
+
+            <h2 data-i18n="info.tips.title">Useful tips</h2>
+
+            <ul>
+
+              <li data-i18n-html="info.tips.item1_html">Help → Application data folder opens the projects directory.</li>
+
+              <li data-i18n-html="info.tips.item2_html">Theme: View → Light / Dark or Ctrl+Shift+L.</li>
+
+              <li data-i18n-html="info.tips.item3_html">Multiple windows: View → New window.</li>
+
+              <li data-i18n="info.tips.item4">If a page is blank — restart the app and check Settings.</li>
+
+              <li data-i18n="info.tips.item5">After updating BotBuilder, restart bots for the new runtime.</li>
+
+            </ul>
+
+            <p class="info-footer-note" data-i18n-html="info.tips.footer_html">
+
+              Open this help anytime: Help → Info or F1.
+
+            </p>
+
+          </section>
+
+        </main>
+
+      </div>
+
+    </div>
+
+    <script src="info.js"></script>
+
+  </body>
+
+</html>
+
+

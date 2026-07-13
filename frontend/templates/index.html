@@ -1,0 +1,134 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="templates.title">Template library</title>
+    
+        <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+    <link rel="stylesheet" href="/shared/css/page-shell.css" />
+    <link rel="stylesheet" href="template-library.css?v=5" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <header class="dashboard-header">
+        <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
+        <h1 class="page-title" data-i18n="templates.title">Template library</h1>
+      </header>
+
+      <main class="dashboard-content tpl-page">
+        <div class="tpl-hero">
+          <p class="tpl-hero-sub" data-i18n="templates.hero">
+            Save scenarios as packages, import and export .bbpack.json files, install templates on bots.
+          </p>
+          <div class="tpl-hero-actions">
+            <input type="file" id="tpl-import-file" accept=".json,.bbpack.json,application/json" hidden />
+            <button type="button" id="tpl-import-btn" class="tpl-btn-secondary" data-i18n="templates.import">Import file</button>
+            <button type="button" id="tpl-refresh-btn" class="tpl-btn-secondary" data-i18n="templates.refresh">Refresh</button>
+          </div>
+        </div>
+
+        <div id="tpl-status" class="tpl-status" hidden></div>
+
+        <div class="tpl-controls">
+          <div class="tpl-tabs" role="tablist" aria-label="Разделы шаблонов">
+            <button
+              type="button"
+              class="tpl-tab tpl-tab-active"
+              data-tab="local"
+              role="tab"
+              aria-selected="true"
+              data-i18n="templates.local"
+            >
+              My templates
+            </button>
+            <button type="button" class="tpl-tab" data-tab="marketplace" role="tab" aria-selected="false" data-i18n="templates.marketplace">
+              Marketplace
+            </button>
+          </div>
+          <div class="tpl-search-wrap">
+            <input
+              type="search"
+              id="tpl-search"
+              class="tpl-search"
+              data-i18n-placeholder="templates.search_placeholder"
+              placeholder="Search by name, description, tags…"
+            />
+          </div>
+        </div>
+
+        <div class="tpl-tag-filters" id="tpl-tag-filters" aria-label="Фильтр по тегам">
+          <button type="button" class="tpl-tag-filter tpl-tag-filter-active" data-tag="Все" data-i18n="templates.tag_all">All</button>
+        </div>
+
+        <div id="tpl-grid" class="tpl-grid"></div>
+        <div id="tpl-empty" class="tpl-empty" hidden>
+          <div class="tpl-empty-icon">📋</div>
+          <h3 id="tpl-empty-title" data-i18n="templates.empty_title">No templates found</h3>
+          <p id="tpl-empty-text" data-i18n="templates.empty_text">
+            Click «Import file» or save a scenario via «Save as template» in the editor.
+          </p>
+          <a id="tpl-empty-action" class="tpl-btn-primary" href="/bots/index.html" data-i18n="templates.empty_action">Go to bots</a>
+        </div>
+      </main>
+    </div>
+
+    <div id="tpl-preview-modal" class="tpl-modal" hidden>
+      <div class="tpl-modal-backdrop" data-close-tpl-modal></div>
+      <div class="tpl-modal-dialog" role="dialog" aria-labelledby="tpl-preview-title">
+        <button type="button" class="tpl-modal-close" id="tpl-preview-close" data-i18n-aria="common.close" aria-label="Close">×</button>
+        <div class="tpl-modal-layout">
+          <section class="tpl-modal-info">
+            <h2 id="tpl-preview-title" data-i18n="templates.template">Template</h2>
+            <div id="tpl-preview-meta" class="tpl-preview-meta"></div>
+            <p id="tpl-preview-desc" class="tpl-preview-desc"></p>
+            <div id="tpl-preview-warn" class="tpl-preview-warn" hidden></div>
+            <h3 data-i18n="templates.steps">Setup steps</h3>
+            <div id="tpl-preview-steps" class="tpl-preview-steps"></div>
+            <label for="tpl-bot-select" class="tpl-label" data-i18n="templates.bot_for_install">Bot to install on</label>
+            <select id="tpl-bot-select" class="tpl-select">
+              <option value="" data-i18n="templates.select_bot">— select a bot —</option>
+            </select>
+            <div class="tpl-modal-actions">
+              <button type="button" id="tpl-install-btn" class="tpl-btn-primary" data-i18n="templates.install">Install on bot</button>
+              <button type="button" id="tpl-export-btn" class="tpl-btn-secondary" hidden data-i18n="templates.export">Export file</button>
+              <button type="button" id="tpl-delete-btn" class="tpl-btn-secondary tpl-btn-danger" hidden data-i18n="templates.delete">Delete</button>
+            </div>
+          </section>
+          <section class="tpl-modal-preview">
+            <div class="tpl-zoom-bar">
+              <button type="button" id="tpl-zoom-out" class="tpl-zoom-btn" data-i18n-title="templates.zoom_out" title="Zoom out">−</button>
+              <span id="tpl-zoom-label" class="tpl-zoom-label">100%</span>
+              <button type="button" id="tpl-zoom-reset" class="tpl-zoom-btn" data-i18n-title="templates.zoom_fit_title" title="Fit to window" data-i18n="templates.zoom_fit">Fit</button>
+              <button type="button" id="tpl-zoom-in" class="tpl-zoom-btn" data-i18n-title="templates.zoom_in" title="Zoom in">+</button>
+            </div>
+            <div id="tpl-preview-graph" class="tpl-preview-viewport"></div>
+            <p class="tpl-preview-caption" data-i18n="templates.preview_caption">Wheel — zoom · drag — pan the diagram</p>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script src="/shared/js/api-config.js"></script>
+    <script src="/editor/scenario/CanvasView.js"></script>
+    <script src="TemplateLibraryView.js?v=7"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.TemplateLibraryView) window.TemplateLibraryView.init();
+      });
+    </script>
+  </body>
+</html>

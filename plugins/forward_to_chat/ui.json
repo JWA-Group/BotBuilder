@@ -1,0 +1,63 @@
+{
+  "type": "forward_to_chat",
+  "name": "Переслать в чат",
+  "icon": "📨",
+  "color": "#ea580c",
+  "description": "Спрашивает сообщение у пользователя и пересылает его в указанный чат (группа/канал/личный), где есть бот",
+  "palette": true,
+  "connectable": true,
+  "outputs": 1,
+  "executable": true,
+  "custom": true,
+  "defaults": {
+    "targetChatId": "",
+    "inputPrompt": "Напишите сообщение — я перешлю его оператору.",
+    "headerTemplate": "📨 Сообщение от {name} (@{username}, id {user_id})",
+    "successMessage": "Сообщение отправлено. Спасибо!",
+    "errorMessage": "Не удалось переслать сообщение. Проверьте, что бот добавлен в целевой чат и chat_id указан верно.",
+    "emptyMessage": "Сообщение пустое. Напишите текст ещё раз."
+  },
+  "fields": [
+    {
+      "type": "info",
+      "label": "Как настроить",
+      "text": "1) Добавьте бота в группу/канал (для канала — админом). 2) Узнайте chat_id (например через @userinfobot или логи бота). 3) Вставьте chat_id ниже. Блок спросит текст у пользователя и перешлёт его в этот чат."
+    },
+    {
+      "key": "targetChatId",
+      "type": "text",
+      "label": "Chat ID целевого чата",
+      "hint": "Число, например -1001234567890 (группа) или ваш личный id",
+      "placeholder": "-1001234567890"
+    },
+    {
+      "key": "inputPrompt",
+      "type": "textarea",
+      "label": "Вопрос пользователю",
+      "placeholder": "Напишите сообщение…",
+      "rows": 2
+    },
+    {
+      "key": "headerTemplate",
+      "type": "textarea",
+      "label": "Шапка в целевом чате",
+      "hint": "Плейсхолдеры: {name}, {username}, {user_id}",
+      "rows": 2
+    },
+    {
+      "key": "successMessage",
+      "type": "text",
+      "label": "Ответ пользователю при успехе"
+    },
+    {
+      "key": "errorMessage",
+      "type": "text",
+      "label": "Ответ при ошибке пересылки"
+    },
+    {
+      "key": "emptyMessage",
+      "type": "text",
+      "label": "Если сообщение пустое"
+    }
+  ]
+}

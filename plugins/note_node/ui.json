@@ -1,0 +1,27 @@
+{
+  "type": "note",
+  "name": "Заметка",
+  "icon": "📝",
+  "color": "#64748b",
+  "description": "Заметка на холсте (не выполняется ботом)",
+  "palette": true,
+  "connectable": false,
+  "outputs": 0,
+  "defaults": {
+    "text": ""
+  },
+  "fields": [
+    {
+      "type": "info",
+      "label": "Заметка",
+      "text": "Блок для заметок. К нему нельзя построить связь."
+    },
+    {
+      "key": "text",
+      "type": "textarea",
+      "label": "Текст заметки",
+      "placeholder": "Текст заметки",
+      "rows": 6
+    }
+  ]
+}

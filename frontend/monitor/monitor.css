@@ -1,0 +1,315 @@
+﻿/* System Monitor — light theme (matches deployment / dashboard) */
+
+.mon-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.mon-alert {
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+.mon-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.mon-metric-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-main);
+  border-radius: 14px;
+  padding: 1.1rem 1.2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  color: var(--text-main);
+}
+
+.mon-metric-card-compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem 1rem;
+  align-content: center;
+}
+
+.mon-metric-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.mon-metric-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.mon-metric-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-main);
+}
+
+.mon-metric-big {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #155ef9;
+}
+
+.mon-metric-mono {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.mon-metric-hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.mon-progress {
+  height: 8px;
+  background: var(--bg-hover);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mon-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.mon-progress-cpu {
+  background: linear-gradient(90deg, #22c55e, #eab308, #ef4444);
+}
+
+.mon-progress-mem {
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+}
+
+.mon-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.mon-section-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text-main);
+}
+
+.mon-processes,
+.mon-logs {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-main);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.mon-logs {
+  flex: 1;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mon-table-wrap {
+  overflow-x: auto;
+}
+
+.mon-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: var(--text-main);
+}
+
+.mon-table th {
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.mon-table td {
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.mon-table tr:last-child td {
+  border-bottom: none;
+}
+
+.mon-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 1.25rem !important;
+}
+
+.mon-btn-secondary {
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-main);
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.mon-btn-secondary:hover {
+  background: var(--bg-muted);
+  border-color: #d1d5db;
+}
+
+.mon-btn-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.mon-btn-danger:hover {
+  background: #fee2e2;
+}
+
+.mon-btn-warn {
+  border-color: #fde68a;
+  color: #b45309;
+  background: var(--bg-panel)beb;
+}
+
+.mon-btn-warn:hover {
+  background: #fef3c7;
+}
+
+.mon-action-group {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.mon-log-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.mon-input,
+.mon-select {
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-main);
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-size: 0.8rem;
+}
+
+.mon-input {
+  min-width: 160px;
+}
+
+.mon-input:focus,
+.mon-select:focus {
+  outline: none;
+  border-color: #155ef9;
+  box-shadow: 0 0 0 2px rgba(21, 94, 249, 0.15);
+}
+
+.mon-terminal {
+  flex: 1;
+  min-height: 280px;
+  max-height: 420px;
+  overflow-y: auto;
+  background: var(--bg-muted);
+  border: 1px solid var(--border-main);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  contain: strict;
+}
+
+.mon-log-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  padding: 0.12rem 0;
+}
+
+.mon-log-ts {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.mon-log-badge {
+  flex-shrink: 0;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.mon-badge-api {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.mon-badge-llm {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.mon-badge-bot {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.mon-badge-error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.mon-log-msg {
+  color: var(--text-main);
+  word-break: break-word;
+  flex: 1;
+  min-width: 0;
+}
+
+.mon-log-line-error .mon-log-msg {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .mon-log-filters {
+    width: 100%;
+  }
+  .mon-input {
+    flex: 1;
+    min-width: 0;
+  }
+}

@@ -1,0 +1,202 @@
+/* BotBuilder settings window — light/dark via theme.css tokens */
+html,
+body.settings-body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg-main);
+  color: var(--text-main);
+}
+
+.settings-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
+  box-sizing: border-box;
+}
+
+.settings-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 28px 16px;
+  box-sizing: border-box;
+}
+
+.settings-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.settings-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--accent-ui-soft);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-panel);
+}
+
+.settings-title {
+  margin: 0 0 6px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent-ui);
+  line-height: 1.25;
+}
+
+.settings-lead {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  max-width: 520px;
+}
+
+.settings-section {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-panel);
+}
+
+.settings-section-title {
+  margin: 0 0 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.settings-field {
+  margin-bottom: 16px;
+}
+
+.settings-field:last-child {
+  margin-bottom: 0;
+}
+
+.settings-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.settings-input {
+  width: 100%;
+  max-width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-main);
+  background: var(--bg-input, var(--bg-elevated));
+  color: var(--text-main);
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.settings-input:focus {
+  outline: none;
+  border-color: var(--accent-ui);
+  box-shadow: 0 0 0 3px var(--accent-ui-soft);
+}
+
+.settings-hint {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.settings-theme-row {
+  display: flex;
+  gap: 10px;
+}
+
+.settings-theme-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--btn-secondary-border, var(--border-main));
+  background: var(--btn-secondary-bg, var(--bg-elevated));
+  color: var(--btn-secondary-text, var(--text-main));
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.settings-theme-btn:hover {
+  background: var(--btn-secondary-bg-hover, var(--bg-hover));
+  border-color: var(--accent-ui);
+}
+
+.settings-theme-btn.is-active {
+  border-color: var(--accent-ui);
+  background: var(--accent-ui-soft);
+  color: var(--accent-ui-text, var(--accent-ui));
+}
+
+.settings-footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px 18px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-panel);
+  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.06);
+}
+
+html.theme-dark .settings-footer {
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.settings-btn {
+  min-width: 112px;
+  border-radius: 10px;
+  padding: 11px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, filter 0.15s;
+}
+
+.settings-btn-primary {
+  border: none;
+  background: var(--btn-primary-bg, var(--accent-ui));
+  color: var(--btn-primary-text, #fff);
+}
+
+.settings-btn-primary:hover {
+  background: var(--btn-primary-bg-hover, var(--accent-ui));
+  filter: brightness(1.02);
+}
+
+.settings-btn-secondary {
+  border: 1px solid var(--btn-secondary-border, var(--border-main));
+  background: var(--btn-secondary-bg, var(--bg-elevated));
+  color: var(--btn-secondary-text, var(--text-main));
+}
+
+.settings-btn-secondary:hover {
+  background: var(--btn-secondary-bg-hover, var(--bg-hover));
+  border-color: var(--accent-ui);
+}

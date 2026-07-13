@@ -1,0 +1,133 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title data-i18n="editor.title">Scenario editor</title>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/plugin-constants.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/plugin-locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+    <script src="/shared/js/plugin-i18n.js"></script>
+
+    <link rel="stylesheet" href="/shared/css/theme.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="editor">
+      <a href="/bots/index.html" id="scenario-back-link" class="scenario-editor-back-link" data-i18n="editor.back">← Back to bots</a>
+      <div id="toolbar">
+        <div class="toolbar-shell" aria-hidden="true"></div>
+        <div id="toolbar-scroll">
+          <div class="toolbar-tools" id="toolbar-tools">
+            <button type="button" id="ai-scenario-btn" class="tool-btn tool-circle">
+              <span class="tool-icon-circle">✨</span>
+              <span class="tool-label" data-i18n="editor.ai">AI</span>
+            </button>
+            <button type="button" id="custom-plugins-toggle" class="tool-btn tool-circle tool-toggle" aria-pressed="false">
+              <span class="tool-icon-circle">🧩</span>
+              <span class="tool-label" data-i18n="editor.plugins">Plugins</span>
+            </button>
+            <button type="button" id="history-mode-btn" class="tool-btn tool-circle tool-toggle" aria-pressed="false">
+              <span class="tool-icon-circle">⏳</span>
+              <span class="tool-label" data-i18n="editor.history">History</span>
+            </button>
+            <!-- Block palette buttons injected by CanvasView from GET /api/plugins -->
+          </div>
+        </div>
+        <div class="toolbar-actions">
+          <button type="button" id="save-template-btn" class="toolbar-save toolbar-template" data-i18n-title="editor.save_template_title" title="Save as template">📋</button>
+          <button type="button" id="save-scenario-btn" class="toolbar-save" data-i18n-title="editor.save_title" title="Save">💾</button>
+        </div>
+      </div>
+
+      <div id="canvas-wrapper">
+        <div id="grid-overlay"></div>
+        <svg id="connections" class="connections"></svg>
+        <div id="canvas"></div>
+        <button type="button" id="grid-toggle" class="grid-toggle-btn" data-i18n-title="editor.grid_title" title="Grid"><span class="grid-toggle-icon">⊞</span></button>
+        <button type="button" id="theme-toggle" class="theme-toggle-btn" data-i18n-title="editor.theme_title" title="Theme" aria-label="Toggle theme"><span class="theme-toggle-icon">☀</span></button>
+      </div>
+
+      <div id="sidebar">
+        <h3 data-i18n="editor.editor_title">Editor</h3>
+        <div id="sidebar-content" data-i18n="editor.select_block">Select a block</div>
+      </div>
+    </div>
+
+    <div id="ai-scenario-modal" class="help-modal" style="display:none;">
+      <div class="help-modal-backdrop" id="ai-scenario-modal-backdrop"></div>
+      <div class="help-modal-content ai-scenario-modal-content">
+        <div class="help-modal-header">
+          <h2 id="ai-scenario-modal-title" data-i18n="editor.ai_modal_title">AI scenario</h2>
+          <button type="button" class="help-modal-close" id="ai-scenario-modal-close" data-i18n-aria="common.close" aria-label="Close">✕</button>
+        </div>
+        <div class="help-modal-body">
+          <p id="ai-scenario-modal-intro" class="ai-scenario-intro" data-i18n="editor.ai_intro">
+            Describe the bot in plain words.
+          </p>
+          <label for="ai-scenario-input" class="ai-scenario-label" data-i18n="editor.ai_your_request">Your request</label>
+          <textarea id="ai-scenario-input" class="ai-scenario-textarea" rows="5" data-i18n-placeholder="editor.ai_placeholder" placeholder="For example: a booking bot..."></textarea>
+          <div id="ai-scenario-brief" class="ai-scenario-brief" style="display:none;"></div>
+          <div id="ai-scenario-error" class="help-error" style="display:none;"></div>
+          <div class="ai-scenario-actions">
+            <button type="button" class="ai-scenario-primary" id="ai-scenario-submit" data-i18n="editor.generate">Generate</button>
+            <button type="button" class="ai-scenario-secondary" id="ai-scenario-later" data-i18n="editor.not_now">Not now</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="help-modal" class="help-modal" style="display:none;">
+      <div class="help-modal-backdrop" onclick="closeHelpModal()"></div>
+      <div class="help-modal-content">
+        <div class="help-modal-header">
+          <h2 id="help-modal-title" data-i18n="editor.help_title">📖 Help: data structure</h2>
+          <button type="button" class="help-modal-close" onclick="closeHelpModal()">✕</button>
+        </div>
+        <div class="help-modal-body" id="help-modal-body" data-i18n="editor.loading">
+          Loading...
+        </div>
+      </div>
+    </div>
+
+    <div id="save-template-modal" class="help-modal" style="display:none;">
+      <div class="help-modal-backdrop" id="save-template-modal-backdrop"></div>
+      <div class="help-modal-content">
+        <div class="help-modal-header">
+          <h2 data-i18n="editor.save_template_title">Save as template</h2>
+          <button type="button" class="help-modal-close" id="save-template-modal-close" data-i18n-aria="common.close" aria-label="Close">✕</button>
+        </div>
+        <div class="help-modal-body">
+          <p class="help-hint" data-i18n="editor.save_template_hint">The scenario will be packed into your local template library together with a graph preview.</p>
+          <label for="save-template-name" data-i18n="editor.name">Name</label>
+          <input type="text" id="save-template-name" class="ai-scenario-textarea" style="min-height:auto;height:42px" data-i18n-placeholder="editor.name_placeholder" placeholder="FAQ support bot" required />
+          <label for="save-template-desc" style="margin-top:10px;display:block" data-i18n="editor.description">Description</label>
+          <textarea id="save-template-desc" class="ai-scenario-textarea" rows="3" data-i18n-placeholder="editor.desc_placeholder" placeholder="Briefly describe the template's purpose"></textarea>
+          <label for="save-template-tags" style="margin-top:10px;display:block" data-i18n="editor.tags">Tags (comma-separated)</label>
+          <input type="text" id="save-template-tags" class="ai-scenario-textarea" style="min-height:auto;height:42px" data-i18n-placeholder="editor.tags_placeholder" placeholder="Shop, FAQ, Support" />
+          <div id="save-template-error" class="help-error" style="display:none;"></div>
+          <div class="ai-scenario-actions">
+            <button type="button" class="ai-scenario-primary" id="save-template-submit" data-i18n="editor.save_to_library">Save to library</button>
+            <button type="button" class="ai-scenario-secondary" id="save-template-cancel" data-i18n="common.cancel">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/shared/js/api-config.js"></script>
+    <script src="CanvasView.js"></script>
+    <script src="TimelineBar.js"></script>
+    <script src="main.js"></script>
+  </body>
+</html>

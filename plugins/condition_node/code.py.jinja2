@@ -1,0 +1,26 @@
+{# Handler for block type: condition #}
+async def _type_handler_condition(bot, chat_id, user_id, block_id, ctx, data, disable):
+    field = (data.get("fieldName") or "").strip()
+    op = data.get("operator", "eq")
+    compare_val = data.get("compareValue", "")
+    ud = get_all_user_fields(user_id)
+    actual = ud.get(field)
+    ok = False
+    if op == "exists":
+        ok = actual is not None and actual != ""
+    elif op == "eq":
+        ok = str(actual) == str(compare_val)
+    elif op == "ne":
+        ok = str(actual) != str(compare_val)
+    elif op == "role":
+        ok = str(actual) == "admin" or str(actual) == str(compare_val)
+    else:
+        try:
+            a, c = float(actual or 0), float(compare_val or 0)
+            ok = (op == "gt" and a > c) or (op == "lt" and a < c)
+        except (ValueError, TypeError):
+            ok = False
+    out_idx = 0 if ok else 1
+    next_id = get_next_block(block_id, out_idx)
+    if next_id:
+        await execute_block(bot, chat_id, user_id, next_id, ctx)

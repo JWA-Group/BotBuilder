@@ -1,0 +1,135 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <title data-i18n="mailing.title">Broadcasts</title>
+    
+        <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+
+    <link rel="stylesheet" href="/shared/css/page-shell.css" />
+    <link rel="stylesheet" href="mailing.css?v=4" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <header class="dashboard-header">
+        <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
+        <h1 class="page-title" data-i18n="mailing.title">Broadcasts</h1>
+      </header>
+
+      <main class="dashboard-content bc-page">
+        <div class="bc-toolbar">
+          <div class="bc-toolbar-left">
+            <label for="bc-bot-select" data-i18n="common.bot">Bot</label>
+            <select id="bc-bot-select">
+              <option value="" data-i18n="common.select_bot">— select a bot —</option>
+            </select>
+            <label for="bc-role-select" data-i18n="mailing.audience">Audience</label>
+            <select id="bc-role-select" disabled>
+              <option value="all" data-i18n="mailing.all_subscribers">All subscribers</option>
+            </select>
+            <span id="bc-filter-meta" class="bc-filter-meta"></span>
+          </div>
+          <div class="bc-toolbar-right">
+            <button type="button" id="bc-refresh-btn" class="bc-btn-secondary" data-i18n="mailing.refresh">Refresh</button>
+            <button type="button" id="bc-send-btn" class="bc-btn-success" disabled>
+              <span id="bc-send-spinner" class="bc-spinner" hidden></span>
+              <span data-i18n="mailing.send">Send broadcast</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="bc-status" class="bc-status" hidden></div>
+
+        <div class="bc-layout">
+          <section class="bc-composer">
+            <div class="bc-editor-toolbar" id="bc-editor-toolbar">
+              <button type="button" class="bc-tool-btn" data-cmd="bold" data-i18n-title="mailing.tool_bold" title="Bold"><b>B</b></button>
+              <button type="button" class="bc-tool-btn" data-cmd="italic" data-i18n-title="mailing.tool_italic" title="Italic"><i>I</i></button>
+              <button type="button" class="bc-tool-btn" data-cmd="underline" data-i18n-title="mailing.tool_underline" title="Underline"><u>U</u></button>
+              <button type="button" class="bc-tool-btn" data-cmd="strike" data-i18n-title="mailing.tool_strike" title="Strikethrough"><s>S</s></button>
+              <button type="button" class="bc-tool-btn" data-cmd="code" data-i18n-title="mailing.tool_code" title="Code">Code</button>
+              <button type="button" class="bc-tool-btn" data-cmd="link" data-i18n-title="mailing.tool_link" title="Link">🔗</button>
+              <span class="bc-toolbar-sep"></span>
+              <button type="button" class="bc-tool-btn" id="bc-import-html-btn" data-i18n-title="mailing.tool_html" title="HTML">HTML</button>
+              <button type="button" class="bc-tool-btn" id="bc-insert-image-btn" data-i18n-title="mailing.tool_image" title="Add image">🖼</button>
+              <input type="file" id="bc-image-input" accept="image/*" hidden />
+            </div>
+            <div id="bc-html-panel" class="bc-html-panel" hidden>
+              <div class="bc-html-panel-head">
+                <strong data-i18n="mailing.html_title">HTML for Telegram</strong>
+                <span class="bc-html-panel-hint" data-i18n="mailing.html_hint">Synced with the editor. «Apply» updates the text from HTML.</span>
+                <button type="button" class="bc-html-panel-close" id="bc-html-panel-close" data-i18n-title="mailing.html_hide" title="Hide panel">×</button>
+              </div>
+              <textarea id="bc-html-modal-input" class="bc-html-modal-input" spellcheck="false" data-i18n-placeholder="mailing.html_paste_field" placeholder="&lt;b&gt;Text&lt;/b&gt; or &lt;div&gt;...&lt;/div&gt;"></textarea>
+              <div class="bc-html-panel-actions">
+                <button type="button" class="bc-btn-success" id="bc-html-modal-apply" data-i18n="mailing.html_apply">Apply to editor</button>
+              </div>
+            </div>
+            <div id="bc-editor" class="bc-editor" contenteditable="true" spellcheck="true"></div>
+            <div class="bc-attachments">
+              <div class="bc-attachments-head">
+                <h3 data-i18n="mailing.media_files">Media and files</h3>
+                <label class="bc-position-label">
+                  <span data-i18n="mailing.image_position">Images relative to text</span>
+                  <select id="bc-image-position">
+                    <option value="before" data-i18n="mailing.image_before">Above text (photo caption)</option>
+                    <option value="after" data-i18n="mailing.image_after">Below text (separate messages)</option>
+                  </select>
+                </label>
+              </div>
+              <div id="bc-dropzone" class="bc-dropzone">
+                <span data-i18n="mailing.dropzone">Drag images or documents here, or click to choose</span>
+                <input type="file" id="bc-file-input" multiple accept="image/*,.pdf,.doc,.docx,.zip" hidden />
+              </div>
+              <div id="bc-attachment-list" class="bc-attachment-list"></div>
+            </div>
+          </section>
+
+          <aside class="bc-preview-pane">
+            <div class="bc-phone">
+              <div class="bc-phone-statusbar">
+                <span>17:08</span>
+                <span>LTE ▮▮▮</span>
+              </div>
+              <div class="bc-phone-topbar">
+                <span class="bc-phone-back">‹</span>
+                <div class="bc-phone-chat-info">
+                  <strong id="bc-preview-bot-name" data-i18n="mailing.your_bot">Your bot</strong>
+                  <span>bot</span>
+                </div>
+              </div>
+              <div class="bc-phone-screen">
+                <div id="bc-preview-messages" class="bc-tg-messages"></div>
+              </div>
+            </div>
+            <p class="bc-preview-caption" data-i18n="mailing.preview_caption">Preview of the bot's outgoing messages</p>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <script src="/shared/js/api-config.js"></script>
+    <script src="BroadcastView.js?v=9"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.BroadcastView) window.BroadcastView.init();
+      });
+    </script>
+  </body>
+</html>

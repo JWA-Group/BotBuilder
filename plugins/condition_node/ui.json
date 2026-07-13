@@ -1,0 +1,49 @@
+{
+  "type": "condition",
+  "name": "Условие",
+  "icon": "❓",
+  "color": "#0891b2",
+  "description": "Ветвление по значению поля пользователя",
+  "palette": true,
+  "connectable": true,
+  "outputs": 2,
+  "defaults": {
+    "fieldName": "role",
+    "operator": "eq",
+    "compareValue": "admin",
+    "tagId": ""
+  },
+  "fields": [
+    {
+      "key": "tagId",
+      "type": "tag_select",
+      "label": "Тэг"
+    },
+    {
+      "key": "fieldName",
+      "type": "field_autocomplete",
+      "label": "Поле",
+      "placeholder": "role"
+    },
+    {
+      "key": "operator",
+      "type": "select",
+      "label": "Оператор",
+      "options": [
+        { "value": "eq", "label": "Равно" },
+        { "value": "ne", "label": "Не равно" },
+        { "value": "exists", "label": "Существует" },
+        { "value": "gt", "label": "Больше" },
+        { "value": "lt", "label": "Меньше" },
+        { "value": "role", "label": "Роль (admin)" }
+      ]
+    },
+    {
+      "key": "compareValue",
+      "type": "text",
+      "label": "Значение для сравнения",
+      "placeholder": "admin",
+      "hideWhen": { "operator": "exists" }
+    }
+  ]
+}

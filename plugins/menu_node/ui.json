@@ -1,0 +1,50 @@
+{
+  "type": "menu",
+  "name": "Меню",
+  "icon": "📋",
+  "color": "#7c3aed",
+  "description": "Reply-клавиатура с кнопками",
+  "palette": true,
+  "connectable": true,
+  "outputs": "dynamic",
+  "defaults": {
+    "name": "Меню",
+    "text": "Выберите",
+    "buttons": [{ "text": "Кнопка 1", "url": "" }],
+    "buttonRowBreaks": [0],
+    "disableWebPagePreview": false,
+    "tagId": ""
+  },
+  "fields": [
+    {
+      "key": "tagId",
+      "type": "tag_select",
+      "label": "Тэг",
+      "hint": "Быстрая ссылка на переход в блок с выбранным тэгом"
+    },
+    {
+      "key": "name",
+      "type": "text",
+      "label": "Название меню",
+      "placeholder": "Название"
+    },
+    {
+      "key": "text",
+      "type": "textarea",
+      "label": "Сообщение",
+      "placeholder": "Текст меню",
+      "rows": 3
+    },
+    {
+      "key": "disableWebPagePreview",
+      "type": "checkbox",
+      "label": "Скрыть предпросмотр ссылок"
+    },
+    {
+      "key": "buttons",
+      "type": "menu_buttons",
+      "label": "Кнопки",
+      "hint": "Перетаскивайте на карточке: на кнопку — замена мест; в зону между рядами — перенос в ряд"
+    }
+  ]
+}

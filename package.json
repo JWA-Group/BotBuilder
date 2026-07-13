@@ -1,0 +1,155 @@
+{
+  "name": "botbuilder-desktop",
+  "version": "1.0.0",
+  "description": "BotBuilder desktop shell (Electron + FastAPI sidecar)",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build:clean": "node scripts/build-prod.js clean",
+    "build:python-embed": "node scripts/ensure-python-embed.js",
+    "build:backend": "node scripts/build-prod.js backend",
+    "build:licenses": "node scripts/build-licenses.js",
+    "build:stamp": "node scripts/write-build-stamp.js",
+    "build:electron": "node scripts/write-build-stamp.js && node scripts/build-electron.js",
+    "build:prod": "npm run build:clean && npm run build:backend && npm run build:licenses && npm run build:stamp && node scripts/build-electron.js",
+    "pack": "node scripts/build-electron.js",
+    "dist": "node scripts/build-electron.js"
+  },
+  "author": "BotBuilder",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "license-checker": "^25.0.1",
+    "rcedit": "^4.0.1"
+  },
+  "build": {
+    "appId": "com.botbuilder.desktop",
+    "productName": "BotBuilder",
+    "copyright": "Copyright © BotBuilder",
+    "directories": {
+      "output": "dist-electron",
+      "buildResources": "packaging"
+    },
+    "afterPack": "./scripts/after-pack.js",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "preload-settings.js",
+      "preload-language-setup.js",
+      "electron/**/*",
+      "!**/node_modules/**",
+      "!**/__pycache__/**",
+      "!**/venv/**",
+      "!**/python_embed/**",
+      "!**/projects/**",
+      "!**/bots/**",
+      "!**/plugins/**",
+      "!**/user_plugins/**",
+      "!**/backend/**",
+      "!**/core/**",
+      "!**/templates/**",
+      "!**/frontend/**",
+      "!**/.history/**",
+      "!**/*.db",
+      "!**/*.sqlite",
+      "!**/*.sqlite3",
+      "!**/logs/**",
+      "!**/*.log",
+      "!dist/**",
+      "!dist-electron/**",
+      "!build/**"
+    ],
+    "extraResources": [
+      {
+        "from": "backend/dist/botbuilder-backend",
+        "to": "botbuilder-backend",
+        "filter": [
+          "**/*",
+          "!**/*.pdb",
+          "!**/*.db",
+          "!**/*.sqlite",
+          "!**/*.log",
+          "!**/.history/**"
+        ]
+      },
+      {
+        "from": "plugins",
+        "to": "app/plugins",
+        "filter": [
+          "**/*",
+          "!**/*.db",
+          "!**/*.sqlite",
+          "!**/*.log",
+          "!**/.history/**",
+          "!**/__pycache__/**",
+          "!**/node_modules/**"
+        ]
+      },
+      {
+        "from": "templates/catalog",
+        "to": "app/templates/catalog",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "frontend",
+        "to": "app/frontend",
+        "filter": [
+          "**/*",
+          "!**/*.map",
+          "!**/*.db",
+          "!**/*.log",
+          "!**/.history/**"
+        ]
+      },
+      {
+        "from": "python_embed",
+        "to": "app/python_embed",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "build/ThirdPartyNotices.txt",
+        "to": "licenses/ThirdPartyNotices.txt"
+      },
+      {
+        "from": "build/LICENSE.txt",
+        "to": "licenses/LICENSE.txt"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "BBico.ico",
+      "artifactName": "BotBuilder-Setup-${version}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "license": "backend/build/LICENSE.txt",
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true,
+      "include": "packaging/uninstaller.nsh",
+      "installerIcon": "BBico.ico",
+      "uninstallerIcon": "BBico.ico",
+      "installerHeaderIcon": "BBico.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "shortcutName": "BotBuilder"
+    }
+  }
+}

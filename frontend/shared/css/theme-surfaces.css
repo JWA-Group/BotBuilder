@@ -1,0 +1,148 @@
+/**
+ * Theme surface overrides — feature pages map to design tokens.
+ * No pure-black borders; all edges use --border-subtle.
+ */
+
+.an-card,
+.bc-panel,
+.bc-composer,
+.plg-card,
+.tpl-card,
+.dep-card,
+.mon-panel,
+.mon-metric-card,
+.pb-zone {
+  background-color: var(--bg-panel);
+  border-color: var(--border-subtle);
+  color: var(--text-main);
+}
+
+html.theme-dark .an-card,
+html.theme-dark .an-kpi,
+html.theme-dark .an-chart-card,
+html.theme-dark .an-panel,
+html.theme-dark .bc-composer,
+html.theme-dark .bc-panel,
+html.theme-dark .plg-card,
+html.theme-dark .plg-panel,
+html.theme-dark .tpl-card,
+html.theme-dark .tpl-panel,
+html.theme-dark .dep-card,
+html.theme-dark .dep-panel,
+html.theme-dark .mon-panel,
+html.theme-dark .mon-card,
+html.theme-dark .mon-metric-card,
+html.theme-dark .pb-zone,
+html.theme-dark .pb-panel,
+html.theme-dark .pb-card {
+  background: var(--bg-panel) !important;
+  border-color: var(--border-subtle) !important;
+  color: var(--text-main) !important;
+  box-shadow: var(--shadow-panel);
+}
+
+html.theme-dark .an-toolbar,
+html.theme-dark .bc-toolbar,
+html.theme-dark .plg-toolbar,
+html.theme-dark .tpl-toolbar,
+html.theme-dark .mon-toolbar,
+html.theme-dark .pb-toolbar {
+  background: var(--bg-panel) !important;
+  border-color: var(--border-subtle) !important;
+  color: var(--text-main);
+}
+
+html.theme-dark .dep-toolbar {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+html.theme-dark .an-toolbar label,
+html.theme-dark .bc-toolbar label,
+html.theme-dark .an-muted,
+html.theme-dark .bc-filter-meta,
+html.theme-dark .an-kpi-label,
+html.theme-dark .an-meta {
+  color: var(--text-muted) !important;
+}
+
+html.theme-dark .an-toolbar select,
+html.theme-dark .an-toolbar input,
+html.theme-dark .bc-toolbar select,
+html.theme-dark .bc-toolbar input,
+html.theme-dark .bc-editor,
+html.theme-dark .bc-html-modal-input,
+html.theme-dark .plg-card input,
+html.theme-dark .plg-card select,
+html.theme-dark .plg-card textarea,
+html.theme-dark .pb-field input,
+html.theme-dark .pb-field select,
+html.theme-dark .pb-field textarea,
+html.theme-dark .tpl-card input,
+html.theme-dark .mon-panel input,
+html.theme-dark .mon-panel select,
+html.theme-dark .mon-panel textarea {
+  background: var(--bg-input) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+html.theme-dark .an-btn,
+html.theme-dark .bc-btn-secondary,
+html.theme-dark .plg-btn-secondary,
+html.theme-dark .pb-btn,
+html.theme-dark button.secondary {
+  background: var(--btn-secondary-bg) !important;
+  color: var(--btn-secondary-text) !important;
+  border-color: var(--btn-secondary-border) !important;
+}
+
+html.theme-dark .an-kpi-value,
+html.theme-dark .an-title,
+html.theme-dark .bc-title,
+html.theme-dark .plg-title,
+html.theme-dark .pb-zone-head h2,
+html.theme-dark h2,
+html.theme-dark h3 {
+  color: var(--text-main);
+}
+
+html.theme-dark .an-table th,
+html.theme-dark .mon-table th,
+html.theme-dark .help-table th {
+  background: var(--bg-muted) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+html.theme-dark .an-table td,
+html.theme-dark .mon-table td,
+html.theme-dark .help-table td {
+  border-color: var(--border-subtle) !important;
+  color: var(--text-main) !important;
+}
+
+html.theme-dark .an-table tr:hover td,
+html.theme-dark .mon-table tr:hover td {
+  background: var(--bg-hover) !important;
+}
+
+html.theme-dark .mon-log,
+html.theme-dark .mon-console,
+html.theme-dark pre,
+html.theme-dark code {
+  background: var(--bg-preview) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-subtle) !important;
+}
+
+/* Kill harsh black separators globally in dark mode */
+html.theme-dark hr,
+html.theme-dark .divider,
+html.theme-dark [class*="-sep"],
+html.theme-dark [class*="separator"] {
+  background: var(--border-subtle) !important;
+  border-color: var(--border-subtle) !important;
+  color: var(--border-subtle) !important;
+}

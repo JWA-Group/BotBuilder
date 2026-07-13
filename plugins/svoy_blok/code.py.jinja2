@@ -1,0 +1,54 @@
+# Пополнение числового поля balance
+async def _type_handler_svoy_blok(bot, chat_id, user_id, block_id, ctx, data, disable):
+    balance_field = (data.get("balanceField") or "balance").strip() or "balance"
+    prompt = (data.get("inputPrompt") or "Введите сумму для пополнения баланса:").strip()
+    ok_msg = (data.get("successMessage") or "Баланс пополнен. Текущий баланс: {balance} (+{amount})").strip()
+
+    amount_text = (ctx.get("last_message_text") or "").strip()
+
+    # Первый заход — просим число у пользователя
+    if not amount_text:
+        return (
+            "await_input",
+            {
+                "block_id": block_id,
+                "field": balance_field,
+                "field_type": "number",
+                "next_id": block_id,
+                "input_prompt": prompt,
+            },
+        )
+
+    # Парсим введённую сумму
+    try:
+        amount = float(amount_text.replace(",", "."))
+    except (ValueError, TypeError):
+        await bot.send_message(chat_id, "Введите число, например: 100 или 50.5")
+        return (
+            "await_input",
+            {
+                "block_id": block_id,
+                "field": balance_field,
+                "field_type": "number",
+                "next_id": block_id,
+                "input_prompt": prompt,
+            },
+        )
+
+    # Читаем текущий баланс (если поля нет — считаем 0)
+    current = get_user_field(user_id, balance_field)
+    try:
+        balance = float(str(current or "0").replace(",", "."))
+    except (ValueError, TypeError):
+        balance = 0.0
+
+    balance += amount
+    set_user_field(user_id, balance_field, str(balance))
+
+    text = ok_msg.replace("{balance}", str(int(balance) if balance == int(balance) else balance))
+    text = text.replace("{amount}", str(int(amount) if amount == int(amount) else amount))
+    await bot.send_message(chat_id, text, disable_web_page_preview=disable)
+
+    next_id = get_next_block(block_id, 0)
+    if next_id:
+        await execute_block(bot, chat_id, user_id, next_id, ctx)

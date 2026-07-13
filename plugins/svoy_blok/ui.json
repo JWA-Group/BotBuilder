@@ -1,0 +1,14 @@
+{
+  "type": "svoy_blok",
+  "name": "Свой блок",
+  "icon": "🧩",
+  "color": "#2563eb",
+  "description": "Пользовательский компонент: Свой блок",
+  "palette": true,
+  "connectable": true,
+  "outputs": 1,
+  "executable": true,
+  "custom": true,
+  "defaults": {},
+  "fields": []
+}

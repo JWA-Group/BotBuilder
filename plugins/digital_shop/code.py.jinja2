@@ -1,0 +1,456 @@
+{# Digital Shop — self-contained subscription store #}
+{% raw %}
+import shutil
+
+_DSHOP_PREFIX = "dshop:"
+_DSHOP_OWNED_FIELD = "dshop_owned"
+_DSHOP_INIT_FLAG = "dshop_balance_init"
+_DSHOP_BANNER_NAME = "digital_shop_shop_banner.jpg"
+
+
+def _dshop_cfg():
+    for b in SCENARIO.get("blocks", []):
+        if b.get("type") == "digital_shop":
+            return b.get("data") or {}
+    return {}
+
+
+def _dshop_products(price=None):
+    cfg = _dshop_cfg()
+    try:
+        p = int(float(price if price is not None else (cfg.get("productPrice") or 200)))
+    except (TypeError, ValueError):
+        p = 200
+    return [
+        {
+            "id": "spotify",
+            "title": "Spotify Premium",
+            "emoji": "🎧",
+            "desc": "Музыка без рекламы, офлайн и высокое качество",
+            "price": p,
+        },
+        {
+            "id": "discord",
+            "title": "Discord Nitro",
+            "emoji": "🎮",
+            "desc": "Улучшенный Discord: эмодзи, буст и качество стрима",
+            "price": p,
+        },
+        {
+            "id": "telegram",
+            "title": "Telegram Premium",
+            "emoji": "✈️",
+            "desc": "Премиум-функции Telegram: лимиты, стикеры, реакции",
+            "price": p,
+        },
+    ]
+
+
+def _dshop_fmt_money(val):
+    try:
+        f = float(str(val).replace(",", "."))
+        if f == int(f):
+            return str(int(f))
+        return str(round(f, 2)).replace(".", ",")
+    except (TypeError, ValueError):
+        return str(val)
+
+
+def _dshop_get_balance(user_id):
+    cfg = _dshop_cfg()
+    field = (cfg.get("balanceField") or "balance").strip() or "balance"
+    raw = get_user_field(user_id, field)
+    try:
+        return float(str(raw or "0").replace(",", "."))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _dshop_set_balance(user_id, value):
+    cfg = _dshop_cfg()
+    field = (cfg.get("balanceField") or "balance").strip() or "balance"
+    fv = float(value)
+    if fv == int(fv):
+        set_user_field(user_id, field, str(int(fv)))
+    else:
+        set_user_field(user_id, field, str(fv))
+
+
+def _dshop_ensure_balance(user_id):
+    cfg = _dshop_cfg()
+    field = (cfg.get("balanceField") or "balance").strip() or "balance"
+    init_flag = get_user_field(user_id, _DSHOP_INIT_FLAG)
+    current = get_user_field(user_id, field)
+    if init_flag == "1" and current is not None and str(current).strip() != "":
+        return _dshop_get_balance(user_id)
+    try:
+        start = float(cfg.get("startBalance") if cfg.get("startBalance") is not None else 1000)
+    except (TypeError, ValueError):
+        start = 1000.0
+    if current is None or str(current).strip() == "":
+        _dshop_set_balance(user_id, start)
+    set_user_field(user_id, _DSHOP_INIT_FLAG, "1")
+    return _dshop_get_balance(user_id)
+
+
+def _dshop_owned_list(user_id):
+    raw = get_user_field(user_id, _DSHOP_OWNED_FIELD) or ""
+    return [x.strip() for x in str(raw).split(",") if x.strip()]
+
+
+def _dshop_add_owned(user_id, product_id):
+    owned = _dshop_owned_list(user_id)
+    if product_id not in owned:
+        owned.append(product_id)
+        set_user_field(user_id, _DSHOP_OWNED_FIELD, ",".join(owned))
+
+
+def _dshop_product_by_id(pid):
+    for p in _dshop_products():
+        if p["id"] == pid:
+            return p
+    return None
+
+
+def _dshop_banner_path():
+    media = os.path.join(BASE_DIR, "media")
+    os.makedirs(media, exist_ok=True)
+    dest = os.path.join(media, _DSHOP_BANNER_NAME)
+    if os.path.isfile(dest) and os.path.getsize(dest) > 0:
+        return dest
+    candidates = []
+    env_root = (os.environ.get("BOTBUILDER_APP_ROOT") or "").strip()
+    if env_root:
+        candidates.append(
+            os.path.join(env_root, "plugins", "digital_shop", "assets", "shop_banner.jpg")
+        )
+    here = Path(__file__).resolve()
+    for parent in [here.parent, *list(here.parents)[:6]]:
+        candidates.append(str(parent / "plugins" / "digital_shop" / "assets" / "shop_banner.jpg"))
+    for c in candidates:
+        if c and os.path.isfile(c):
+            try:
+                shutil.copy2(c, dest)
+                return dest
+            except OSError:
+                continue
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+
+        cfg = _dshop_cfg()
+        name = (cfg.get("shopName") or "Digital Shop").strip() or "Digital Shop"
+        img = Image.new("RGB", (1280, 720), (8, 32, 36))
+        draw = ImageDraw.Draw(img)
+        for y in range(720):
+            t = y / 719
+            r = int(8 + (15 - 8) * t)
+            g = int(32 + (90 - 32) * t)
+            b = int(36 + (78 - 36) * t)
+            draw.line([(0, y), (1280, y)], fill=(r, g, b))
+        draw.rectangle([60, 60, 1220, 660], outline=(212, 175, 105), width=3)
+        try:
+            font_big = ImageFont.truetype("arial.ttf", 72)
+            font_sm = ImageFont.truetype("arial.ttf", 36)
+        except OSError:
+            font_big = ImageFont.load_default()
+            font_sm = font_big
+        draw.text((120, 260), name, fill=(245, 240, 230), font=font_big)
+        draw.text((120, 360), "Premium subscriptions", fill=(180, 200, 190), font=font_sm)
+        img.save(dest, "JPEG", quality=85)
+        return dest
+    except Exception:
+        return None
+
+
+def _dshop_main_kb():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🛍 Каталог", callback_data=_DSHOP_PREFIX + "catalog")],
+            [InlineKeyboardButton(text="👤 Профиль", callback_data=_DSHOP_PREFIX + "profile")],
+            [InlineKeyboardButton(text="ℹ️ О магазине", callback_data=_DSHOP_PREFIX + "about")],
+        ]
+    )
+
+
+def _dshop_catalog_kb(user_id):
+    owned = set(_dshop_owned_list(user_id))
+    rows = []
+    for p in _dshop_products():
+        mark = " ✅" if p["id"] in owned else ""
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"{p['emoji']} {p['title']} — {_dshop_fmt_money(p['price'])} ₽{mark}",
+                    callback_data=_DSHOP_PREFIX + "item:" + p["id"],
+                )
+            ]
+        )
+    rows.append([InlineKeyboardButton(text="👤 Профиль", callback_data=_DSHOP_PREFIX + "profile")])
+    rows.append([InlineKeyboardButton(text="🏠 В меню", callback_data=_DSHOP_PREFIX + "home")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def _dshop_item_kb(pid):
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💳 Купить", callback_data=_DSHOP_PREFIX + "buy:" + pid)],
+            [InlineKeyboardButton(text="◀️ К каталогу", callback_data=_DSHOP_PREFIX + "catalog")],
+            [InlineKeyboardButton(text="🏠 В меню", callback_data=_DSHOP_PREFIX + "home")],
+        ]
+    )
+
+
+def _dshop_back_kb():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🛍 Каталог", callback_data=_DSHOP_PREFIX + "catalog")],
+            [InlineKeyboardButton(text="🏠 В меню", callback_data=_DSHOP_PREFIX + "home")],
+        ]
+    )
+
+
+async def _dshop_send_home(bot, chat_id, user_id, with_banner=True):
+    cfg = _dshop_cfg()
+    shop = (cfg.get("shopName") or "Digital Shop").strip() or "Digital Shop"
+    welcome = (
+        cfg.get("welcomeText") or "Добро пожаловать в магазин премиум-подписок!"
+    ).strip()
+    bal = _dshop_ensure_balance(user_id)
+    price0 = _dshop_fmt_money(_dshop_products()[0]["price"])
+    text = (
+        f"🛒 <b>{shop}</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"{welcome}\n\n"
+        f"💰 Баланс: <b>{_dshop_fmt_money(bal)} ₽</b>\n"
+        f"📦 Товары от <b>{price0} ₽</b>"
+    )
+    kb = _dshop_main_kb()
+    banner = _dshop_banner_path() if with_banner else None
+    if banner and os.path.isfile(banner):
+        await bot.send_photo(
+            chat_id,
+            FSInputFile(banner),
+            caption=text,
+            reply_markup=kb,
+            parse_mode=ParseMode.HTML,
+        )
+    else:
+        await bot.send_message(
+            chat_id,
+            text,
+            reply_markup=kb,
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+        )
+
+
+async def _dshop_send_profile(bot, chat_id, user_id):
+    cfg = _dshop_cfg()
+    shop = (cfg.get("shopName") or "Digital Shop").strip() or "Digital Shop"
+    bal = _dshop_ensure_balance(user_id)
+    owned_ids = _dshop_owned_list(user_id)
+    by_id = {p["id"]: p for p in _dshop_products()}
+    name = get_user_field(user_id, "tg_first_name") or ""
+    uname = get_user_field(user_id, "tg_username") or ""
+    display = str(name).strip() or (
+        ("@" + str(uname).lstrip("@")) if uname else f"ID {user_id}"
+    )
+    if owned_ids:
+        lines = []
+        for oid in owned_ids:
+            p = by_id.get(oid)
+            if p:
+                lines.append(f"  {p['emoji']} <b>{p['title']}</b>")
+            else:
+                lines.append(f"  • {oid}")
+        owned_block = "\n".join(lines)
+    else:
+        owned_block = "  Пока пусто — загляните в каталог"
+    text = (
+        f"👤 <b>Профиль</b> · {shop}\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"Имя: <b>{display}</b>\n"
+        f"ID: <code>{user_id}</code>\n\n"
+        f"💰 Баланс: <b>{_dshop_fmt_money(bal)} ₽</b>\n"
+        f"🗂 Покупок: <b>{len(owned_ids)}</b>\n\n"
+        f"<b>Ваши подписки</b>\n{owned_block}"
+    )
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🛍 Каталог", callback_data=_DSHOP_PREFIX + "catalog")],
+            [InlineKeyboardButton(text="🏠 В меню", callback_data=_DSHOP_PREFIX + "home")],
+        ]
+    )
+    banner = _dshop_banner_path()
+    if banner and os.path.isfile(banner):
+        await bot.send_photo(
+            chat_id,
+            FSInputFile(banner),
+            caption=text,
+            reply_markup=kb,
+            parse_mode=ParseMode.HTML,
+        )
+    else:
+        await bot.send_message(
+            chat_id,
+            text,
+            reply_markup=kb,
+            parse_mode=ParseMode.HTML,
+            disable_web_page_preview=True,
+        )
+
+
+async def _dshop_send_catalog(bot, chat_id, user_id):
+    cfg = _dshop_cfg()
+    shop = (cfg.get("shopName") or "Digital Shop").strip() or "Digital Shop"
+    bal = _dshop_ensure_balance(user_id)
+    text = (
+        f"🛍 <b>Каталог</b> · {shop}\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"Премиум-подписки по фиксированной цене.\n"
+        f"💰 Ваш баланс: <b>{_dshop_fmt_money(bal)} ₽</b>\n\n"
+        f"Выберите товар:"
+    )
+    await bot.send_message(
+        chat_id,
+        text,
+        reply_markup=_dshop_catalog_kb(user_id),
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+    )
+
+
+async def _dshop_send_item(bot, chat_id, user_id, pid):
+    p = _dshop_product_by_id(pid)
+    if not p:
+        await bot.send_message(chat_id, "Товар не найден.", reply_markup=_dshop_back_kb())
+        return
+    bal = _dshop_ensure_balance(user_id)
+    owned = pid in _dshop_owned_list(user_id)
+    status = "✅ Уже куплено" if owned else "Доступно к покупке"
+    text = (
+        f"{p['emoji']} <b>{p['title']}</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"{p['desc']}\n\n"
+        f"💵 Цена: <b>{_dshop_fmt_money(p['price'])} ₽</b>\n"
+        f"💰 Баланс: <b>{_dshop_fmt_money(bal)} ₽</b>\n"
+        f"📌 {status}"
+    )
+    await bot.send_message(
+        chat_id,
+        text,
+        reply_markup=_dshop_item_kb(pid),
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+    )
+
+
+async def _dshop_send_about(bot, chat_id):
+    cfg = _dshop_cfg()
+    shop = (cfg.get("shopName") or "Digital Shop").strip() or "Digital Shop"
+    text = (
+        f"ℹ️ <b>О магазине</b>\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"<b>{shop}</b> — витрина цифровых подписок.\n\n"
+        f"• Spotify Premium\n"
+        f"• Discord Nitro\n"
+        f"• Telegram Premium\n\n"
+        f"Оплата с внутреннего баланса бота.\n"
+        f"Новым пользователям начисляется стартовый баланс."
+    )
+    await bot.send_message(
+        chat_id,
+        text,
+        reply_markup=_dshop_back_kb(),
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+    )
+
+
+async def _dshop_do_buy(bot, chat_id, user_id, pid):
+    p = _dshop_product_by_id(pid)
+    if not p:
+        await bot.send_message(chat_id, "Товар не найден.", reply_markup=_dshop_back_kb())
+        return
+    if pid in _dshop_owned_list(user_id):
+        await bot.send_message(
+            chat_id,
+            f"✅ <b>{p['title']}</b> уже есть в вашем профиле.",
+            reply_markup=_dshop_back_kb(),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+    bal = _dshop_ensure_balance(user_id)
+    price = float(p["price"])
+    if bal < price:
+        await bot.send_message(
+            chat_id,
+            (
+                f"❌ Недостаточно средств.\n\n"
+                f"Нужно: <b>{_dshop_fmt_money(price)} ₽</b>\n"
+                f"Баланс: <b>{_dshop_fmt_money(bal)} ₽</b>"
+            ),
+            reply_markup=_dshop_back_kb(),
+            parse_mode=ParseMode.HTML,
+        )
+        return
+    new_bal = bal - price
+    _dshop_set_balance(user_id, new_bal)
+    _dshop_add_owned(user_id, pid)
+    await bot.send_message(
+        chat_id,
+        (
+            f"🎉 <b>Покупка оформлена!</b>\n\n"
+            f"{p['emoji']} {p['title']}\n"
+            f"Списано: <b>{_dshop_fmt_money(price)} ₽</b>\n"
+            f"Остаток: <b>{_dshop_fmt_money(new_bal)} ₽</b>\n\n"
+            f"Подписка добавлена в профиль."
+        ),
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="👤 Профиль", callback_data=_DSHOP_PREFIX + "profile")],
+                [InlineKeyboardButton(text="🛍 Каталог", callback_data=_DSHOP_PREFIX + "catalog")],
+                [InlineKeyboardButton(text="🏠 В меню", callback_data=_DSHOP_PREFIX + "home")],
+            ]
+        ),
+        parse_mode=ParseMode.HTML,
+    )
+
+
+async def _type_handler_digital_shop(bot, chat_id, user_id, block_id, ctx, data, disable):
+    _ = (block_id, ctx, data, disable)
+    _dshop_ensure_balance(user_id)
+    await _dshop_send_home(bot, chat_id, user_id, with_banner=True)
+
+
+@dp.callback_query(F.data.startswith("dshop:"))
+async def _dshop_on_callback(callback: types.CallbackQuery, state: FSMContext):
+    await callback.answer()
+    try:
+        await state.clear()
+    except Exception:
+        pass
+    user_id = callback.from_user.id if callback.from_user else 0
+    chat_id = callback.message.chat.id if callback.message else 0
+    if not user_id or not chat_id:
+        return
+    ensure_user_registered(
+        user_id,
+        tg_username=callback.from_user.username if callback.from_user else None,
+        tg_first_name=callback.from_user.first_name if callback.from_user else None,
+    )
+    _dshop_ensure_balance(user_id)
+    raw = (callback.data or "")[len(_DSHOP_PREFIX) :]
+    if raw == "home":
+        await _dshop_send_home(bot, chat_id, user_id, with_banner=True)
+    elif raw == "profile":
+        await _dshop_send_profile(bot, chat_id, user_id)
+    elif raw == "catalog":
+        await _dshop_send_catalog(bot, chat_id, user_id)
+    elif raw == "about":
+        await _dshop_send_about(bot, chat_id)
+    elif raw.startswith("item:"):
+        await _dshop_send_item(bot, chat_id, user_id, raw[5:])
+    elif raw.startswith("buy:"):
+        await _dshop_do_buy(bot, chat_id, user_id, raw[4:])
+{% endraw %}

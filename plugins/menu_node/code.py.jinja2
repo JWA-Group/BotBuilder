@@ -1,0 +1,38 @@
+{# Handler for block type: menu — conditional ReplyKeyboard (no flicker) #}
+async def _type_handler_menu(bot, chat_id, user_id, block_id, ctx, data, disable):
+    buttons = data.get("buttons") or []
+    if buttons and isinstance(buttons[0], str):
+        buttons = [{"text": t} for t in buttons]
+
+    body = (data.get("text") or "").strip()
+    caption = resolve_text(body, user_id).strip() if body else ""
+    if not caption:
+        nm = (data.get("name") or "").strip()
+        if nm:
+            caption = resolve_text(nm, user_id).strip()
+    if not caption:
+        caption = "Выберите действие"
+
+    rows = []
+    for b in buttons:
+        t = (b.get("text") if isinstance(b, dict) else str(b)) or "•"
+        t = str(t)[:25]
+        if isinstance(b, dict) and b.get("request_contact"):
+            rows.append([KeyboardButton(text=t, request_contact=True)])
+        elif isinstance(b, dict) and b.get("request_location"):
+            rows.append([KeyboardButton(text=t, request_location=True)])
+        else:
+            rows.append([KeyboardButton(text=t)])
+    kb = ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
+
+    # Layout id = block + button fingerprint. Same id → omit reply_markup.
+    target_id = menu_layout_id(str(block_id), buttons)
+    markup, changed, new_id = resolve_reply_keyboard(user_id, target_id, kb)
+
+    send_kwargs = {"disable_web_page_preview": disable}
+    if markup is not None:
+        send_kwargs["reply_markup"] = markup
+
+    await bot.send_message(chat_id, caption, **send_kwargs)
+    if changed:
+        set_current_menu_id(user_id, new_id)

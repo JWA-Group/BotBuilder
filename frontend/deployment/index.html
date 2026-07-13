@@ -1,0 +1,106 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="deployment.title">Deploy wizard</title>
+    
+        <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+    <link rel="stylesheet" href="/shared/css/page-shell.css" />
+    <link rel="stylesheet" href="deployment.css?v=1" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <header class="dashboard-header">
+        <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
+        <h1 class="page-title" data-i18n="deployment.title">Deploy wizard</h1>
+      </header>
+
+      <main class="dashboard-content dep-page">
+        <div class="dep-toolbar">
+          <label for="dep-bot-select" data-i18n="deployment.bot">Bot</label>
+          <select id="dep-bot-select">
+            <option value="" data-i18n="deployment.bot_select">— select a bot —</option>
+          </select>
+        </div>
+
+        <div class="dep-grid">
+          <section class="dep-card dep-card-export">
+            <div class="dep-card-icon" aria-hidden="true">⬇</div>
+            <h2 data-i18n="deployment.export_title">Developer Archive</h2>
+            <p class="dep-card-desc" data-i18n="deployment.export_desc">
+              Download a ZIP with main.py, scenario.json, Dockerfile and docker-compose.yml — ready for docker compose up -d.
+            </p>
+            <button type="button" id="dep-export-btn" class="dep-btn-primary" disabled data-i18n="deployment.download">
+              Download archive
+            </button>
+          </section>
+
+          <section class="dep-card dep-card-cloud">
+            <h2 data-i18n="deployment.cloud_title">Cloud Auto-Deploy</h2>
+            <p class="dep-card-desc" data-i18n="deployment.cloud_desc">Enter SSH access — BotBuilder installs Docker and starts the bot.</p>
+            <form id="dep-ssh-form" class="dep-form" autocomplete="off">
+              <label for="dep-host" data-i18n="deployment.host">IP / Host</label>
+              <input type="text" id="dep-host" name="host" placeholder="203.0.113.10" required />
+
+              <label for="dep-username" data-i18n="deployment.username">SSH Username</label>
+              <input type="text" id="dep-username" name="username" placeholder="root" required />
+
+              <label for="dep-port" data-i18n="deployment.port">Port</label>
+              <input type="number" id="dep-port" name="port" value="22" min="1" max="65535" />
+
+              <label for="dep-password" data-i18n="deployment.password">Password</label>
+              <input type="password" id="dep-password" name="password" placeholder="••••••••" autocomplete="off" />
+
+              <label for="dep-key" data-i18n="deployment.ssh_key">SSH Private Key (optional)</label>
+              <textarea id="dep-key" name="ssh_private_key" rows="4" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+
+              <p class="dep-form-hint" data-i18n="deployment.form_hint">Provide a password or a private key.</p>
+
+              <button type="submit" id="dep-launch-btn" class="dep-btn-success" disabled data-i18n="deployment.launch_btn">
+                Launch to Cloud
+              </button>
+            </form>
+          </section>
+        </div>
+
+        <section class="dep-console-wrap">
+          <div class="dep-console-header">
+            <span class="dep-console-dot"></span>
+            <span data-i18n="deployment.console">Deployment Console</span>
+            <div class="dep-console-actions">
+              <button type="button" id="dep-log-download-btn" class="dep-console-btn" disabled data-i18n="deployment.download_log">
+                Download full log
+              </button>
+              <button type="button" id="dep-log-copy-btn" class="dep-console-btn" disabled data-i18n="deployment.copy_log">Copy log</button>
+            </div>
+          </div>
+          <p id="dep-log-path" class="dep-log-path" hidden></p>
+          <pre id="dep-console" class="dep-console" aria-live="polite"></pre>
+          <div id="dep-checklist" class="dep-checklist" hidden></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/shared/js/api-config.js"></script>
+    <script src="DeploymentView.js?v=5"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.DeploymentView) window.DeploymentView.init();
+      });
+    </script>
+  </body>
+</html>

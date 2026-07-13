@@ -1,0 +1,72 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="database.title">Database</title>
+    <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+
+    <link rel="stylesheet" href="/shared/css/page-shell.css" />
+    <link rel="stylesheet" href="database.css" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <header class="dashboard-header">
+        <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
+        <h1 class="page-title" data-i18n="database.title">Database</h1>
+      </header>
+
+      <main class="dashboard-content db-page">
+        <div class="db-toolbar">
+          <div class="db-toolbar-left">
+            <label for="db-bot-select" data-i18n="common.bot">Bot</label>
+            <select id="db-bot-select">
+              <option value="" data-i18n="common.select_bot">— select a bot —</option>
+            </select>
+            <button type="button" id="db-refresh-btn" class="db-btn-secondary" data-i18n="common.refresh">Refresh</button>
+          </div>
+          <div class="db-toolbar-right">
+            <button type="button" id="db-import-btn" class="db-btn-primary">
+              <span id="db-import-spinner" class="db-spinner" hidden></span>
+              <span data-i18n="database.import_btn">Import Data / Database</span>
+            </button>
+          </div>
+        </div>
+        <div id="db-status" class="db-status" hidden></div>
+
+        <div class="db-layout">
+          <aside class="db-sidebar">
+            <h2 class="db-sidebar-title" data-i18n="database.tables">Tables</h2>
+            <div id="db-tables-list" class="db-tables-list"></div>
+          </aside>
+          <section class="db-workspace">
+            <div id="db-grid-wrap" class="db-grid-wrap">
+              <div class="db-grid-empty" data-i18n="database.grid_empty">Select a bot and a table on the left.</div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/shared/js/api-config.js"></script>
+    <script src="DatabaseManagerView.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.DatabaseManagerView) window.DatabaseManagerView.init();
+      });
+    </script>
+  </body>
+</html>

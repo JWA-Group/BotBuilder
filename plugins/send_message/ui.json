@@ -1,0 +1,51 @@
+{
+  "type": "message",
+  "name": "Сообщение",
+  "icon": "💬",
+  "color": "#2563eb",
+  "description": "Отправка текста, медиа и inline-кнопок пользователю",
+  "palette": true,
+  "connectable": true,
+  "outputs": "dynamic",
+  "defaults": {
+    "text": "Сообщение",
+    "media": { "type": null, "files": [] },
+    "inlineButtons": [],
+    "inlineButtonRowBreaks": [0],
+    "disableWebPagePreview": false,
+    "tagId": ""
+  },
+  "fields": [
+    {
+      "key": "tagId",
+      "type": "tag_select",
+      "label": "Тэг",
+      "hint": "Быстрая ссылка на переход в блок с выбранным тэгом"
+    },
+    {
+      "key": "media",
+      "type": "media",
+      "label": "Медиа",
+      "hint": "Изображение, видео, аудио или документы"
+    },
+    {
+      "key": "text",
+      "type": "textarea",
+      "label": "Сообщение",
+      "hint": "Текст сообщения. Ссылки, {{поле}} для данных из БД",
+      "maxLength": 10000,
+      "placeholder": "Текст сообщения"
+    },
+    {
+      "key": "disableWebPagePreview",
+      "type": "checkbox",
+      "label": "Скрыть предпросмотр ссылок"
+    },
+    {
+      "key": "inlineButtons",
+      "type": "inline_buttons",
+      "label": "Inline-кнопки",
+      "hint": "Перетаскивайте: на кнопку — замена мест; в зону ряда — перенос"
+    }
+  ]
+}

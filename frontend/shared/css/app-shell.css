@@ -1,0 +1,9 @@
+@import url("/shared/css/theme.css");
+@import url("/shared/css/theme-surfaces.css");
+
+/* PWA / standalone: убираем лишние отступы в режиме приложения */
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior: none;
+  }
+}

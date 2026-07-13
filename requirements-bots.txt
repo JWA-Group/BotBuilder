@@ -1,0 +1,4 @@
+# Runtime deps for generated bot processes (telegram + VK).
+# Installed into python_embed/ during production build — not the FastAPI sidecar.
+aiogram==3.4.1
+aiohttp>=3.9.0

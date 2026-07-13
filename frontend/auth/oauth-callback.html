@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Вход… — WebApp CreateBots</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="auth-page">
+      <div class="auth-card">
+        <div class="logo-placeholder">B</div>
+        <h1>Вход выполнен</h1>
+        <p class="subtitle">Перенаправление на дашборд…</p>
+        <div id="auth-error" class="auth-error" role="alert"></div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var token = params.get("token");
+        var userId = params.get("user_id");
+        var login = params.get("login") || "";
+        var errorEl = document.getElementById("auth-error");
+
+        if (token && userId) {
+          localStorage.setItem("access_token", token);
+          localStorage.setItem("user_id", String(userId));
+          localStorage.setItem("login", login);
+          window.location.href = "/dashboard/index.html";
+        } else {
+          errorEl.textContent = "Ошибка авторизации. Попробуйте войти снова.";
+          errorEl.classList.add("visible");
+          setTimeout(function () {
+            window.location.href = "/auth/login.html";
+          }, 3000);
+        }
+      })();
+    </script>
+  </body>
+</html>

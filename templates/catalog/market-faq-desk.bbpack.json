@@ -1,0 +1,72 @@
+{
+  "format_version": 1,
+  "manifest": {
+    "id": "market-faq-desk",
+    "name": "FAQ Help Desk",
+    "description": "Быстрый FAQ-бот: приветствие, частые вопросы, эскалация к оператору по команде /help.",
+    "tags": ["FAQ", "Support"],
+    "required_plugins": ["start", "message", "command", "menu"],
+    "platform": "telegram",
+    "author": "BotBuilder",
+    "created_at": "2026-01-01T00:00:00+00:00",
+    "setup_steps": [
+      "Установите шаблон на выбранного бота",
+      "Отредактируйте тексты ответов в блоках сообщений",
+      "Добавьте команду /help в описание бота в BotFather"
+    ]
+  },
+  "scenario": {
+    "tags": [
+      { "id": "help", "name": "/help", "description": "Помощь оператора" }
+    ],
+    "required_plugins": ["start", "message", "command", "menu"],
+    "blocks": [
+      { "id": "start", "type": "start", "x": 80, "y": 120, "data": {} },
+      {
+        "id": "welcome",
+        "type": "message",
+        "x": 320,
+        "y": 120,
+        "data": {
+          "text": "👋 Добро пожаловать в службу поддержки!\n\nВыберите тему в меню или напишите /help для связи с оператором."
+        }
+      },
+      {
+        "id": "faq-menu",
+        "type": "menu",
+        "x": 560,
+        "y": 120,
+        "data": {
+          "text": "Частые вопросы:",
+          "buttons": [
+            { "text": "Доставка", "url": "" },
+            { "text": "Оплата", "url": "" },
+            { "text": "Возврат", "url": "" }
+          ]
+        }
+      },
+      {
+        "id": "cmd-help",
+        "type": "command",
+        "x": 320,
+        "y": 320,
+        "data": { "command": "/help", "tagId": "help" }
+      },
+      {
+        "id": "help-msg",
+        "type": "message",
+        "x": 560,
+        "y": 320,
+        "data": {
+          "text": "Оператор скоро ответит. Опишите проблему одним сообщением."
+        }
+      }
+    ],
+    "connections": [
+      { "from": "start", "outputIndex": "0", "to": "welcome" },
+      { "from": "welcome", "outputIndex": "0", "to": "faq-menu" },
+      { "from": "cmd-help", "outputIndex": "0", "to": "help-msg" }
+    ]
+  },
+  "preview_image_base64": ""
+}

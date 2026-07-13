@@ -1,0 +1,124 @@
+{# Forward user message into a separate chat where the bot is a member #}
+async def _type_handler_forward_to_chat(bot, chat_id, user_id, block_id, ctx, data, disable):
+    target_raw = str(data.get("targetChatId") or "").strip()
+    prompt = (data.get("inputPrompt") or "Напишите сообщение — я перешлю его оператору.").strip()
+    header_tpl = (
+        data.get("headerTemplate")
+        or "📨 Сообщение от {name} (@{username}, id {user_id})"
+    ).strip()
+    ok_msg = (data.get("successMessage") or "Сообщение отправлено. Спасибо!").strip()
+    err_msg = (
+        data.get("errorMessage")
+        or "Не удалось переслать сообщение. Проверьте chat_id и права бота."
+    ).strip()
+    empty_msg = (data.get("emptyMessage") or "Сообщение пустое. Напишите текст ещё раз.").strip()
+
+    pending_key = f"_fwd_pending_{block_id}"
+    pending = str(get_user_field(user_id, pending_key) or "").strip()
+
+    # First entry (e.g. from menu button): always ask — do not forward the button label.
+    if pending != "1":
+        set_user_field(user_id, pending_key, "1")
+        return (
+            "await_input",
+            {
+                "block_id": block_id,
+                "field": "_forward_tmp",
+                "field_type": "string",
+                "next_id": block_id,
+                "input_prompt": prompt,
+            },
+        )
+
+    # Second entry: user answered the prompt
+    set_user_field(user_id, pending_key, "")
+    text = (ctx.get("last_message_text") or "").strip()
+    src_message_id = ctx.get("last_message_id")
+    src_chat_id = ctx.get("last_chat_id") or chat_id
+
+    if not text and src_message_id is None:
+        set_user_field(user_id, pending_key, "1")
+        await bot.send_message(chat_id, empty_msg, disable_web_page_preview=disable)
+        return (
+            "await_input",
+            {
+                "block_id": block_id,
+                "field": "_forward_tmp",
+                "field_type": "string",
+                "next_id": block_id,
+                "input_prompt": prompt,
+            },
+        )
+
+    if not target_raw:
+        await bot.send_message(
+            chat_id,
+            "Целевой чат не настроен. Укажите Chat ID в блоке «Переслать в чат».",
+            disable_web_page_preview=disable,
+        )
+        next_id = get_next_block(block_id, 0)
+        if next_id:
+            await execute_block(bot, chat_id, user_id, next_id, ctx)
+        return
+
+    try:
+        target_chat_id = int(target_raw)
+    except (TypeError, ValueError):
+        await bot.send_message(
+            chat_id,
+            "Некорректный Chat ID. Укажите числовой id чата.",
+            disable_web_page_preview=disable,
+        )
+        next_id = get_next_block(block_id, 0)
+        if next_id:
+            await execute_block(bot, chat_id, user_id, next_id, ctx)
+        return
+
+    uname = get_user_field(user_id, "tg_username") or ""
+    first = get_user_field(user_id, "tg_first_name") or ""
+    name = (str(first).strip() or str(uname).strip() or f"id {user_id}")
+    username = str(uname).strip().lstrip("@") or "—"
+    header = (
+        header_tpl.replace("{name}", name)
+        .replace("{username}", username)
+        .replace("{user_id}", str(user_id))
+    )
+
+    try:
+        await bot.send_message(
+            target_chat_id,
+            header,
+            disable_web_page_preview=True,
+        )
+        if src_message_id is not None:
+            try:
+                await bot.forward_message(
+                    chat_id=target_chat_id,
+                    from_chat_id=src_chat_id,
+                    message_id=int(src_message_id),
+                )
+            except Exception as fwd_exc:
+                log.warning("forward_message failed, fallback to copy text: %s", fwd_exc)
+                await bot.send_message(
+                    target_chat_id,
+                    text or "(без текста)",
+                    disable_web_page_preview=disable,
+                )
+        else:
+            await bot.send_message(
+                target_chat_id,
+                text or "(пустое сообщение)",
+                disable_web_page_preview=disable,
+            )
+    except Exception as exc:
+        log.error("forward_to_chat failed: %s", exc)
+        await bot.send_message(chat_id, err_msg, disable_web_page_preview=disable)
+        next_id = get_next_block(block_id, 0)
+        if next_id:
+            await execute_block(bot, chat_id, user_id, next_id, ctx)
+        return
+
+    await bot.send_message(chat_id, ok_msg, disable_web_page_preview=disable)
+    next_id = get_next_block(block_id, 0)
+    if next_id:
+        await execute_block(bot, chat_id, user_id, next_id, ctx)

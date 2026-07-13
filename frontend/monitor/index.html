@@ -1,0 +1,131 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="monitor.title">Monitoring</title>
+    
+        <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+
+    <link rel="stylesheet" href="/shared/css/page-shell.css" />
+    <link rel="stylesheet" href="monitor.css?v=3" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <header class="dashboard-header">
+        <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
+        <h1 class="page-title" data-i18n="monitor.title">Control & logging center</h1>
+      </header>
+
+      <main class="dashboard-content mon-page">
+        <div id="mon-alert" class="mon-alert" hidden></div>
+
+        <section class="mon-metrics" aria-label="System resources">
+          <div class="mon-metric-card">
+            <div class="mon-metric-head">
+              <span class="mon-metric-label" data-i18n="monitor.cpu_label">CPU (server + bots)</span>
+              <span id="mon-cpu-value" class="mon-metric-value">—</span>
+            </div>
+            <div class="mon-progress">
+              <div id="mon-cpu-bar" class="mon-progress-fill mon-progress-cpu" style="width: 0%"></div>
+            </div>
+            <p id="mon-cpu-detail" class="mon-metric-hint" data-i18n="monitor.cpu_hint">FastAPI + bot processes</p>
+          </div>
+          <div class="mon-metric-card">
+            <div class="mon-metric-head">
+              <span class="mon-metric-label" data-i18n="monitor.ram_label">RAM (total)</span>
+              <span id="mon-mem-value" class="mon-metric-value">—</span>
+            </div>
+            <div class="mon-progress">
+              <div id="mon-mem-bar" class="mon-progress-fill mon-progress-mem" style="width: 0%"></div>
+            </div>
+            <p id="mon-mem-detail" class="mon-metric-hint">—</p>
+          </div>
+          <div class="mon-metric-card mon-metric-card-compact">
+            <span class="mon-metric-label" data-i18n="monitor.bots_running">Bots running</span>
+            <span id="mon-bot-count" class="mon-metric-big">0</span>
+            <span class="mon-metric-label" data-i18n="monitor.server_pid">Server PID</span>
+            <span id="mon-main-pid" class="mon-metric-mono">—</span>
+          </div>
+        </section>
+
+        <section class="mon-processes" aria-label="Active bots">
+          <div class="mon-section-head">
+            <h2 data-i18n="monitor.active_processes">Active processes</h2>
+            <button type="button" id="mon-refresh-btn" class="mon-btn-secondary" data-i18n="monitor.refresh">Refresh</button>
+          </div>
+          <div class="mon-table-wrap">
+            <table class="mon-table">
+              <thead>
+                <tr>
+                  <th data-i18n="monitor.col_bot">Bot</th>
+                  <th data-i18n="monitor.col_pid">PID</th>
+                  <th data-i18n="monitor.col_cpu">CPU</th>
+                  <th data-i18n="monitor.col_ram">RAM</th>
+                  <th data-i18n="monitor.col_uptime">Uptime</th>
+                  <th data-i18n="monitor.col_platform">Platform</th>
+                  <th data-i18n="monitor.col_actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="mon-process-tbody">
+                <tr>
+                  <td colspan="7" class="mon-empty" data-i18n="monitor.no_bots">No running bots</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="mon-logs" aria-label="Log stream">
+          <div class="mon-section-head">
+            <h2 data-i18n="monitor.live_log">Live Log Center</h2>
+            <div class="mon-log-filters">
+              <input
+                type="search"
+                id="mon-log-search"
+                class="mon-input"
+                data-i18n-placeholder="monitor.filter_placeholder"
+                placeholder="Filter by text…"
+                autocomplete="off"
+              />
+              <select id="mon-layer-filter" class="mon-select">
+                <option value="" data-i18n="monitor.all_layers">All layers</option>
+                <option value="API">API</option>
+                <option value="LLM">LLM</option>
+                <option value="BOT">BOT</option>
+                <option value="ERROR">ERROR</option>
+              </select>
+              <select id="mon-bot-filter" class="mon-select">
+                <option value="" data-i18n="monitor.all_bots">All bots</option>
+              </select>
+              <button type="button" id="mon-log-clear" class="mon-btn-secondary" data-i18n="monitor.clear">Clear</button>
+              <button type="button" id="mon-log-pause" class="mon-btn-secondary" data-i18n="monitor.pause">Pause</button>
+            </div>
+          </div>
+          <div id="mon-terminal" class="mon-terminal" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/shared/js/api-config.js"></script>
+    <script src="SystemMonitorView.js?v=7"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.SystemMonitorView) window.SystemMonitorView.init();
+      });
+    </script>
+  </body>
+</html>

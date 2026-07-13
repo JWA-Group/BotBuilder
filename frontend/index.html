@@ -1,0 +1,35 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="application-name" content="BotBuilder" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/shared/icons/BBico.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/shared/icons/BBico.ico" />
+    
+        <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+
+    <title>BotBuilder</title>
+    <script>
+      window.location.replace("/dashboard/index.html");
+    </script>
+  </head>
+  <body>
+    <p>Перенаправление…</p>
+  </body>
+</html>

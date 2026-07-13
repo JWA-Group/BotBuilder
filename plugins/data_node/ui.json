@@ -1,0 +1,75 @@
+{
+  "type": "data",
+  "name": "Данные",
+  "icon": "📌",
+  "color": "#ea580c",
+  "description": "Чтение и запись полей пользователя в БД",
+  "palette": true,
+  "connectable": true,
+  "outputs": 1,
+  "defaults": {
+    "action": "set",
+    "fieldType": "string",
+    "fieldName": "role",
+    "fieldValue": "",
+    "valueSource": "const",
+    "inputPrompt": "",
+    "tagId": ""
+  },
+  "fields": [
+    {
+      "key": "tagId",
+      "type": "tag_select",
+      "label": "Тэг"
+    },
+    {
+      "key": "action",
+      "type": "select",
+      "label": "Действие",
+      "options": [
+        { "value": "set", "label": "Записать значение" },
+        { "value": "add", "label": "Прибавить к числу" },
+        { "value": "subtract", "label": "Вычесть из числа" }
+      ]
+    },
+    {
+      "key": "fieldType",
+      "type": "select",
+      "label": "Тип поля",
+      "options": [
+        { "value": "string", "label": "Строка" },
+        { "value": "number", "label": "Число" }
+      ]
+    },
+    {
+      "key": "fieldName",
+      "type": "field_autocomplete",
+      "label": "Имя поля",
+      "placeholder": "role"
+    },
+    {
+      "key": "valueSource",
+      "type": "select",
+      "label": "Источник значения",
+      "options": [
+        { "value": "const", "label": "Константа / шаблон" },
+        { "value": "input", "label": "Запросить у пользователя" }
+      ],
+      "showWhen": { "action": "set" }
+    },
+    {
+      "key": "fieldValue",
+      "type": "text",
+      "label": "Значение",
+      "placeholder": "100 или {{поле}}",
+      "showWhen": { "action": ["set", "add", "subtract"] }
+    },
+    {
+      "key": "inputPrompt",
+      "type": "textarea",
+      "label": "Текст запроса",
+      "placeholder": "Введите ваше имя:",
+      "showWhen": { "action": "set", "valueSource": "input" }
+    }
+  ]
+}

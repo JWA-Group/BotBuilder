@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Settings — BotBuilder</title>
+    <link rel="stylesheet" href="../frontend/shared/css/theme.css" />
+    <link rel="stylesheet" href="../frontend/shared/css/theme-surfaces.css" />
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body class="settings-body">
+    <script>
+      (function () {
+        var theme = "light";
+        if (window.settingsBridge && window.settingsBridge.initialTheme === "dark") {
+          theme = "dark";
+        } else {
+          try {
+            theme = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          } catch (e) {
+            theme = "light";
+          }
+        }
+        try {
+          localStorage.setItem("app_theme", theme);
+        } catch (e) {}
+        document.documentElement.classList.add("theme-" + theme);
+      })();
+    </script>
+
+    <div class="settings-layout">
+      <div class="settings-scroll">
+        <header class="settings-header">
+          <div class="settings-logo" aria-hidden="true">⚙️</div>
+          <div>
+            <h1 class="settings-title" data-i18n="settings.title">Application settings</h1>
+            <p class="settings-lead" data-i18n="settings.lead">
+              The local API server listens on 127.0.0.1 only. If the port is busy, choose another and restart BotBuilder.
+            </p>
+          </div>
+        </header>
+
+        <section class="settings-section">
+          <h2 class="settings-section-title" data-i18n="lang.label">Language</h2>
+          <div class="settings-field">
+            <label for="lang-select" data-i18n="lang.label">Language</label>
+            <select id="lang-select" class="settings-input" aria-label="Language">
+              <option value="en">English</option>
+              <option value="ru">Русский</option>
+              <option value="es">Español</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <h2 class="settings-section-title" data-i18n="settings.theme">Appearance</h2>
+          <div class="settings-theme-row">
+            <button type="button" class="settings-theme-btn" id="theme-light-btn" data-i18n="settings.theme_light">
+              Light
+            </button>
+            <button type="button" class="settings-theme-btn" id="theme-dark-btn" data-i18n="settings.theme_dark">
+              Dark
+            </button>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <h2 class="settings-section-title" data-i18n="settings.api_section">API</h2>
+          <div class="settings-field">
+            <label for="port" data-i18n="settings.port">API server port (1024–65535)</label>
+            <input id="port" class="settings-input" type="number" min="1024" max="65535" />
+            <p class="settings-hint" data-i18n="settings.port_hint">
+              Default: 8000. Changing the port requires restarting the app.
+            </p>
+          </div>
+          <div class="settings-field">
+            <label for="undo-steps" data-i18n="settings.undo">Undo steps (Ctrl+Z), 1–500</label>
+            <input id="undo-steps" class="settings-input" type="number" min="1" max="500" />
+            <p class="settings-hint" data-i18n="settings.undo_hint">
+              How many recent actions the scenario editor remembers. Default: 30.
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <footer class="settings-footer">
+        <button type="button" class="settings-btn settings-btn-secondary" id="cancel" data-i18n="settings.cancel">
+          Cancel
+        </button>
+        <button type="button" class="settings-btn settings-btn-primary" id="save" data-i18n="settings.save">
+          Save
+        </button>
+      </footer>
+    </div>
+
+    <script src="../frontend/shared/js/theme.js"></script>
+    <script src="../frontend/shared/js/locales.js"></script>
+    <script src="../frontend/shared/js/i18n.js"></script>
+    <script>
+      (function () {
+        var portInput = document.getElementById("port");
+        var undoInput = document.getElementById("undo-steps");
+        var bridge = window.settingsBridge;
+        var themeLightBtn = document.getElementById("theme-light-btn");
+        var themeDarkBtn = document.getElementById("theme-dark-btn");
+        var currentTheme =
+          bridge && bridge.initialTheme === "dark"
+            ? "dark"
+            : window.AppTheme
+              ? AppTheme.get()
+              : "light";
+
+        portInput.value = String(bridge ? bridge.initialPort : 8000);
+        undoInput.value = String(bridge ? bridge.initialUndoSteps : 30);
+
+        if (window.AppTheme) {
+          AppTheme.apply(currentTheme, { silent: true });
+        }
+
+        function syncThemeButtons() {
+          themeLightBtn.classList.toggle("is-active", currentTheme === "light");
+          themeDarkBtn.classList.toggle("is-active", currentTheme === "dark");
+        }
+
+        function applyThemePreview(theme) {
+          currentTheme = theme === "dark" ? "dark" : "light";
+          if (window.AppTheme) AppTheme.apply(currentTheme, { silent: true });
+          syncThemeButtons();
+        }
+
+        themeLightBtn.addEventListener("click", function () {
+          applyThemePreview("light");
+        });
+        themeDarkBtn.addEventListener("click", function () {
+          applyThemePreview("dark");
+        });
+        syncThemeButtons();
+
+        var langSelect = document.getElementById("lang-select");
+        if (langSelect && bridge && bridge.initialLang) {
+          langSelect.value = bridge.initialLang;
+        }
+        if (langSelect) {
+          langSelect.addEventListener("change", function () {
+            if (typeof applyLanguage === "function") {
+              applyLanguage(langSelect.value, { silent: true });
+            }
+          });
+        }
+
+        document.getElementById("save").addEventListener("click", function () {
+          if (!bridge) return;
+          bridge.save({
+            port: Number(portInput.value),
+            undoSteps: Number(undoInput.value),
+            lang: langSelect ? langSelect.value : "en",
+            theme: currentTheme,
+          });
+        });
+
+        document.getElementById("cancel").addEventListener("click", function () {
+          if (bridge) bridge.cancel();
+        });
+      })();
+    </script>
+  </body>
+</html>

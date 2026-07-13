@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="BotBuilder">
+  <rect width="512" height="512" rx="96" fill="#2563eb"/>
+  <rect x="96" y="128" width="320" height="256" rx="48" fill="#ffffff"/>
+  <circle cx="176" cy="224" r="28" fill="#2563eb"/>
+  <circle cx="336" cy="224" r="28" fill="#2563eb"/>
+  <rect x="176" y="288" width="160" height="24" rx="12" fill="#93c5fd"/>
+</svg>

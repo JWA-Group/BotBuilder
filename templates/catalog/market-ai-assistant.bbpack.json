@@ -1,0 +1,84 @@
+{
+  "format_version": 1,
+  "manifest": {
+    "id": "market-ai-assistant",
+    "name": "AI Assistant Pro",
+    "description": "Многошаговый бот с меню, сбором данных и условными переходами — основа для AI-ассистента.",
+    "tags": ["AI", "FAQ"],
+    "required_plugins": ["start", "message", "menu", "data", "condition"],
+    "platform": "telegram",
+    "author": "BotBuilder",
+    "created_at": "2026-01-01T00:00:00+00:00",
+    "setup_steps": [
+      "Импортируйте шаблон в бота",
+      "Настройте поля сбора данных в блоке «Данные»",
+      "Подключите Perplexity API в настройках ИИ-сценария"
+    ]
+  },
+  "scenario": {
+    "tags": [],
+    "required_plugins": ["start", "message", "menu", "data", "condition"],
+    "blocks": [
+      { "id": "start", "type": "start", "x": 60, "y": 100, "data": {} },
+      {
+        "id": "intro",
+        "type": "message",
+        "x": 260,
+        "y": 100,
+        "data": {
+          "text": "🤖 Я ваш AI-помощник. Расскажите, чем могу помочь сегодня?"
+        }
+      },
+      {
+        "id": "main-menu",
+        "type": "menu",
+        "x": 480,
+        "y": 100,
+        "data": {
+          "text": "Выберите режим:",
+          "buttons": [
+            { "text": "Задать вопрос", "url": "" },
+            { "text": "Мои данные", "url": "" }
+          ]
+        }
+      },
+      {
+        "id": "ask-data",
+        "type": "data",
+        "x": 260,
+        "y": 280,
+        "data": {
+          "fieldName": "user_question",
+          "prompt": "Напишите ваш вопрос одним сообщением:"
+        }
+      },
+      {
+        "id": "check-empty",
+        "type": "condition",
+        "x": 480,
+        "y": 280,
+        "data": {
+          "field": "user_question",
+          "operator": "not_empty"
+        }
+      },
+      {
+        "id": "reply",
+        "type": "message",
+        "x": 700,
+        "y": 280,
+        "data": {
+          "text": "Спасибо! Обрабатываю ваш запрос… (подключите Perplexity в редакторе)"
+        }
+      }
+    ],
+    "connections": [
+      { "from": "start", "outputIndex": "0", "to": "intro" },
+      { "from": "intro", "outputIndex": "0", "to": "main-menu" },
+      { "from": "main-menu", "outputIndex": "0", "to": "ask-data" },
+      { "from": "ask-data", "outputIndex": "0", "to": "check-empty" },
+      { "from": "check-empty", "outputIndex": "0", "to": "reply" }
+    ]
+  },
+  "preview_image_base64": ""
+}

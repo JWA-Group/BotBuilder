@@ -1,0 +1,105 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chat bots — BotBuilder</title>
+    <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+    <link rel="stylesheet" href="/shared/css/page-shell.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <header class="dashboard-header">
+        <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
+        <h1 class="page-title" data-i18n="bots.title">My bots</h1>
+      </header>
+
+      <main class="dashboard-content bots-content">
+        <section class="add-bot-section">
+          <h2 data-i18n="bots.add_bot">Add bot</h2>
+          <p class="hint" id="platform-hint" data-i18n="bots.hint_telegram">
+            Create a bot in BotFather, then copy the name and API token.
+          </p>
+          <form id="add-bot-form" class="add-bot-form">
+            <label for="bot-platform" data-i18n="bots.platform">Platform</label>
+            <select id="bot-platform" name="platform" required>
+              <option value="telegram" selected data-i18n="bots.platform_telegram">Telegram</option>
+              <option value="vk" data-i18n="bots.platform_vk">VK</option>
+            </select>
+            <label for="bot-name" data-i18n="bots.name">Bot name</label>
+            <input
+              type="text"
+              id="bot-name"
+              name="name"
+              data-i18n-placeholder="bots.name_placeholder"
+              placeholder="Bot name from BotFather"
+              required
+            />
+            <label for="bot-api-token" data-i18n="bots.token">API token</label>
+            <input
+              type="text"
+              id="bot-api-token"
+              name="api_token"
+              data-i18n-placeholder="bots.token_placeholder"
+              placeholder="123456:ABC-DEF..."
+              required
+            />
+            <button type="submit" class="btn-primary" data-i18n="bots.add_btn">Add bot</button>
+          </form>
+          <div id="add-bot-error" class="form-error" role="alert"></div>
+        </section>
+        <details class="vk-setup-help" id="vk-setup-help" hidden>
+          <summary data-i18n="bots.vk_help_summary">VK community setup (if the bot doesn't reply)</summary>
+          <ol data-i18n-html="bots.vk_help_steps">
+            <li>Откройте сообщество → <strong>Управление</strong>.</li>
+            <li><strong>Сообщения</strong> → включите «Сообщения сообщества» (открытые или по кнопке).</li>
+            <li><strong>Работа с API</strong> → включите <strong>Long Poll API</strong> (Callback API можно не использовать).</li>
+            <li>В <a href="https://vk.com/apps?act=manage" target="_blank" rel="noopener">приложениях VK</a> создайте приложение, привяжите сообщество, выдайте <strong>ключ доступа сообщества</strong> с правами: управление сообществом, сообщения сообщества.</li>
+            <li>Токен вставьте при создании бота (формат <code>vk1.a...</code>).</li>
+            <li>На сайте: «Запустить» → в VK напишите боту <strong>привет</strong> или <strong>меню</strong> (команда /start не обязательна).</li>
+          </ol>
+        </details>
+        <div class="bots-divider"></div>
+        <div id="bots-list" data-i18n="bots.loading">Loading…</div>
+      </main>
+    </div>
+
+    <div id="delete-bot-modal" class="bots-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="delete-bot-modal-title">
+      <div class="bots-modal-backdrop" data-dismiss="true"></div>
+      <div class="bots-modal-panel" role="document">
+        <div class="bots-modal-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M3 6h18"/>
+            <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M8 6V4h8v2"/>
+            <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"/>
+            <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M10 11v6M14 11v6"/>
+          </svg>
+        </div>
+        <h2 id="delete-bot-modal-title" class="bots-modal-title">Delete bot?</h2>
+        <p class="bots-modal-text">This action cannot be undone.</p>
+        <p class="bots-modal-bot-name" aria-hidden="true"></p>
+        <div class="bots-modal-actions">
+          <button type="button" class="bots-modal-btn bots-modal-cancel" data-dismiss="true">Cancel</button>
+          <button type="button" class="bots-modal-btn bots-modal-confirm">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/shared/js/api-config.js"></script>
+    <script src="main.js"></script>
+  </body>
+</html>

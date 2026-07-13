@@ -1,0 +1,530 @@
+{# Weather block — Open-Meteo geocoding + forecast, wttr.in fallback (no API key) #}
+
+_WEATHER_CODE_RU = {
+
+    0: "Ясно",
+
+    1: "Преимущественно ясно",
+
+    2: "Переменная облачность",
+
+    3: "Пасмурно",
+
+    45: "Туман",
+
+    48: "Изморозь",
+
+    51: "Морось: слабая",
+
+    53: "Морось: умеренная",
+
+    55: "Морось: сильная",
+
+    61: "Дождь: слабый",
+
+    63: "Дождь: умеренный",
+
+    65: "Дождь: сильный",
+
+    71: "Снег: слабый",
+
+    73: "Снег: умеренный",
+
+    75: "Снег: сильный",
+
+    80: "Ливень: слабый",
+
+    81: "Ливень: умеренный",
+
+    82: "Ливень: сильный",
+
+    95: "Гроза",
+
+    96: "Гроза с градом",
+
+    99: "Гроза с сильным градом",
+
+}
+
+
+
+_HTTP_HEADERS = {"User-Agent": "BotBuilder-Weather/1.0 (curl-compatible)"}
+
+
+
+
+
+def _fmt_weather_value(v, suffix=""):
+
+    if v is None:
+
+        return "—"
+
+    try:
+
+        if float(v) == int(float(v)):
+
+            return str(int(float(v))) + suffix
+
+        return str(round(float(v), 1)).replace(".", ",") + suffix
+
+    except (TypeError, ValueError):
+
+        return str(v) + suffix
+
+
+
+
+
+def _build_weather_message(label, temp, feels, desc, humidity, wind):
+
+    lines = [
+
+        f"🌤 <b>Погода сегодня — {label}</b>",
+
+        "",
+
+        f"🌡 Температура: {_fmt_weather_value(temp, '°C')}",
+
+        f"🤔 Ощущается как: {_fmt_weather_value(feels, '°C')}",
+
+        f"☁️ {desc or 'Без описания'}",
+
+        f"💧 Влажность: {_fmt_weather_value(humidity, '%')}",
+
+        f"💨 Ветер: {_fmt_weather_value(wind, ' км/ч')}",
+
+    ]
+
+    return "\n".join(lines)
+
+
+
+
+
+async def _http_get(session, url, timeout_total=45):
+
+    import aiohttp
+
+
+
+    timeout = aiohttp.ClientTimeout(total=timeout_total, connect=12, sock_read=timeout_total)
+
+    async with session.get(url, timeout=timeout) as resp:
+
+        body = await resp.text()
+
+        return resp.status, body
+
+
+
+
+
+async def _open_session(trust_env):
+
+    import socket
+
+    import aiohttp
+
+
+
+    connector = aiohttp.TCPConnector(family=socket.AF_INET)
+
+    return aiohttp.ClientSession(
+
+        trust_env=trust_env,
+
+        connector=connector,
+
+        headers=_HTTP_HEADERS,
+
+    )
+
+
+
+
+
+async def _geocode_city(city):
+
+    import urllib.parse
+
+
+
+    geo_url = (
+
+        "https://geocoding-api.open-meteo.com/v1/search?name="
+
+        + urllib.parse.quote(city)
+
+        + "&count=3&language=ru&format=json"
+
+    )
+
+    last_err = None
+
+    for trust_env in (False, True):
+
+        try:
+
+            async with await _open_session(trust_env) as session:
+
+                status, body = await _http_get(session, geo_url, timeout_total=20)
+
+                if status != 200:
+
+                    last_err = f"geocode HTTP {status}"
+
+                    continue
+
+                import json
+
+                geo = json.loads(body)
+
+                results = geo.get("results") or []
+
+                if results:
+
+                    return results[0], None
+
+                return None, "not_found"
+
+        except Exception as exc:
+
+            last_err = str(exc)
+
+            log.warning("Weather geocode failed (trust_env=%s): %s", trust_env, exc)
+
+    return None, last_err or "geocode_failed"
+
+
+
+
+
+async def _fetch_open_meteo_forecast(lat, lon):
+
+    wx_url = (
+
+        f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+
+        "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
+
+        "&timezone=auto"
+
+    )
+
+    last_err = None
+
+    for trust_env in (False, True):
+
+        try:
+
+            async with await _open_session(trust_env) as session:
+
+                status, body = await _http_get(session, wx_url, timeout_total=25)
+
+                if status != 200:
+
+                    last_err = f"forecast HTTP {status}"
+
+                    continue
+
+                import json
+
+                wx = json.loads(body)
+
+                current = wx.get("current") or {}
+
+                temp = current.get("temperature_2m")
+
+                if temp is None:
+
+                    last_err = "forecast empty"
+
+                    continue
+
+                code = int(current.get("weather_code", -1))
+
+                return {
+
+                    "temp": temp,
+
+                    "feels": current.get("apparent_temperature"),
+
+                    "humidity": current.get("relative_humidity_2m"),
+
+                    "wind": current.get("wind_speed_10m"),
+
+                    "desc": _WEATHER_CODE_RU.get(code, "Без описания"),
+
+                }, None
+
+        except Exception as exc:
+
+            last_err = str(exc)
+
+            log.warning("Weather forecast failed (trust_env=%s): %s", trust_env, exc)
+
+    return None, last_err or "forecast_failed"
+
+
+
+
+
+async def _fetch_wttr_forecast(city):
+
+    import urllib.parse
+
+
+
+    q = urllib.parse.quote((city or "").strip())
+
+    wx_url = (
+
+        "https://wttr.in/" + q
+
+        + "?format=%l:%0A%C:%0A%t:%0A%f:%0A%h:%0A%w:&m&lang=ru"
+
+    )
+
+    last_err = None
+
+    for trust_env in (False, True):
+
+        try:
+
+            async with await _open_session(trust_env) as session:
+
+                status, body = await _http_get(session, wx_url, timeout_total=50)
+
+                if status != 200:
+
+                    last_err = f"wttr HTTP {status}"
+
+                    continue
+
+                lines = [ln.strip() for ln in (body or "").strip().splitlines() if ln.strip()]
+
+                if len(lines) < 6:
+
+                    last_err = "wttr bad format"
+
+                    continue
+
+
+
+                def _clean_num(s):
+
+                    s = (s or "").strip().rstrip(":")
+
+                    for ch in ("°C", "°", "%", "km/h", "км/ч"):
+
+                        s = s.replace(ch, "")
+
+                    s = s.replace(",", ".").strip()
+
+                    try:
+
+                        return float(s)
+
+                    except ValueError:
+
+                        return s or "—"
+
+
+
+                label = lines[0].rstrip(":")
+
+                desc = lines[1].rstrip(":")
+
+                temp = _clean_num(lines[2])
+
+                feels = _clean_num(lines[3])
+
+                humidity = _clean_num(lines[4])
+
+                wind_raw = lines[5].rstrip(":")
+
+                for ch in ("↗", "↘", "→", "←", "↑", "↓"):
+
+                    wind_raw = wind_raw.replace(ch, "")
+
+                wind_raw = wind_raw.replace("km/h", "").replace("км/ч", "").strip()
+
+                try:
+
+                    wind = float(wind_raw.replace(",", "."))
+
+                except ValueError:
+
+                    wind = wind_raw or "—"
+
+
+
+                return {
+
+                    "label": label,
+
+                    "temp": temp,
+
+                    "feels": feels,
+
+                    "humidity": humidity,
+
+                    "wind": wind,
+
+                    "desc": desc,
+
+                }, None
+
+        except Exception as exc:
+
+            last_err = str(exc)
+
+            log.warning("Weather wttr failed (trust_env=%s): %s", trust_env, exc)
+
+    return None, last_err or "wttr_failed"
+
+
+
+
+
+async def _fetch_weather_today_message(city: str, not_found_msg: str, error_msg: str) -> str:
+
+    city = (city or "").strip()
+
+    if not city:
+
+        return not_found_msg
+
+
+
+    place, geo_err = await _geocode_city(city)
+
+    if geo_err == "not_found":
+
+        return not_found_msg.replace("{city}", city)
+
+
+
+    if place:
+
+        name = place.get("name") or city
+
+        region = place.get("admin1") or place.get("country") or ""
+
+        label = name + (f", {region}" if region else "")
+
+        lat = place.get("latitude")
+
+        lon = place.get("longitude")
+
+    else:
+
+        label = city
+
+        lat = lon = None
+
+        if geo_err:
+
+            log.warning("Weather geocode fallback for %r: %s", city, geo_err)
+
+
+
+    wx = None
+
+    if lat is not None and lon is not None:
+
+        wx, fc_err = await _fetch_open_meteo_forecast(lat, lon)
+
+        if wx:
+
+            return _build_weather_message(label, wx["temp"], wx["feels"], wx["desc"], wx["humidity"], wx["wind"])
+
+        log.info("Open-Meteo forecast unavailable for %r, trying wttr.in: %s", city, fc_err)
+
+
+
+    wttr, wttr_err = await _fetch_wttr_forecast(city)
+
+    if wttr:
+
+        use_label = wttr.get("label") or label
+
+        return _build_weather_message(
+
+            use_label, wttr["temp"], wttr["feels"], wttr["desc"], wttr["humidity"], wttr["wind"]
+
+        )
+
+
+
+    log.error("Weather fetch failed for %r: geocode=%s wttr=%s", city, geo_err, wttr_err)
+
+    return error_msg
+
+
+
+
+
+async def _type_handler_weather(bot, chat_id, user_id, block_id, ctx, data, disable):
+
+    city_field = (data.get("cityField") or "weather_city").strip() or "weather_city"
+
+    prompt = (data.get("inputPrompt") or "В каком городе вы находитесь?").strip()
+
+    not_found = (data.get("errorNotFound") or "Город «{city}» не найден.").strip()
+
+    error_msg = (data.get("errorApi") or "Не удалось получить погоду.").strip()
+
+
+
+    city = (ctx.get("last_message_text") or "").strip()
+
+    if not city:
+
+        saved = get_user_field(user_id, city_field)
+
+        if saved:
+
+            city = str(saved).strip()
+
+
+
+    if not city:
+
+        return (
+
+            "await_input",
+
+            {
+
+                "block_id": block_id,
+
+                "field": city_field,
+
+                "field_type": "string",
+
+                "next_id": block_id,
+
+                "input_prompt": prompt,
+
+            },
+
+        )
+
+
+
+    set_user_field(user_id, city_field, city)
+
+    text = await _fetch_weather_today_message(city, not_found, error_msg)
+
+    await bot.send_message(chat_id, text, parse_mode=ParseMode.HTML, disable_web_page_preview=disable)
+
+
+
+    next_id = get_next_block(block_id, 0)
+
+    if next_id:
+
+        await execute_block(bot, chat_id, user_id, next_id, ctx)
+

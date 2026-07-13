@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Подтверждение email — WebApp CreateBots</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="auth-page">
+      <div class="auth-card">
+        <div class="logo-placeholder">B</div>
+        <h1>Подтверждение email</h1>
+        <p class="subtitle" id="message">Ожидание результата…</p>
+        <div id="auth-error" class="auth-error" role="alert"></div>
+        <div id="auth-success" class="auth-success"></div>
+        <p class="auth-footer" style="margin-top: 20px;">
+          <a href="login.html">Войти в аккаунт</a>
+        </p>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var error = params.get("error");
+        var success = params.get("success");
+        var msg = params.get("msg");
+        var messageEl = document.getElementById("message");
+        var errorEl = document.getElementById("auth-error");
+        var successEl = document.getElementById("auth-success");
+
+        if (success === "1") {
+          successEl.textContent = "Email подтверждён! Теперь вы можете войти.";
+          successEl.classList.add("visible");
+          messageEl.textContent = "Регистрация завершена.";
+        } else if (error) {
+          errorEl.textContent = msg || (error === "invalid" ? "Ссылка истекла или неверна." : "Ошибка подтверждения.");
+          errorEl.classList.add("visible");
+          messageEl.textContent = "Не удалось подтвердить email.";
+        } else if (!params.has("token")) {
+          messageEl.textContent = "Перейдите по ссылке из письма для подтверждения.";
+        }
+      })();
+    </script>
+  </body>
+</html>

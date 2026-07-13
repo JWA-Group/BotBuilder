@@ -1,0 +1,2 @@
+# Build-time only (not required for runtime / customer bots)
+pyinstaller>=6.3.0

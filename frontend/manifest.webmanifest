@@ -1,0 +1,19 @@
+{
+  "name": "BotBuilder",
+  "short_name": "BotBuilder",
+  "description": "Конструктор Telegram и VK ботов",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f1419",
+  "theme_color": "#2563eb",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/shared/icons/BBico.ico",
+      "sizes": "256x256",
+      "type": "image/x-icon",
+      "purpose": "any"
+    }
+  ]
+}

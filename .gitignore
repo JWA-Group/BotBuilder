@@ -1,0 +1,150 @@
+# =============================================================================
+# BotBuilder — Git ignore rules
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. NODE.JS & ELECTRON ISOLATION
+# -----------------------------------------------------------------------------
+
+node_modules/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+dist/
+dist-electron/
+
+# Generated license bundle output (source: backend/build/LICENSE.txt)
+build/
+
+backend/dist/
+
+# -----------------------------------------------------------------------------
+# 2. PYTHON RUNTIME & CACHE ISOLATION
+# -----------------------------------------------------------------------------
+
+venv/
+.venv/
+env/
+ENV/
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+
+*.so
+*.egg
+*.egg-info/
+.eggs/
+eggs/
+
+# PyInstaller work directories (generated during backend freeze)
+backend/build/pyinstaller/
+
+# Embedded Python runtime bundle (large binaries; restored by build scripts)
+python_embed/
+
+# Secondary Python dependency managers — track requirements.txt only
+poetry.lock
+Pipfile
+Pipfile.lock
+.pdm.toml
+.pdm-python
+
+# -----------------------------------------------------------------------------
+# 3. SENSITIVE DATA & LOCAL DATABASES
+# -----------------------------------------------------------------------------
+
+*.db
+*.sqlite
+*.sqlite3
+
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+.env.example
+
+# User-generated bot projects and runtime logs
+projects/
+logs/
+*.log
+
+# Build-time generated frontend stamp
+frontend/shared/build-stamp.json
+
+# -----------------------------------------------------------------------------
+# 4. OPERATING SYSTEM DEBRIS
+# -----------------------------------------------------------------------------
+
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+desktop.ini
+
+# -----------------------------------------------------------------------------
+# 5. LOCAL AUTOMATION SCRIPTS (not committed)
+# -----------------------------------------------------------------------------
+
+*.bat
+*.cmd
+*.sh
+
+# -----------------------------------------------------------------------------
+# 6. SPECIFICATION DRAFTS & PROMPT LOGS
+# -----------------------------------------------------------------------------
+
+Project_SPEC/
+Project_SPEC*
+PROJECT_SPEC.md
+*.spec
+!packaging/botbuilder-backend.spec
+
+# -----------------------------------------------------------------------------
+# 7. LOCAL NOTES, TEST FIXTURES & REPOSITORY CLUTTER
+# -----------------------------------------------------------------------------
+
+GITHUB_PUSH.md
+*_test.json
+*_TEST.json
+test_*.json
+wttr_test.json
+ОТКРЫТЬ_В_CHROME.txt
+_tmp_data_test/
+
+# Accidental / scratch copies
+*_backup.*
+*.bak
+*.tmp
+*.temp
+*~
+
+# -----------------------------------------------------------------------------
+# IDE & EDITOR CONFIGURATION
+# -----------------------------------------------------------------------------
+
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# -----------------------------------------------------------------------------
+# SOURCE LICENSE (explicitly tracked)
+# -----------------------------------------------------------------------------
+# EULA source for installer and build:licenses — must stay in the repository.
+!backend/build/LICENSE.txt
+!backend/build/license.txt
+
+NGROK.md
+SMTP_GUIDE.md
+TECHNICAL_REPORT.md

@@ -1,0 +1,138 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+  <head>
+        <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Регистрация — WebApp CreateBots</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="auth-page">
+      <div class="auth-card">
+        <div class="logo-placeholder">B</div>
+        <h1>Регистрация</h1>
+        <p class="subtitle">Создайте аккаунт по email — вход сразу после регистрации</p>
+
+        <div id="auth-error" class="auth-error" role="alert"></div>
+        <div id="auth-success" class="auth-success"></div>
+
+        <form id="register-form" class="auth-form">
+          <label for="reg-email">Email</label>
+          <input type="email" id="reg-email" name="email" placeholder="example@mail.com" required autocomplete="email" />
+
+          <label for="reg-password">Пароль</label>
+          <input type="password" id="reg-password" name="password" placeholder="Не менее 6 символов" required autocomplete="new-password" minlength="6" />
+
+          <label for="reg-password-confirm">Повторите пароль</label>
+          <input type="password" id="reg-password-confirm" placeholder="Повторите пароль" required autocomplete="new-password" />
+
+          <div class="checkbox-row">
+            <input type="checkbox" id="accept-terms" name="accept-terms" required />
+            <label for="accept-terms">
+              Я согласен с
+              <a href="/public/terms.html" target="_blank" rel="noopener">политикой конфиденциальности</a>
+            </label>
+          </div>
+
+          <button type="submit" id="submit-btn">Зарегистрироваться</button>
+        </form>
+
+        <div class="auth-divider"></div>
+        <p class="auth-footer">
+          Уже есть аккаунт? <a href="login.html">Войти</a>
+        </p>
+      </div>
+    </div>
+
+    <script src="/shared/js/api-config.js"></script>
+    <script>
+      (function () {
+        var form = document.getElementById("register-form");
+        var errorEl = document.getElementById("auth-error");
+        var successEl = document.getElementById("auth-success");
+        var submitBtn = document.getElementById("submit-btn");
+
+        function showError(msg) {
+          successEl.classList.remove("visible");
+          errorEl.textContent = msg || "Ошибка";
+          errorEl.classList.add("visible");
+        }
+
+        function showSuccess(msg) {
+          errorEl.classList.remove("visible");
+          successEl.textContent = msg || "Успешно";
+          successEl.classList.add("visible");
+        }
+
+        function hideMessages() {
+          errorEl.classList.remove("visible");
+          successEl.classList.remove("visible");
+        }
+
+        form.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          hideMessages();
+
+          var email = document.getElementById("reg-email").value.trim().toLowerCase();
+          var password = document.getElementById("reg-password").value;
+          var confirm = document.getElementById("reg-password-confirm").value;
+          var accept = document.getElementById("accept-terms").checked;
+
+          if (!accept) {
+            showError("Необходимо принять политику конфиденциальности");
+            return;
+          }
+
+          if (password.length < 6) {
+            showError("Пароль должен быть не менее 6 символов");
+            return;
+          }
+
+          if (password !== confirm) {
+            showError("Пароли не совпадают");
+            return;
+          }
+
+          submitBtn.disabled = true;
+
+          try {
+            var res = await fetch("/api/auth/register", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: email, password: password }),
+            });
+
+            var data = await res.json().catch(function () { return {}; });
+
+            if (res.ok) {
+              successEl.innerHTML =
+                "Аккаунт создан. Теперь можно <a href=\"login.html\">войти</a> с указанным email и паролем.";
+              successEl.classList.add("visible");
+              return;
+            }
+
+            showError(data && data.detail ? data.detail : "Ошибка регистрации");
+          } catch (err) {
+            showError("Ошибка сети. Проверьте подключение.");
+          }
+          submitBtn.disabled = false;
+        });
+      })();
+    </script>
+  </body>
+</html>

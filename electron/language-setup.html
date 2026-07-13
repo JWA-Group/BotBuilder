@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>BotBuilder — Language</title>
+    <link rel="stylesheet" href="../frontend/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="settings.css" />
+    <style>
+      .setup-wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      .setup-card {
+        width: 100%;
+        max-width: 480px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: 18px;
+        padding: 32px 28px;
+        text-align: center;
+        box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+      }
+      .setup-icon {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+      }
+      .setup-card h1 {
+        margin: 0 0 10px;
+        font-size: 1.35rem;
+        color: var(--accent-ui);
+      }
+      .setup-card p {
+        margin: 0 0 24px;
+        color: var(--text-muted);
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+      .setup-lang-grid {
+        display: grid;
+        gap: 10px;
+      }
+      .setup-lang-btn {
+        padding: 14px 18px;
+        border-radius: 12px;
+        border: 1px solid var(--border-main);
+        background: var(--bg-elevated);
+        color: var(--text-main);
+        font-size: 1.05rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s, transform 0.1s;
+      }
+      .setup-lang-btn:hover {
+        border-color: var(--accent-ui);
+        background: var(--accent-ui-soft);
+        transform: translateY(-1px);
+      }
+    </style>
+    <script src="../frontend/shared/js/locales.js"></script>
+    <script src="../frontend/shared/js/i18n.js"></script>
+  </head>
+  <body class="settings-body">
+    <div class="setup-wrap">
+      <div class="setup-card">
+        <div class="setup-icon" aria-hidden="true">🌐</div>
+        <h1 data-i18n="setup.title">Choose your language</h1>
+        <p data-i18n="setup.subtitle">Select the language for BotBuilder. You can change it later in Settings.</p>
+        <div class="setup-lang-grid">
+          <button type="button" class="setup-lang-btn" data-lang="en">English</button>
+          <button type="button" class="setup-lang-btn" data-lang="ru">Русский</button>
+          <button type="button" class="setup-lang-btn" data-lang="es">Español</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      document.querySelectorAll(".setup-lang-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var lang = btn.getAttribute("data-lang");
+          if (typeof applyLanguage === "function") applyLanguage(lang);
+          if (window.languageSetupBridge) window.languageSetupBridge.choose(lang);
+        });
+      });
+    </script>
+  </body>
+</html>

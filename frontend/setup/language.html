@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>BotBuilder — Setup</title>
+    <link rel="stylesheet" href="../shared/css/theme.css" />
+    <link rel="stylesheet" href="../shared/css/theme-surfaces.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-size: 16px;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      .setup-wrap {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 28px;
+        box-sizing: border-box;
+        background: var(--bg-main);
+      }
+      .setup-card {
+        width: 100%;
+        max-width: 540px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: 18px;
+        padding: 36px 32px 32px;
+        text-align: center;
+        box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+      }
+      .setup-icon {
+        font-size: 2.75rem;
+        margin-bottom: 14px;
+        line-height: 1;
+      }
+      .setup-card h1 {
+        margin: 0 0 10px;
+        font-size: 1.4rem;
+        color: var(--accent-ui);
+      }
+      .setup-card .setup-subtitle {
+        margin: 0 0 28px;
+        color: var(--text-muted);
+        line-height: 1.55;
+        font-size: 0.95rem;
+      }
+      .setup-section-label {
+        margin: 0 0 10px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        text-align: left;
+      }
+      .setup-lang-grid {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 26px;
+      }
+      .setup-lang-btn {
+        padding: 14px 18px;
+        border-radius: 12px;
+        border: 1px solid var(--border-main);
+        background: var(--bg-elevated);
+        color: var(--text-main);
+        font-size: 1.05rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s, transform 0.1s, box-shadow 0.15s;
+      }
+      .setup-lang-btn:hover {
+        border-color: var(--accent-ui);
+        background: var(--accent-ui-soft);
+        transform: translateY(-1px);
+      }
+      .setup-lang-btn.is-selected {
+        border-color: var(--accent-ui);
+        background: var(--accent-ui-soft);
+        box-shadow: 0 0 0 2px var(--accent-ui-soft);
+      }
+      .setup-theme-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 28px;
+      }
+      .setup-theme-btn {
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--border-main);
+        background: var(--bg-elevated);
+        color: var(--text-main);
+        font-size: 0.98rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .setup-theme-btn:hover {
+        border-color: var(--accent-ui);
+      }
+      .setup-theme-btn.is-active {
+        border-color: var(--accent-ui);
+        background: var(--accent-ui-soft);
+        color: var(--accent-ui);
+      }
+      .setup-continue {
+        width: 100%;
+        padding: 14px 20px;
+        border: none;
+        border-radius: 12px;
+        background: var(--accent-ui);
+        color: #fff;
+        font-size: 1.05rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.15s, transform 0.1s;
+      }
+      .setup-continue:hover {
+        opacity: 0.92;
+        transform: translateY(-1px);
+      }
+      .setup-continue:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+      }
+    </style>
+    <script src="../shared/js/theme.js"></script>
+    <script src="../shared/js/locales.js"></script>
+    <script src="../shared/js/i18n.js"></script>
+  </head>
+  <body>
+    <div class="setup-wrap">
+      <div class="setup-card">
+        <div class="setup-icon" aria-hidden="true">🌐</div>
+        <h1 data-i18n="setup.title">Choose your language</h1>
+        <p class="setup-subtitle" data-i18n="setup.subtitle">
+          Select the language and appearance for BotBuilder. You can change these later in Settings.
+        </p>
+
+        <p class="setup-section-label" data-i18n="lang.label">Language</p>
+        <div class="setup-lang-grid" role="listbox" aria-label="Language">
+          <button type="button" class="setup-lang-btn" data-lang="en" role="option">English</button>
+          <button type="button" class="setup-lang-btn" data-lang="ru" role="option">Русский</button>
+          <button type="button" class="setup-lang-btn" data-lang="es" role="option">Español</button>
+        </div>
+
+        <p class="setup-section-label" data-i18n="setup.theme_label">Appearance</p>
+        <div class="setup-theme-row">
+          <button type="button" class="setup-theme-btn is-active" data-theme="light" data-i18n="settings.theme_light">
+            Light
+          </button>
+          <button type="button" class="setup-theme-btn" data-theme="dark" data-i18n="settings.theme_dark">
+            Dark
+          </button>
+        </div>
+
+        <button type="button" class="setup-continue" id="setup-continue" data-i18n="setup.continue" disabled>
+          Continue
+        </button>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var selectedLang = null;
+        var selectedTheme = "light";
+
+        try {
+          selectedTheme = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+        } catch (e) {
+          selectedTheme = "light";
+        }
+
+        var langButtons = document.querySelectorAll(".setup-lang-btn");
+        var themeButtons = document.querySelectorAll(".setup-theme-btn");
+        var continueBtn = document.getElementById("setup-continue");
+
+        function syncThemeButtons() {
+          themeButtons.forEach(function (btn) {
+            btn.classList.toggle("is-active", btn.getAttribute("data-theme") === selectedTheme);
+          });
+        }
+
+        function applyThemePreview(theme) {
+          selectedTheme = theme === "dark" ? "dark" : "light";
+          syncThemeButtons();
+          if (window.AppTheme && typeof AppTheme.apply === "function") {
+            AppTheme.apply(selectedTheme, { silent: true });
+          } else {
+            document.documentElement.classList.remove("theme-light", "theme-dark");
+            document.documentElement.classList.add("theme-" + selectedTheme);
+            try {
+              localStorage.setItem("app_theme", selectedTheme);
+            } catch (e) {}
+          }
+        }
+
+        function selectLang(lang) {
+          selectedLang = lang;
+          langButtons.forEach(function (btn) {
+            btn.classList.toggle("is-selected", btn.getAttribute("data-lang") === lang);
+          });
+          if (typeof applyLanguage === "function") {
+            applyLanguage(lang, { silent: true });
+          }
+          if (continueBtn) continueBtn.disabled = false;
+        }
+
+        langButtons.forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            selectLang(btn.getAttribute("data-lang"));
+          });
+        });
+
+        themeButtons.forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            applyThemePreview(btn.getAttribute("data-theme"));
+          });
+        });
+
+        syncThemeButtons();
+        applyThemePreview(selectedTheme);
+
+        var initialLang =
+          typeof getLang === "function"
+            ? getLang()
+            : (function () {
+                try {
+                  return localStorage.getItem("botbuilder_lang") || "en";
+                } catch (e) {
+                  return "en";
+                }
+              })();
+        if (initialLang === "en" || initialLang === "ru" || initialLang === "es") {
+          selectLang(initialLang);
+        }
+
+        if (continueBtn) {
+          continueBtn.addEventListener("click", function () {
+            if (!selectedLang || continueBtn.disabled) return;
+            if (window.languageSetupBridge && typeof languageSetupBridge.choose === "function") {
+              languageSetupBridge.choose({ lang: selectedLang, theme: selectedTheme });
+            }
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "type": "start",
+  "name": "Старт",
+  "icon": "▶️",
+  "color": "#16a34a",
+  "description": "Точка входа сценария (/start)",
+  "palette": false,
+  "connectable": true,
+  "outputs": 1,
+  "defaults": {},
+  "fields": [
+    {
+      "type": "info",
+      "label": "Старт",
+      "text": "Блок «Старт» — точка входа. Связь от выхода ведёт к первому шагу после /start."
+    }
+  ]
+}

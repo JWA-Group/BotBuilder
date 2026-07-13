@@ -1,0 +1,28 @@
+{
+  "type": "command",
+  "name": "Команда",
+  "icon": "⚡",
+  "color": "#dc2626",
+  "description": "Обработка текстовой команды (/help и т.д.)",
+  "palette": true,
+  "connectable": true,
+  "outputs": 1,
+  "defaults": {
+    "command": "/help",
+    "tagId": ""
+  },
+  "fields": [
+    {
+      "key": "command",
+      "type": "text",
+      "label": "Команда",
+      "placeholder": "/help"
+    },
+    {
+      "key": "tagId",
+      "type": "tag_select",
+      "label": "Тэг",
+      "hint": "Переход к блоку с выбранным тэгом"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{# Handler for block type: message (Send Message) #}
+async def _type_handler_message(bot, chat_id, user_id, block_id, ctx, data, disable):
+    text = resolve_text((data.get("text") or "").strip() or " ", user_id)
+    media = data.get("media") or {}
+    media_type = media.get("type")
+    media_files = media.get("files") or []
+    base_media = os.path.join(BASE_DIR, media_files[0].get("path", "")) if media_files else None
+
+    inline_buttons = data.get("inlineButtons") or []
+    next_id = get_next_block(block_id, 0)
+    kb = None
+    if inline_buttons or next_id:
+        from aiogram.types import WebAppInfo
+        row = []
+        for btn in (inline_buttons or [])[:40]:
+            b_text = (btn.get("text") or "•")[:20]
+            url = (btn.get("url") or "").strip()
+            web_app_url = (btn.get("web_app") or "").strip() if isinstance(btn.get("web_app"), str) else ""
+            if web_app_url:
+                if web_app_url.lower().startswith("https://"):
+                    row.append(InlineKeyboardButton(text=b_text, web_app=WebAppInfo(url=web_app_url)))
+                else:
+                    row.append(InlineKeyboardButton(text=b_text, url=web_app_url))
+            elif url:
+                row.append(InlineKeyboardButton(text=b_text, url=url))
+            elif next_id:
+                row.append(InlineKeyboardButton(text=b_text, callback_data=next_id))
+        if row:
+            rows = [row[i : i + 4] for i in range(0, len(row), 4)]
+            kb = InlineKeyboardMarkup(inline_keyboard=rows)
+
+    if media_type == "photo" and base_media and os.path.exists(base_media):
+        await bot.send_photo(
+            chat_id, FSInputFile(base_media),
+            caption=text or None,
+            reply_markup=kb,
+            parse_mode=ParseMode.HTML,
+        )
+    elif media_type == "video" and base_media and os.path.exists(base_media):
+        await bot.send_video(
+            chat_id, FSInputFile(base_media),
+            caption=text or None,
+            reply_markup=kb,
+            parse_mode=ParseMode.HTML,
+        )
+    elif media_type == "audio" and base_media and os.path.exists(base_media):
+        await bot.send_audio(
+            chat_id, FSInputFile(base_media),
+            caption=text or None,
+            reply_markup=kb,
+            parse_mode=ParseMode.HTML,
+        )
+    elif media_type == "document" and media_files:
+        sent = False
+        for idx, f in enumerate(media_files[:10]):
+            p = os.path.join(BASE_DIR, f.get("path", ""))
+            if os.path.exists(p):
+                cap = (text or None) if idx == 0 else None
+                mark = kb if idx == len(media_files) - 1 else None
+                await bot.send_document(chat_id, FSInputFile(p), caption=cap, reply_markup=mark, parse_mode=ParseMode.HTML)
+                sent = True
+        if not sent:
+            await bot.send_message(chat_id, text or " ", reply_markup=kb, disable_web_page_preview=disable)
+    else:
+        await bot.send_message(
+            chat_id, text or " ",
+            reply_markup=kb,
+            disable_web_page_preview=disable,
+        )

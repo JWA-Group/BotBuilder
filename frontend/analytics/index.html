@@ -1,0 +1,122 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="analytics.title">Product analytics</title>
+    
+        <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+
+    <link rel="stylesheet" href="/shared/css/page-shell.css" />
+    <link rel="stylesheet" href="analytics.css?v=1" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <div class="dashboard">
+      <header class="dashboard-header">
+        <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
+        <h1 class="page-title" data-i18n="analytics.title">Product analytics</h1>
+      </header>
+
+      <main class="dashboard-content an-page">
+        <div class="an-toolbar">
+          <div class="an-toolbar-left">
+            <label class="an-label" for="bot-select" data-i18n="common.bot">Bot</label>
+            <select id="bot-select" class="an-select">
+              <option value="" data-i18n="common.select">— select —</option>
+            </select>
+          </div>
+          <div class="an-toolbar-right">
+            <div class="an-range" role="group" aria-label="Period">
+              <button type="button" class="an-range-btn" data-range="today" data-i18n="analytics.today">Today</button>
+              <button type="button" class="an-range-btn" data-range="7d" data-i18n="analytics.range_7d">7 days</button>
+              <button type="button" class="an-range-btn an-range-btn-active" data-range="30d" data-i18n="analytics.range_30d">30 days</button>
+            </div>
+            <button type="button" id="an-refresh" class="an-btn" data-i18n="common.refresh">Refresh</button>
+          </div>
+        </div>
+
+        <div id="an-status" class="an-status" hidden></div>
+
+        <section class="an-kpi-grid" aria-label="KPI">
+          <article class="an-kpi">
+            <p class="an-kpi-label" data-i18n="analytics.kpi_subscribers">Subscribers</p>
+            <div class="an-kpi-row">
+              <div class="an-kpi-value" id="kpi-subscribers">—</div>
+              <span class="an-trend an-trend-flat" id="kpi-subscribers-trend">—</span>
+            </div>
+            <div class="an-kpi-hint" data-i18n="analytics.kpi_subscribers_hint">Total in bot database</div>
+          </article>
+          <article class="an-kpi">
+            <p class="an-kpi-label" data-i18n="analytics.kpi_active">Active (DAU / MAU)</p>
+            <div class="an-kpi-row">
+              <div class="an-kpi-value" id="kpi-active">—</div>
+              <span class="an-trend an-trend-flat" id="kpi-active-trend">—</span>
+            </div>
+            <div class="an-kpi-hint" id="kpi-active-hint" data-i18n="analytics.kpi_active_hint">Average DAU · MAU 30d</div>
+          </article>
+          <article class="an-kpi">
+            <p class="an-kpi-label" data-i18n="analytics.kpi_messages">Messages / events</p>
+            <div class="an-kpi-row">
+              <div class="an-kpi-value" id="kpi-messages">—</div>
+              <span class="an-trend an-trend-flat" id="kpi-messages-trend">—</span>
+            </div>
+            <div class="an-kpi-hint" data-i18n="analytics.kpi_messages_hint">Incoming user messages</div>
+          </article>
+          <article class="an-kpi">
+            <p class="an-kpi-label" data-i18n="analytics.kpi_error_rate">Error Rate</p>
+            <div class="an-kpi-row">
+              <div class="an-kpi-value" id="kpi-errors">—</div>
+              <span class="an-trend an-trend-flat" id="kpi-errors-trend">—</span>
+            </div>
+            <div class="an-kpi-hint" data-i18n="analytics.kpi_error_hint">Share of error events</div>
+          </article>
+        </section>
+
+        <section class="an-charts" aria-label="Charts">
+          <div class="an-panel">
+            <div class="an-panel-head">
+              <div>
+                <h2 data-i18n="analytics.activity_title">Activity by day</h2>
+                <p class="an-panel-sub" data-i18n="analytics.activity_sub">New users vs incoming messages</p>
+              </div>
+            </div>
+            <div class="an-chart-wrap">
+              <canvas id="an-activity-chart"></canvas>
+            </div>
+          </div>
+          <div class="an-panel">
+            <div class="an-panel-head">
+              <div>
+                <h2 data-i18n="analytics.funnel_title">Block Interaction Share</h2>
+                <p class="an-panel-sub" data-i18n="analytics.funnel_sub">Button and command popularity</p>
+              </div>
+            </div>
+            <div id="an-funnel" class="an-funnel"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/shared/js/api-config.js"></script>
+    <script src="AnalyticsView.js?v=9"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.AnalyticsView) window.AnalyticsView.init();
+      });
+    </script>
+  </body>
+</html>

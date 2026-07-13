@@ -1,0 +1,54 @@
+{# Handler for block type: data #}
+async def _type_handler_data(bot, chat_id, user_id, block_id, ctx, data, disable):
+    action = data.get("action", "set")
+    field = (data.get("fieldName") or "").strip()
+    field_type = data.get("fieldType", "string")
+    if not field:
+        next_id = get_next_block(block_id, 0)
+        if next_id:
+            await execute_block(bot, chat_id, user_id, next_id, ctx)
+        return
+    if action == "set":
+        src = data.get("valueSource", "const")
+        if src == "input":
+            next_id = get_next_block(block_id, 0)
+            return ("await_input", {"block_id": block_id, "field": field, "field_type": field_type, "next_id": next_id})
+        raw_val = data.get("fieldValue")
+        if raw_val is None:
+            raw_val = ""
+        val = resolve_text(str(raw_val), user_id)
+        if field_type == "number":
+            try:
+                val = str(float(str(val).replace(",", ".")))
+            except (ValueError, TypeError):
+                val = "0"
+        set_user_field(user_id, field, val)
+    elif action == "add":
+        cur = get_user_field(user_id, field)
+        try:
+            cur_f = float(str(cur or "0").replace(",", "."))
+        except (ValueError, TypeError):
+            cur_f = 0
+        delta_raw = data.get("fieldValue") or "0"
+        delta = resolve_text(str(delta_raw), user_id)
+        try:
+            delta_f = float(str(delta).replace(",", "."))
+        except (ValueError, TypeError):
+            delta_f = 0
+        set_user_field(user_id, field, str(cur_f + delta_f))
+    elif action == "subtract":
+        cur = get_user_field(user_id, field)
+        try:
+            cur_f = float(str(cur or "0").replace(",", "."))
+        except (ValueError, TypeError):
+            cur_f = 0
+        delta_raw = data.get("fieldValue") or "0"
+        delta = resolve_text(str(delta_raw), user_id)
+        try:
+            delta_f = float(str(delta).replace(",", "."))
+        except (ValueError, TypeError):
+            delta_f = 0
+        set_user_field(user_id, field, str(cur_f - delta_f))
+    next_id = get_next_block(block_id, 0)
+    if next_id:
+        await execute_block(bot, chat_id, user_id, next_id, ctx)

@@ -1,0 +1,55 @@
+{
+  "type": "digital_shop",
+  "name": "Магазин подписок",
+  "icon": "🛒",
+  "color": "#0f766e",
+  "description": "Готовый магазин цифровых подписок: каталог, профиль, баланс 1000 ₽. Весь бот работает через один блок.",
+  "palette": true,
+  "connectable": true,
+  "outputs": 1,
+  "executable": true,
+  "custom": true,
+  "defaults": {
+    "shopName": "Digital Shop",
+    "welcomeText": "Добро пожаловать в магазин премиум-подписок!\nВыберите товар или откройте профиль.",
+    "startBalance": 1000,
+    "productPrice": 200,
+    "balanceField": "balance"
+  },
+  "fields": [
+    {
+      "type": "info",
+      "label": "Как подключить",
+      "text": "Соедините Start → этот блок. Больше ничего не нужно: каталог, покупки и профиль работают внутри плагина. Новым пользователям начисляется стартовый баланс."
+    },
+    {
+      "key": "shopName",
+      "type": "text",
+      "label": "Название магазина",
+      "placeholder": "Digital Shop"
+    },
+    {
+      "key": "welcomeText",
+      "type": "textarea",
+      "label": "Приветствие",
+      "rows": 3
+    },
+    {
+      "key": "startBalance",
+      "type": "number",
+      "label": "Стартовый баланс (₽)",
+      "hint": "Начисляется один раз при первом заходе"
+    },
+    {
+      "key": "productPrice",
+      "type": "number",
+      "label": "Цена товаров (₽)"
+    },
+    {
+      "key": "balanceField",
+      "type": "text",
+      "label": "Поле баланса в БД",
+      "placeholder": "balance"
+    }
+  ]
+}
