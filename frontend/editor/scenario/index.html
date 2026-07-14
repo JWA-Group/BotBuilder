@@ -21,6 +21,7 @@
     <script src="/shared/js/plugin-i18n.js"></script>
 
     <link rel="stylesheet" href="/shared/css/theme.css" />
+    <link rel="stylesheet" href="/shared/css/confirm-modal.css" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -60,6 +61,7 @@
       </div>
 
       <div id="sidebar">
+        <div id="sidebar-resizer" class="sidebar-resizer" title="Resize" aria-hidden="true"></div>
         <h3 data-i18n="editor.editor_title">Editor</h3>
         <div id="sidebar-content" data-i18n="editor.select_block">Select a block</div>
       </div>
@@ -126,6 +128,8 @@
     </div>
 
     <script src="/shared/js/api-config.js"></script>
+    <script src="/shared/js/confirm-modal.js"></script>
+    <script src="/shared/js/placeholder-autocomplete.js"></script>
     <script src="CanvasView.js"></script>
     <script src="TimelineBar.js"></script>
     <script src="main.js"></script>

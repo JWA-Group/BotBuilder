@@ -13,20 +13,26 @@ async def _type_handler_menu(bot, chat_id, user_id, block_id, ctx, data, disable
     if not caption:
         caption = "Выберите действие"
 
+    breaks = data.get("buttonRowBreaks") or [0]
+    button_rows = build_button_rows_from_breaks(buttons, breaks)
     rows = []
-    for b in buttons:
-        t = (b.get("text") if isinstance(b, dict) else str(b)) or "•"
-        t = str(t)[:25]
-        if isinstance(b, dict) and b.get("request_contact"):
-            rows.append([KeyboardButton(text=t, request_contact=True)])
-        elif isinstance(b, dict) and b.get("request_location"):
-            rows.append([KeyboardButton(text=t, request_location=True)])
-        else:
-            rows.append([KeyboardButton(text=t)])
-    kb = ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
+    for row in button_rows:
+        kb_row = []
+        for b in row:
+            t = (b.get("text") if isinstance(b, dict) else str(b)) or "•"
+            t = str(t)[:25]
+            if isinstance(b, dict) and b.get("request_contact"):
+                kb_row.append(KeyboardButton(text=t, request_contact=True))
+            elif isinstance(b, dict) and b.get("request_location"):
+                kb_row.append(KeyboardButton(text=t, request_location=True))
+            else:
+                kb_row.append(KeyboardButton(text=t))
+        if kb_row:
+            rows.append(kb_row)
+    kb = ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True) if rows else None
 
-    # Layout id = block + button fingerprint. Same id → omit reply_markup.
-    target_id = menu_layout_id(str(block_id), buttons)
+    # Layout id = block + button fingerprint + row breaks. Same id → omit reply_markup.
+    target_id = menu_layout_id(str(block_id), buttons, breaks)
     markup, changed, new_id = resolve_reply_keyboard(user_id, target_id, kb)
 
     send_kwargs = {"disable_web_page_preview": disable}

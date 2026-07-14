@@ -5,6 +5,7 @@
 | License | Elastic License v2 |
 | Operating System | Windows 10 / 11 (x64) |
 | Core Stack | Electron 33, FastAPI, Python 3 (embedded), SQLite |
+| Active Channel | Telegram |
 
 Desktop IDE for designing, compiling, and deploying Telegram chat bots from visual node-based scenarios. Build complex, local-first automations without subscription fees.
 

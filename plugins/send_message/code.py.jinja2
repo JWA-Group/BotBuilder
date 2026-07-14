@@ -7,26 +7,35 @@ async def _type_handler_message(bot, chat_id, user_id, block_id, ctx, data, disa
     base_media = os.path.join(BASE_DIR, media_files[0].get("path", "")) if media_files else None
 
     inline_buttons = data.get("inlineButtons") or []
-    next_id = get_next_block(block_id, 0)
+    inline_breaks = data.get("inlineButtonRowBreaks") or [0]
     kb = None
-    if inline_buttons or next_id:
+    if inline_buttons:
         from aiogram.types import WebAppInfo
-        row = []
-        for btn in (inline_buttons or [])[:40]:
-            b_text = (btn.get("text") or "•")[:20]
-            url = (btn.get("url") or "").strip()
-            web_app_url = (btn.get("web_app") or "").strip() if isinstance(btn.get("web_app"), str) else ""
-            if web_app_url:
-                if web_app_url.lower().startswith("https://"):
-                    row.append(InlineKeyboardButton(text=b_text, web_app=WebAppInfo(url=web_app_url)))
+        rows = []
+        flat_idx = 0
+        for row_btns in build_button_rows_from_breaks(inline_buttons, inline_breaks):
+            kb_row = []
+            for btn in row_btns:
+                b_text = (btn.get("text") or "•")[:20]
+                url = (btn.get("url") or "").strip()
+                web_app_url = (btn.get("web_app") or "").strip() if isinstance(btn.get("web_app"), str) else ""
+                btn_next = get_next_block(block_id, flat_idx)
+                flat_idx += 1
+                if web_app_url:
+                    if web_app_url.lower().startswith("https://"):
+                        kb_row.append(InlineKeyboardButton(text=b_text, web_app=WebAppInfo(url=web_app_url)))
+                    else:
+                        kb_row.append(InlineKeyboardButton(text=b_text, url=web_app_url))
+                elif url:
+                    kb_row.append(InlineKeyboardButton(text=b_text, url=url))
+                elif btn_next:
+                    kb_row.append(InlineKeyboardButton(text=b_text, callback_data=btn_next))
                 else:
-                    row.append(InlineKeyboardButton(text=b_text, url=web_app_url))
-            elif url:
-                row.append(InlineKeyboardButton(text=b_text, url=url))
-            elif next_id:
-                row.append(InlineKeyboardButton(text=b_text, callback_data=next_id))
-        if row:
-            rows = [row[i : i + 4] for i in range(0, len(row), 4)]
+                    stub = f"__bb_nolink:{block_id}:{flat_idx}"[:64]
+                    kb_row.append(InlineKeyboardButton(text=b_text, callback_data=stub))
+            if kb_row:
+                rows.append(kb_row)
+        if rows:
             kb = InlineKeyboardMarkup(inline_keyboard=rows)
 
     if media_type == "photo" and base_media and os.path.exists(base_media):

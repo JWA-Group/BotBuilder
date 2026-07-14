@@ -34,6 +34,29 @@ def compute_required_plugins(scenario: dict[str, Any]) -> list[str]:
     return sorted(types_in_scenario(scenario))
 
 
+def _coerce_scenario_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value in (None, {}, [], ""):
+        return default
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return default
+
+
+def _sanitize_block_data(block: dict[str, Any]) -> None:
+    data = block.get("data")
+    if not isinstance(data, dict):
+        return
+    if "disableWebPagePreview" in data:
+        data["disableWebPagePreview"] = _coerce_scenario_bool(
+            data.get("disableWebPagePreview"),
+            False,
+        )
+
+
 def normalize_scenario_document(raw: dict[str, Any] | None) -> dict[str, Any]:
     """
     Normalize scenario or template manifest payloads.
@@ -64,6 +87,9 @@ def normalize_scenario_document(raw: dict[str, Any] | None) -> dict[str, Any]:
         "tags": tags if isinstance(tags, list) else [],
         "required_plugins": sorted({str(x) for x in required if x}),
     }
+    for block in out["blocks"]:
+        if isinstance(block, dict):
+            _sanitize_block_data(block)
     template_name = raw.get("template_name")
     if template_name:
         out["template_name"] = str(template_name)

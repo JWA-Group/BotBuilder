@@ -1,8 +1,19 @@
 {# Handler for block type: data #}
 async def _type_handler_data(bot, chat_id, user_id, block_id, ctx, data, disable):
     action = data.get("action", "set")
-    field = (data.get("fieldName") or "").strip()
+    if action == "issue":
+        product_id = resolve_text(str(data.get("productId") or "").strip(), user_id)
+        content = issue_inventory_item(product_id, user_id)
+        out_idx = 0 if content is not None else 1
+        next_id = get_next_block(block_id, out_idx)
+        if next_id:
+            await execute_block(bot, chat_id, user_id, next_id, ctx)
+        return
+    raw_field = (data.get("fieldName") or "").strip()
     field_type = data.get("fieldType", "string")
+    scope, _ = _parse_placeholder_key(raw_field) if raw_field else ("legacy", "")
+    is_bot_scope = scope == "bot" or raw_field.lower().startswith("bot.")
+    field = _normalize_bot_key(raw_field) if is_bot_scope else _normalize_user_field(raw_field)
     if not field:
         next_id = get_next_block(block_id, 0)
         if next_id:
@@ -12,7 +23,7 @@ async def _type_handler_data(bot, chat_id, user_id, block_id, ctx, data, disable
         src = data.get("valueSource", "const")
         if src == "input":
             next_id = get_next_block(block_id, 0)
-            return ("await_input", {"block_id": block_id, "field": field, "field_type": field_type, "next_id": next_id})
+            return ("await_input", {"block_id": block_id, "field": raw_field, "field_type": field_type, "next_id": next_id})
         raw_val = data.get("fieldValue")
         if raw_val is None:
             raw_val = ""
@@ -22,9 +33,15 @@ async def _type_handler_data(bot, chat_id, user_id, block_id, ctx, data, disable
                 val = str(float(str(val).replace(",", ".")))
             except (ValueError, TypeError):
                 val = "0"
-        set_user_field(user_id, field, val)
+        if is_bot_scope:
+            set_bot_global(field, val)
+        else:
+            set_user_field(user_id, field, val)
     elif action == "add":
-        cur = get_user_field(user_id, field)
+        if is_bot_scope:
+            cur = get_bot_global(field)
+        else:
+            cur = get_user_field(user_id, field)
         try:
             cur_f = float(str(cur or "0").replace(",", "."))
         except (ValueError, TypeError):
@@ -35,9 +52,16 @@ async def _type_handler_data(bot, chat_id, user_id, block_id, ctx, data, disable
             delta_f = float(str(delta).replace(",", "."))
         except (ValueError, TypeError):
             delta_f = 0
-        set_user_field(user_id, field, str(cur_f + delta_f))
+        new_val = str(cur_f + delta_f)
+        if is_bot_scope:
+            set_bot_global(field, new_val)
+        else:
+            set_user_field(user_id, field, new_val)
     elif action == "subtract":
-        cur = get_user_field(user_id, field)
+        if is_bot_scope:
+            cur = get_bot_global(field)
+        else:
+            cur = get_user_field(user_id, field)
         try:
             cur_f = float(str(cur or "0").replace(",", "."))
         except (ValueError, TypeError):
@@ -48,7 +72,11 @@ async def _type_handler_data(bot, chat_id, user_id, block_id, ctx, data, disable
             delta_f = float(str(delta).replace(",", "."))
         except (ValueError, TypeError):
             delta_f = 0
-        set_user_field(user_id, field, str(cur_f - delta_f))
+        new_val = str(cur_f - delta_f)
+        if is_bot_scope:
+            set_bot_global(field, new_val)
+        else:
+            set_user_field(user_id, field, new_val)
     next_id = get_next_block(block_id, 0)
     if next_id:
         await execute_block(bot, chat_id, user_id, next_id, ctx)

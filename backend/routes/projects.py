@@ -12,10 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.core.broadcast import BroadcastError, fetch_broadcast_filters, get_broadcast_job, normalize_telegram_html, start_broadcast
 from backend.core.database import (
     DatabaseManagerError,
+    create_bot_custom_table,
     delete_row,
+    delete_user_field_data,
     fetch_table_data,
     import_database,
+    insert_row,
     list_tables,
+    remove_bot_custom_table,
     update_row,
 )
 from backend.core import analytics as analytics_core
@@ -52,6 +56,17 @@ class RowMutationPayload(BaseModel):
 class DeleteRowPayload(BaseModel):
     table: str
     primary_key: dict = Field(default_factory=dict)
+
+
+class InsertRowPayload(BaseModel):
+    table: str
+    values: dict = Field(default_factory=dict)
+
+
+class CreateCustomTablePayload(BaseModel):
+    name: str = Field(..., min_length=1)
+    columns: list[str] = Field(..., min_length=1)
+    key_column: str = Field(..., min_length=1)
 
 
 class BroadcastSendPayload(BaseModel):
@@ -95,6 +110,20 @@ async def get_db_table_data(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.post("/{bot_id}/db/row")
+async def create_db_row(
+    bot_id: int,
+    payload: InsertRowPayload,
+    user_id: int = Depends(get_current_user_id_required),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_bot_access(db, bot_id, user_id)
+    try:
+        return insert_row(bot_id, table=payload.table, values=payload.values or {})
+    except DatabaseManagerError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.put("/{bot_id}/db/row")
 async def put_db_row(
     bot_id: int,
@@ -124,6 +153,53 @@ async def remove_db_row(
     await require_bot_access(db, bot_id, user_id)
     try:
         return delete_row(bot_id, table=payload.table, primary_key=payload.primary_key)
+    except DatabaseManagerError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/{bot_id}/db/field/{field_name}")
+async def remove_db_field(
+    bot_id: int,
+    field_name: str,
+    user_id: int = Depends(get_current_user_id_required),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_bot_access(db, bot_id, user_id)
+    try:
+        return delete_user_field_data(bot_id, field_name)
+    except DatabaseManagerError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/{bot_id}/db/custom-tables")
+async def create_custom_db_table(
+    bot_id: int,
+    payload: CreateCustomTablePayload,
+    user_id: int = Depends(get_current_user_id_required),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_bot_access(db, bot_id, user_id)
+    try:
+        return create_bot_custom_table(
+            bot_id,
+            name=payload.name.strip(),
+            columns=[c.strip() for c in payload.columns if c.strip()],
+            key_column=payload.key_column.strip(),
+        )
+    except DatabaseManagerError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/{bot_id}/db/custom-tables/{table_name}")
+async def delete_custom_db_table(
+    bot_id: int,
+    table_name: str,
+    user_id: int = Depends(get_current_user_id_required),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_bot_access(db, bot_id, user_id)
+    try:
+        return remove_bot_custom_table(bot_id, table_name)
     except DatabaseManagerError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

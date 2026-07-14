@@ -361,16 +361,22 @@ function setAppTheme(theme, options) {
   return next;
 }
 
-function resolveSidecarPython() {
+function resolveDevBackendPython() {
   const root = getAppRoot();
   const candidates = [
-    path.join(root, "python_embed", "python.exe"),
     path.join(__dirname, "venv", "Scripts", "python.exe"),
     path.join(root, "venv", "Scripts", "python.exe"),
   ];
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;
   }
+  return null;
+}
+
+/** Python for the FastAPI sidecar (venv / system). Never python_embed — that is bot-only. */
+function resolveSidecarPython() {
+  const fromVenv = resolveDevBackendPython();
+  if (fromVenv) return fromVenv;
   return process.platform === "win32" ? "python" : "python3";
 }
 
@@ -610,7 +616,22 @@ function spawnSidecar(port) {
   }
 
   let child;
-  if (frozen) {
+  const liveBackendScript = path.join(getAppRoot(), "core", "main.py");
+  const devBackendPython = resolveDevBackendPython();
+  const preferLiveBackend =
+    !app.isPackaged &&
+    process.env.BOTBUILDER_FROZEN_BACKEND !== "1" &&
+    fs.existsSync(liveBackendScript) &&
+    devBackendPython;
+
+  if (preferLiveBackend) {
+    child = spawn(devBackendPython, [liveBackendScript, "--host", HOST, "--port", String(port)], {
+      cwd: getAppRoot(),
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+  } else if (frozen) {
     child = spawn(frozen, ["--host", HOST, "--port", String(port)], {
       cwd: path.dirname(frozen),
       env,
@@ -1171,6 +1192,8 @@ ipcMain.handle("open-settings", async () => {
 
 ipcMain.handle("dialog:openBotDatabase", openDatabaseFileDialog);
 ipcMain.handle("dialog:openDatabaseFile", openDatabaseFileDialog);
+ipcMain.handle("dialog:openTextFile", openTextFileDialog);
+ipcMain.handle("dialog:openImportFile", openImportFileDialog);
 ipcMain.handle("windows:open", (_event, payload) => {
   const windowId = payload && payload.windowId;
   const query = (payload && payload.query) || "";
@@ -1191,6 +1214,50 @@ function openDatabaseFileDialog() {
         { name: "SQLite / JSON", extensions: ["db", "sqlite", "json"] },
         { name: "SQLite", extensions: ["db", "sqlite"] },
         { name: "JSON export", extensions: ["json"] },
+      ],
+    })
+    .then(function (result) {
+      if (result.canceled || !result.filePaths || !result.filePaths.length) {
+        return { canceled: true, filePath: null };
+      }
+      return { canceled: false, filePath: result.filePaths[0] };
+    });
+}
+
+function openImportFileDialog() {
+  const win = BrowserWindow.getFocusedWindow() || mainWindow;
+  const lang = resolveAppLang(loadSettings());
+  const langPack = MENU_LOCALES[lang] || MENU_LOCALES.en;
+  return dialog
+    .showOpenDialog(win || undefined, {
+      title: langPack.dialog_import_title || "Select import file",
+      properties: ["openFile"],
+      filters: [
+        { name: "Text / JSON", extensions: ["txt", "json"] },
+        { name: "Text", extensions: ["txt"] },
+        { name: "JSON", extensions: ["json"] },
+        { name: "All files", extensions: ["*"] },
+      ],
+    })
+    .then(function (result) {
+      if (result.canceled || !result.filePaths || !result.filePaths.length) {
+        return { canceled: true, filePath: null };
+      }
+      return { canceled: false, filePath: result.filePaths[0] };
+    });
+}
+
+function openTextFileDialog() {
+  const win = BrowserWindow.getFocusedWindow() || mainWindow;
+  const lang = resolveAppLang(loadSettings());
+  const langPack = MENU_LOCALES[lang] || MENU_LOCALES.en;
+  return dialog
+    .showOpenDialog(win || undefined, {
+      title: langPack.dialog_txt_title || "Select .txt file",
+      properties: ["openFile"],
+      filters: [
+        { name: "Text", extensions: ["txt"] },
+        { name: "All files", extensions: ["*"] },
       ],
     })
     .then(function (result) {

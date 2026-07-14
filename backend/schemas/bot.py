@@ -1,8 +1,7 @@
 from pydantic import BaseModel, field_validator
 from datetime import datetime
-from typing import Literal
 
-PlatformType = Literal["telegram", "vk"]
+PlatformType = str
 
 
 class BotCreate(BaseModel):
@@ -14,12 +13,7 @@ class BotCreate(BaseModel):
     @field_validator("platform", mode="before")
     @classmethod
     def normalize_platform(cls, v):
-        if v is None or v == "":
-            return "telegram"
-        p = str(v).strip().lower()
-        if p not in ("telegram", "vk"):
-            raise ValueError("platform must be 'telegram' or 'vk'")
-        return p
+        return "telegram"
 
 
 class BotOut(BaseModel):

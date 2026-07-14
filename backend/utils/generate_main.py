@@ -2,23 +2,11 @@ import os
 import json
 from jinja2 import Template
 
-from backend.utils.scenario_vk_template import SCENARIO_VK_MAIN_TEMPLATE
-
 from backend.core.app_paths import PROJECTS_DIR as BASE_DIR
 
 
 def get_bot_platform(bot_id: int) -> str:
-    """Платформа бота: telegram (по умолчанию) или vk."""
-    config_path = os.path.join(BASE_DIR, f"bot_{bot_id}", "config.json")
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-            p = (cfg.get("platform") or "telegram").strip().lower()
-            if p in ("telegram", "vk"):
-                return p
-        except (OSError, json.JSONDecodeError):
-            pass
+    """Платформа бота: только telegram."""
     return "telegram"
 
 # --- Шаблон main.py по сценарию (редактор блоков + связи) ---
@@ -125,6 +113,44 @@ for c in CONNECTIONS:
     NEXT_MAP[(c["from"], out)] = c["to"]
 
 
+def normalize_button_row_breaks(breaks, count):
+    if not count:
+        return []
+    raw = breaks if isinstance(breaks, list) else [0]
+    out = []
+    for x in raw:
+        try:
+            ix = int(x)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= ix < count:
+            out.append(ix)
+    out.sort()
+    if not out or out[0] != 0:
+        out.insert(0, 0)
+    deduped = []
+    for x in out:
+        if not deduped or deduped[-1] != x:
+            deduped.append(x)
+    return deduped
+
+
+def build_button_rows_from_breaks(items, breaks):
+    """Split a flat button list into rows using row-break start indices."""
+    if not items:
+        return []
+    n = len(items)
+    b = normalize_button_row_breaks(breaks, n)
+    rows = []
+    for i, start in enumerate(b):
+        end = b[i + 1] if i + 1 < len(b) else n
+        if end > start:
+            rows.append(items[start:end])
+    if not rows:
+        rows.append(list(items))
+    return rows
+
+
 # БД уникальна для каждого бота; в Docker — volume ./data → /app/data
 USER_DB_PATH = os.path.join(DATA_DIR, "user_data.db")
 
@@ -212,9 +238,12 @@ def _reply_menu_signature(buttons):
     return json.dumps(rows, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
-def menu_layout_id(block_id: str, buttons) -> str:
-    """Stable layout id for a menu block (block + button fingerprint)."""
-    return f"{block_id}:{_reply_menu_signature(buttons)}"
+def menu_layout_id(block_id: str, buttons, breaks=None) -> str:
+    """Stable layout id for a menu block (block + button fingerprint + row breaks)."""
+    count = len(buttons or [])
+    br = normalize_button_row_breaks(breaks if breaks is not None else [0], count)
+    br_sig = ",".join(str(x) for x in br)
+    return f"{block_id}:{_reply_menu_signature(buttons)}:rows={br_sig}"
 
 
 def get_current_menu_id(user_id: int):
@@ -472,7 +501,13 @@ async def execute_block(bot: Bot, chat_id: int, user_id: int, block_id: str, ctx
         return
     typ = block.get("type")
     data = block.get("data") or {}
-    disable = data.get("disableWebPagePreview", False)
+    _disable_raw = data.get("disableWebPagePreview", False)
+    if isinstance(_disable_raw, bool):
+        disable = _disable_raw
+    elif _disable_raw in (None, {}, [], ""):
+        disable = False
+    else:
+        disable = bool(_disable_raw)
     try:
         log_block_visit(user_id, block_id, "visit")
     except Exception:
@@ -510,6 +545,9 @@ async def run_from_block(
 
     if typ == "message":
         await execute_block(bot, chat_id, user_id, block_id, ctx)
+        msg_data = block.get("data") or {}
+        if msg_data.get("inlineButtons"):
+            return
         next_id = get_next_block(block_id, 0)
         if next_id:
             await run_from_block(
@@ -626,6 +664,11 @@ for cmd_block in get_command_blocks():
     COMMAND_TO_BLOCK[cmd_text.capitalize()] = next_id
     COMMAND_ENTRY_BLOCK[cmd_text] = entry_id
     COMMAND_ENTRY_BLOCK[cmd_text.capitalize()] = entry_id
+
+
+@dp.callback_query(F.data.startswith("__bb_nolink:"))
+async def on_unlinked_inline(callback: types.CallbackQuery):
+    await callback.answer("Кнопка не подключена в сценарии", show_alert=True)
 
 
 @dp.callback_query(F.data)
@@ -1060,7 +1103,7 @@ def generate_main_from_scenario(bot_id: int, platform: str | None = None) -> boo
 
     if platform is None:
         platform = get_bot_platform(bot_id)
-    platform = (platform or "telegram").strip().lower()
+    platform = "telegram"
 
     scenario_path = os.path.join(bot_path, "scenario.json")
     scenario: dict = {"blocks": [], "connections": [], "tags": []}
@@ -1071,22 +1114,54 @@ def generate_main_from_scenario(bot_id: int, platform: str | None = None) -> boo
         except (OSError, json.JSONDecodeError):
             pass
 
-    if platform == "vk":
-        code = SCENARIO_VK_MAIN_TEMPLATE
-    else:
-        code = CodeGenerator().build_python_script(
-            scenario,
-            SCENARIO_MAIN_TEMPLATE,
-            platform="telegram",
-        )
+    code = CodeGenerator().build_python_script(
+        scenario,
+        SCENARIO_MAIN_TEMPLATE,
+        platform="telegram",
+    )
 
-    with open(os.path.join(bot_path, "main.py"), "w", encoding="utf-8") as f:
+    _validate_generated_bot_main(code)
+
+    main_path = os.path.join(bot_path, "main.py")
+    with open(main_path, "w", encoding="utf-8") as f:
         f.write(code)
     try:
         _copy_scenario_plugin_assets(bot_path, scenario)
     except Exception:
         pass
     return True
+
+
+def _validate_generated_bot_main(code: str) -> None:
+    """Ensure compiled bot runtime includes helpers referenced by plugin handlers."""
+    if "build_button_rows_from_breaks(" in code and "def build_button_rows_from_breaks" not in code:
+        raise RuntimeError(
+            "Compiled main.py calls build_button_rows_from_breaks but the helper is missing. "
+            "Update BotBuilder and re-save the scenario."
+        )
+
+
+def recompile_all_project_bots() -> int:
+    """Regenerate main.py for every bot_* folder that has scenario.json."""
+    if not os.path.isdir(BASE_DIR):
+        return 0
+    count = 0
+    for name in sorted(os.listdir(BASE_DIR)):
+        if not name.startswith("bot_"):
+            continue
+        try:
+            bot_id = int(name.split("_", 1)[1])
+        except (IndexError, ValueError):
+            continue
+        scenario_path = os.path.join(BASE_DIR, name, "scenario.json")
+        if not os.path.isfile(scenario_path):
+            continue
+        try:
+            generate_main_from_scenario(bot_id)
+            count += 1
+        except Exception:
+            pass
+    return count
 
 
 # --- Старый шаблон (FSM/handlers/keyboard) — для обратной совместимости ---

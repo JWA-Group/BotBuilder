@@ -1,26 +1,59 @@
-{# Handler for block type: condition #}
-async def _type_handler_condition(bot, chat_id, user_id, block_id, ctx, data, disable):
-    field = (data.get("fieldName") or "").strip()
-    op = data.get("operator", "eq")
-    compare_val = data.get("compareValue", "")
-    ud = get_all_user_fields(user_id)
-    actual = ud.get(field)
-    ok = False
-    if op == "exists":
-        ok = actual is not None and actual != ""
-    elif op == "eq":
-        ok = str(actual) == str(compare_val)
-    elif op == "ne":
-        ok = str(actual) != str(compare_val)
-    elif op == "role":
-        ok = str(actual) == "admin" or str(actual) == str(compare_val)
-    else:
-        try:
-            a, c = float(actual or 0), float(compare_val or 0)
-            ok = (op == "gt" and a > c) or (op == "lt" and a < c)
-        except (ValueError, TypeError):
-            ok = False
-    out_idx = 0 if ok else 1
-    next_id = get_next_block(block_id, out_idx)
-    if next_id:
-        await execute_block(bot, chat_id, user_id, next_id, ctx)
+{# Handler for block type: condition #}
+async def _type_handler_condition(bot, chat_id, user_id, block_id, ctx, data, disable):
+    raw_field = (data.get("fieldName") or "").strip()
+    op = data.get("operator", "eq")
+    compare_val = resolve_text(str(data.get("compareValue", "")), user_id)
+    actual = resolve_field_value(user_id, raw_field) if raw_field else None
+    if actual is None and raw_field:
+        scope, name = _parse_placeholder_key(raw_field)
+        if scope == "bot":
+            actual = get_bot_global(name)
+        elif scope == "user":
+            actual = get_user_field(user_id, name)
+        else:
+            actual = get_user_field(user_id, _normalize_user_field(raw_field))
+
+    def _parse_num(val):
+        if val is None or val == "":
+            return None
+        try:
+            return float(str(val).replace(",", ".").strip())
+        except (ValueError, TypeError):
+            return None
+
+    ok = False
+    if op == "exists":
+        ok = actual is not None and str(actual).strip() != ""
+    elif op == "role":
+        ok = str(actual) == "admin" or str(actual) == str(compare_val)
+    else:
+        an = _parse_num(actual)
+        cn = _parse_num(compare_val)
+        if an is not None and cn is not None:
+            ok = (
+                (op == "eq" and an == cn)
+                or (op == "ne" and an != cn)
+                or (op == "gt" and an > cn)
+                or (op == "lt" and an < cn)
+                or (op == "gte" and an >= cn)
+                or (op == "lte" and an <= cn)
+            )
+        elif op == "eq":
+            ok = str(actual) == str(compare_val)
+        elif op == "ne":
+            ok = str(actual) != str(compare_val)
+        elif op in ("gt", "lt", "gte", "lte"):
+            try:
+                a, c = float(actual or 0), float(compare_val or 0)
+                ok = (
+                    (op == "gt" and a > c)
+                    or (op == "lt" and a < c)
+                    or (op == "gte" and a >= c)
+                    or (op == "lte" and a <= c)
+                )
+            except (ValueError, TypeError):
+                ok = False
+    out_idx = 0 if ok else 1
+    next_id = get_next_block(block_id, out_idx)
+    if next_id:
+        await execute_block(bot, chat_id, user_id, next_id, ctx)

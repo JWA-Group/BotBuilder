@@ -23,7 +23,7 @@
       "key": "fieldName",
       "type": "field_autocomplete",
       "label": "Поле",
-      "placeholder": "role"
+      "placeholder": "balance, user.balance или bot.price"
     },
     {
       "key": "operator",
@@ -34,7 +34,9 @@
         { "value": "ne", "label": "Не равно" },
         { "value": "exists", "label": "Существует" },
         { "value": "gt", "label": "Больше" },
+        { "value": "gte", "label": "Больше или равно" },
         { "value": "lt", "label": "Меньше" },
+        { "value": "lte", "label": "Меньше или равно" },
         { "value": "role", "label": "Роль (admin)" }
       ]
     },

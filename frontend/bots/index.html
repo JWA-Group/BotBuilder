@@ -35,11 +35,6 @@
             Create a bot in BotFather, then copy the name and API token.
           </p>
           <form id="add-bot-form" class="add-bot-form">
-            <label for="bot-platform" data-i18n="bots.platform">Platform</label>
-            <select id="bot-platform" name="platform" required>
-              <option value="telegram" selected data-i18n="bots.platform_telegram">Telegram</option>
-              <option value="vk" data-i18n="bots.platform_vk">VK</option>
-            </select>
             <label for="bot-name" data-i18n="bots.name">Bot name</label>
             <input
               type="text"
@@ -62,17 +57,6 @@
           </form>
           <div id="add-bot-error" class="form-error" role="alert"></div>
         </section>
-        <details class="vk-setup-help" id="vk-setup-help" hidden>
-          <summary data-i18n="bots.vk_help_summary">VK community setup (if the bot doesn't reply)</summary>
-          <ol data-i18n-html="bots.vk_help_steps">
-            <li>Откройте сообщество → <strong>Управление</strong>.</li>
-            <li><strong>Сообщения</strong> → включите «Сообщения сообщества» (открытые или по кнопке).</li>
-            <li><strong>Работа с API</strong> → включите <strong>Long Poll API</strong> (Callback API можно не использовать).</li>
-            <li>В <a href="https://vk.com/apps?act=manage" target="_blank" rel="noopener">приложениях VK</a> создайте приложение, привяжите сообщество, выдайте <strong>ключ доступа сообщества</strong> с правами: управление сообществом, сообщения сообщества.</li>
-            <li>Токен вставьте при создании бота (формат <code>vk1.a...</code>).</li>
-            <li>На сайте: «Запустить» → в VK напишите боту <strong>привет</strong> или <strong>меню</strong> (команда /start не обязательна).</li>
-          </ol>
-        </details>
         <div class="bots-divider"></div>
         <div id="bots-list" data-i18n="bots.loading">Loading…</div>
       </main>

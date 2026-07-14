@@ -58,6 +58,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openSettings: () => ipcRenderer.invoke("open-settings"),
   setAppLanguage: (lang) => ipcRenderer.invoke("lang:set", lang),
   selectDatabaseFile: () => ipcRenderer.invoke("dialog:openDatabaseFile"),
+  selectTextFile: () => ipcRenderer.invoke("dialog:openTextFile"),
+  selectImportFile: () => ipcRenderer.invoke("dialog:openImportFile"),
   openAppWindow: (windowId, query) =>
     ipcRenderer.invoke("windows:open", { windowId: windowId, query: query || "" }),
   openCurrentPageInNewWindow: () => ipcRenderer.invoke("windows:open-current"),

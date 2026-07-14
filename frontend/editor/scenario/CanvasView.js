@@ -566,11 +566,12 @@
           html += '<span class="char-counter" id="' + fid + '-counter">' + (val || "").length + "/" + field.maxLength + "</span>";
         }
       } else if (field.type === "checkbox") {
+        var checked = val === true || val === 1 || val === "1" || val === "true";
         html +=
           '<label class="editor-checkbox"><input type="checkbox" id="' +
           fid +
           '"' +
-          (val ? " checked" : "") +
+          (checked ? " checked" : "") +
           "/> " +
           ctx.escapeHtml(field.label || field.key) +
           "</label>";
@@ -607,6 +608,26 @@
     container.innerHTML = html;
     bindTagActions(container, id, ctx);
     bindBlockColorPicker(container, blockData, ctx);
+
+    if (blockData.type === "data" && data.action === "issue") {
+      html =
+        '<section class="editor-section issue-actions-section">' +
+        '<button type="button" class="editor-btn editor-btn-accent" id="create-issue-msgs-' +
+        id +
+        '">' +
+        tr("editor.create_issue_messages") +
+        "</button>" +
+        '<p class="editor-hint">' +
+        tr("editor.create_issue_messages_hint") +
+        "</p></section>";
+      container.insertAdjacentHTML("beforeend", html);
+      var createBtn = document.getElementById("create-issue-msgs-" + id);
+      if (createBtn && typeof ctx.createIssueMessages === "function") {
+        createBtn.onclick = function () {
+          ctx.createIssueMessages(blockData);
+        };
+      }
+    }
 
     fields.forEach(function (field) {
       if (!field.key || !fieldVisible(field, data)) return;

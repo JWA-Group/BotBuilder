@@ -1,7 +1,7 @@
 {
   "name": "botbuilder-desktop",
-  "version": "1.0.0",
-  "description": "BotBuilder desktop shell (Electron + FastAPI sidecar)",
+  "version": "1.0.1",
+  "description": "BotBuilder",
   "main": "main.js",
   "private": true,
   "scripts": {

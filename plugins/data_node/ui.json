@@ -7,6 +7,7 @@
   "palette": true,
   "connectable": true,
   "outputs": 1,
+  "dynamicOutputs": true,
   "defaults": {
     "action": "set",
     "fieldType": "string",
@@ -14,7 +15,8 @@
     "fieldValue": "",
     "valueSource": "const",
     "inputPrompt": "",
-    "tagId": ""
+    "tagId": "",
+    "productId": ""
   },
   "fields": [
     {
@@ -29,7 +31,8 @@
       "options": [
         { "value": "set", "label": "Записать значение" },
         { "value": "add", "label": "Прибавить к числу" },
-        { "value": "subtract", "label": "Вычесть из числа" }
+        { "value": "subtract", "label": "Вычесть из числа" },
+        { "value": "issue", "label": "Выдать товар со склада" }
       ]
     },
     {
@@ -39,13 +42,37 @@
       "options": [
         { "value": "string", "label": "Строка" },
         { "value": "number", "label": "Число" }
-      ]
+      ],
+      "hideWhen": { "action": "issue" }
     },
     {
       "key": "fieldName",
       "type": "field_autocomplete",
       "label": "Имя поля",
-      "placeholder": "role"
+      "placeholder": "balance или bot.price",
+      "hideWhen": { "action": "issue" }
+    },
+    {
+      "key": "productId",
+      "type": "text",
+      "label": "Product ID (склад)",
+      "placeholder": "discord_nitro",
+      "hint": "Совпадает с product_id в разделе «База данных».",
+      "showWhen": { "action": "issue" }
+    },
+    {
+      "key": "issueGuide",
+      "type": "info",
+      "label": "Как выдать товар",
+      "text": "Шаг 1: добавьте товары в «База данных» (Product ID + JSON).\nШаг 2: этот блок снимает один товар со склада (FIFO).\nШаг 3: подключите «Сообщение» к зелёному выходу и вставьте плейсхолдеры issued.* (см. ниже).",
+      "showWhen": { "action": "issue" }
+    },
+    {
+      "key": "issuePlaceholders",
+      "type": "info",
+      "label": "Плейсхолдеры в сообщении",
+      "text": "Ключи из JSON склада подставляются автоматически:\n{{issued.email}} — email из JSON\n{{issued.pass}} — пароль из JSON\nЕсли ключ другой (key, login) — используйте {{issued.key}}, {{issued.login}}.",
+      "showWhen": { "action": "issue" }
     },
     {
       "key": "valueSource",

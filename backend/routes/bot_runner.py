@@ -3,17 +3,10 @@ import os
 import json
 import subprocess
 from pathlib import Path
-import aiohttp
-from fastapi import APIRouter, HTTPException, Request, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from backend.db.database import get_db
-from backend.core.bot_access import require_bot_access
-from backend.utils.generate_main import generate_main_py, get_bot_platform
+from fastapi import APIRouter, HTTPException, Request
+from backend.utils.generate_main import generate_main_from_scenario, get_bot_platform
 from backend.core.scenario_deps import PhantomNodeError
 from core.runner import bot_runner
-
-VK_API = "5.199"
 
 router = APIRouter(prefix="/api/bots", tags=["BotRunner"])
 
@@ -57,19 +50,17 @@ def _terminate_bot(bot_id: int):
     bot_runner.terminate(bot_id)
 
 
-def _log_indicates_ready(bot_id: int, platform: str) -> bool:
+def _log_indicates_ready(bot_id: int) -> bool:
     tail = _read_log_tail(bot_id, 40)
-    if platform == "vk":
-        return "Слушаем Long Poll" in tail
     return "Start polling" in tail or "Run polling" in tail or "polling" in tail.lower()
 
 
-async def _wait_process_started(bot_id: int, process: subprocess.Popen, platform: str) -> bool:
+async def _wait_process_started(bot_id: int, process: subprocess.Popen) -> bool:
     """Ждём готовности: процесс жив и в логе есть признак успешного старта."""
     for _ in range(120):
         if process.poll() is not None:
             return False
-        if _log_indicates_ready(bot_id, platform):
+        if _log_indicates_ready(bot_id):
             await asyncio.sleep(0.5)
             if process.poll() is None:
                 return True
@@ -78,12 +69,8 @@ async def _wait_process_started(bot_id: int, process: subprocess.Popen, platform
     return False
 
 
-def _format_start_error(stderr_tail: str, platform: str) -> str:
-    hint = (
-        "ВК: токен сообщества, «Сообщения» и Long Poll API в настройках группы."
-        if platform == "vk"
-        else "Проверьте токен Telegram-бота."
-    )
+def _format_start_error(stderr_tail: str) -> str:
+    hint = "Проверьте токен Telegram-бота."
     if "api.telegram.org" in stderr_tail or "TelegramNetworkError" in stderr_tail:
         hint = (
             "Нет доступа к api.telegram.org. Включите VPN/прокси (Clash, v2ray) "
@@ -105,7 +92,7 @@ async def start_bot(bot_id: int):
     if existing:
         return {"status": "already running", "pid": existing}
 
-    # Старый «зависший» процесс мешает новому (VK — один Long Poll на группу)
+    # Старый «зависший» процесс мешает новому запуску
     _terminate_bot(bot_id)
     await asyncio.sleep(0.3)
 
@@ -115,7 +102,7 @@ async def start_bot(bot_id: int):
         raise HTTPException(status_code=404, detail="main.py не найден")
 
     try:
-        generate_main_py(bot_id)
+        generate_main_from_scenario(bot_id, platform=get_bot_platform(bot_id))
     except PhantomNodeError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     except ValueError as e:
@@ -125,7 +112,7 @@ async def start_bot(bot_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка генерации main.py: {e}") from e
 
-    platform = get_bot_platform(bot_id)
+    platform = "telegram"
     os.makedirs(bot_dir, exist_ok=True)
     launcher_log = os.path.join(bot_dir, "launcher.log")
     stderr_log = os.path.join(bot_dir, "stderr.log")
@@ -140,7 +127,7 @@ async def start_bot(bot_id: int):
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
-    started_ok = await _wait_process_started(bot_id, process, platform)
+    started_ok = await _wait_process_started(bot_id, process)
     if not started_ok:
         tail = _read_log_tail(bot_id) or _read_launcher_log(bot_id)
         stderr_tail = ""
@@ -150,7 +137,7 @@ async def start_bot(bot_id: int):
                     stderr_tail = ef.read()[-800:]
             except OSError:
                 pass
-        hint = _format_start_error(stderr_tail, platform)
+        hint = _format_start_error(stderr_tail)
         detail = f"Не удалось запустить бота. {hint}"
         if tail:
             detail += f"\n\nЛог:\n{tail[-1200:]}"
@@ -181,92 +168,6 @@ async def stop_bot(bot_id: int):
     except Exception:
         pass
     return {"status": "stopped"}
-
-
-@router.get("/vk-check/{bot_id}")
-async def vk_check_connection(bot_id: int, user_id: int, db: AsyncSession = Depends(get_db)):
-    """Проверка токена VK и настроек Long Poll (без запуска бота)."""
-    bot = await require_bot_access(db, bot_id, user_id)
-    if (bot.platform or "telegram") != "vk":
-        raise HTTPException(status_code=400, detail="Проверка только для ботов ВКонтакте")
-
-    config_path = os.path.join(_bot_dir(bot_id), "config.json")
-    if not os.path.exists(config_path):
-        raise HTTPException(status_code=404, detail="config.json не найден")
-    with open(config_path, encoding="utf-8") as f:
-        token = (json.load(f).get("api_key") or "").strip()
-    if not token:
-        return {"ok": False, "error": "Токен не указан в config.json"}
-
-    checklist = [
-        "Сообщения сообщества: включены (Управление → Сообщения)",
-        "Работа с API → Long Poll API: включён",
-        "Токен: «Ключ доступа сообщества» (vk1.a...), права: сообщения",
-        "Приложение VK привязано к этому сообществу",
-    ]
-    out = {"ok": False, "checklist": checklist, "hints": []}
-
-    async with aiohttp.ClientSession() as session:
-        async def vk_method(method: str, **params):
-            params["access_token"] = token
-            params["v"] = VK_API
-            async with session.get(f"https://api.vk.com/method/{method}", params=params) as resp:
-                return await resp.json(content_type=None)
-
-        data = await vk_method("groups.getById")
-        if "error" in data:
-            err = data["error"]
-            out["error"] = f"[{err.get('error_code')}] {err.get('error_msg')}"
-            out["hints"].append(
-                "Ошибка токена: создайте ключ доступа сообщества с правом «Сообщения сообщества»."
-            )
-            return out
-
-        resp = data.get("response")
-        group = None
-        if isinstance(resp, list) and resp:
-            group = resp[0]
-        elif isinstance(resp, dict):
-            groups = resp.get("groups") or []
-            group = groups[0] if groups else resp if resp.get("id") else None
-        if not group:
-            out["error"] = "Не найдено сообщество для этого токена"
-            return out
-
-        gid = group["id"] if isinstance(group, dict) else group.id
-        out["group_id"] = gid
-        out["group_name"] = group.get("name") if isinstance(group, dict) else getattr(group, "name", "")
-
-        lp = await vk_method("groups.getLongPollServer", group_id=gid)
-        if "error" in lp:
-            err = lp["error"]
-            out["error"] = f"Long Poll: [{err.get('error_code')}] {err.get('error_msg')}"
-            out["hints"].append("Включите Long Poll API в Управление → Работа с API → Long Poll API.")
-            return out
-
-        lp_r = lp["response"]
-        server = str(lp_r.get("server", ""))
-        key = lp_r.get("key")
-        ts = lp_r.get("ts")
-        poll_url = server if server.startswith("http") else f"https://lp.vk.com/wh/{server}"
-        async with session.get(
-            poll_url,
-            params={"act": "a_check", "key": key, "ts": str(ts), "wait": "3"},
-            timeout=aiohttp.ClientTimeout(total=15),
-        ) as pr:
-            body = (await pr.text()).strip()
-            poll_ok = pr.status == 200 and body.startswith("{")
-
-        out["long_poll"] = {"endpoint": poll_url, "ts": ts, "poll_http_ok": poll_ok}
-        if not poll_ok:
-            out["error"] = "Long Poll не отвечает. Проверьте настройки сообщества."
-            return out
-
-        out["ok"] = True
-        out["message"] = (
-            f"Подключение к «{out['group_name']}» в порядке. Запустите бота и напишите «привет» в личку сообщества."
-        )
-        return out
 
 
 @router.get("/log/{bot_id}")

@@ -86,7 +86,7 @@
           "id": "block-1771428363048-9n8trr",
           "x": 916,
           "y": 457,
-          "disableWebPagePreview": {},
+          "disableWebPagePreview": false,
           "tagId": {}
         }
       },
@@ -159,7 +159,7 @@
           "id": "block-1771433201614-tnfasy",
           "x": 1095,
           "y": 199,
-          "disableWebPagePreview": {},
+          "disableWebPagePreview": false,
           "tagId": {}
         }
       },
@@ -240,7 +240,7 @@
           "id": "block-1771438244332-7a1y7v",
           "x": 450,
           "y": 871,
-          "disableWebPagePreview": {},
+          "disableWebPagePreview": false,
           "tagId": {}
         }
       }

@@ -7,7 +7,6 @@ from ..models.user import User
 from ..models.template import Template
 from ..schemas.bot import BotCreate, BotOut
 from ..services.bot_service import create_bot_project
-from ..utils.vk_default_scenario import vk_default_scenario
 from ..core.auth_deps import get_current_user_id_required, DEFAULT_USER_ID
 from ..core.bot_access import is_desktop_app, require_bot_access
 from fastapi.responses import JSONResponse
@@ -150,24 +149,6 @@ async def apply_template_to_bot(
         "message": "Шаблон применён к боту",
         "compilation_warning": compile_warning,
     }
-
-
-@router.post("/reset-vk-template/{bot_id}")
-async def reset_vk_template(
-    bot_id: int,
-    user_id: int = Depends(get_current_user_id_required),
-    db: AsyncSession = Depends(get_db),
-):
-    """Подставить стандартный VK-сценарий (приветствие + меню) и пересобрать main.py."""
-    bot = await require_bot_access(db, bot_id, user_id)
-    if (bot.platform or "telegram") != "vk":
-        raise HTTPException(status_code=400, detail="Шаблон только для ботов ВКонтакте")
-    path = os.path.join(PROJECTS_DIR, f"bot_{bot_id}", "scenario.json")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(vk_default_scenario(), f, ensure_ascii=False, indent=2)
-    generate_main_from_scenario(bot_id, platform="vk")
-    return {"status": "ok", "message": "Шаблон VK применён. Остановите и снова запустите бота."}
 
 
 @router.delete("/{bot_id}")

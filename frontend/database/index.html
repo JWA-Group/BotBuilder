@@ -18,7 +18,6 @@
     <script src="/shared/js/theme.js"></script>
     <script src="/shared/js/locales.js"></script>
     <script src="/shared/js/i18n.js"></script>
-
     <link rel="stylesheet" href="/shared/css/page-shell.css" />
     <link rel="stylesheet" href="database.css" />
   </head>
@@ -38,14 +37,81 @@
             </select>
             <button type="button" id="db-refresh-btn" class="db-btn-secondary" data-i18n="common.refresh">Refresh</button>
           </div>
-          <div class="db-toolbar-right">
-            <button type="button" id="db-import-btn" class="db-btn-primary">
-              <span id="db-import-spinner" class="db-spinner" hidden></span>
-              <span data-i18n="database.import_btn">Import Data / Database</span>
-            </button>
+          <div class="db-toolbar-right" id="db-actions-toolbar" hidden>
+            <div class="db-toolbar-action-group" role="group" aria-label="Table actions">
+              <button
+                type="button"
+                id="db-delete-selected-btn"
+                class="db-btn-icon-danger"
+                data-i18n-aria="database.delete_selected"
+                aria-label="Delete selected"
+                title=""
+              >
+                <span aria-hidden="true">🗑</span>
+              </button>
+              <button
+                type="button"
+                id="db-unified-add-row-btn"
+                class="db-btn-primary db-btn-compact"
+                data-i18n="database.unified_add_row"
+                disabled
+              >
+                Add row
+              </button>
+              <div class="db-dropdown" id="db-actions-dropdown">
+                <button
+                  type="button"
+                  id="db-actions-dropdown-btn"
+                  class="db-btn-icon-menu"
+                  data-i18n-aria="database.actions_menu"
+                  aria-label="Actions"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-controls="db-actions-dropdown-menu"
+                >
+                  <span aria-hidden="true">⋮</span>
+                </button>
+                <div
+                  id="db-actions-dropdown-menu"
+                  class="db-dropdown-menu"
+                  role="menu"
+                  hidden
+                >
+                  <button
+                    type="button"
+                    id="db-import-txt-btn-drop"
+                    class="db-dropdown-item"
+                    role="menuitem"
+                    data-i18n="database.import_from_txt"
+                    hidden
+                  >
+                    Import from .txt
+                  </button>
+                  <button
+                    type="button"
+                    id="db-create-table-btn-drop"
+                    class="db-dropdown-item"
+                    role="menuitem"
+                    data-i18n="database.create_table"
+                  >
+                    Create table
+                  </button>
+                  <button
+                    type="button"
+                    id="db-delete-table-btn-drop"
+                    class="db-dropdown-item db-dropdown-item-danger"
+                    role="menuitem"
+                    data-i18n="database.delete_table"
+                    disabled
+                  >
+                    Delete table
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div id="db-status" class="db-status" hidden></div>
+        <div id="db-status" class="db-status" hidden aria-hidden="true"></div>
 
         <div class="db-layout">
           <aside class="db-sidebar">
@@ -61,6 +127,123 @@
       </main>
     </div>
 
+    <!-- Manual add / edit modal -->
+    <div id="db-item-modal" class="db-modal" hidden>
+      <div class="db-modal-backdrop" data-close-modal></div>
+      <div class="db-modal-panel" role="dialog" aria-modal="true">
+        <header class="db-modal-header">
+          <h2 id="db-item-modal-title" data-i18n="database.add_row">Add row manually</h2>
+          <button type="button" class="db-modal-close" data-close-modal aria-label="Close">✕</button>
+        </header>
+        <div class="db-modal-body">
+          <label class="db-field-label" data-i18n="database.product_id">Product ID</label>
+          <input type="text" id="db-item-product-id" class="db-field-input" placeholder="nitro_monthly" />
+          <label class="db-field-label" data-i18n="database.status">Status</label>
+          <select id="db-item-status" class="db-field-input">
+            <option value="in_stock">in_stock</option>
+            <option value="issued">issued</option>
+          </select>
+          <label class="db-field-label" data-i18n="database.content_json">Content (JSON)</label>
+          <textarea id="db-item-content" class="db-field-textarea" rows="6" placeholder='{"email":"user@gmail.com","pass":"MyPass123"}'></textarea>
+          <p class="db-field-hint" data-i18n="database.content_hint">Keys become {{issued.email}}, {{issued.pass}} after Data → Issue block.</p>
+          <div class="db-issued-guide">
+            <strong data-i18n="database.issued_guide_title">After «Issue from warehouse»</strong>
+            <p data-i18n="database.issued_guide_body">Use these placeholders in the next Message block: {{issued.email}}, {{issued.pass}} — names match JSON keys from the warehouse.</p>
+            <ul class="db-issued-keys">
+              <li><code>{{issued.email}}</code> — <span data-i18n="database.issued_key_email">email from JSON</span></li>
+              <li><code>{{issued.pass}}</code> — <span data-i18n="database.issued_key_pass">password from JSON</span></li>
+            </ul>
+          </div>
+        </div>
+        <footer class="db-modal-footer">
+          <button type="button" class="db-btn-primary" id="db-item-save-btn" data-i18n="common.save">Save</button>
+          <button type="button" class="db-btn-secondary" data-close-modal data-i18n="common.cancel">Cancel</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Generic row insert (bot_globals / custom tables) -->
+    <div id="db-row-modal" class="db-modal" hidden>
+      <div class="db-modal-backdrop" data-close-row-modal></div>
+      <div class="db-modal-panel" role="dialog" aria-modal="true">
+        <header class="db-modal-header">
+          <h2 id="db-row-modal-title" data-i18n="database.add_table_row">Add row</h2>
+          <button type="button" class="db-modal-close" data-close-row-modal aria-label="Close">✕</button>
+        </header>
+        <div class="db-modal-body" id="db-row-modal-body"></div>
+        <footer class="db-modal-footer">
+          <button type="button" class="db-btn-primary" id="db-row-save-btn" data-i18n="common.save">Save</button>
+          <button type="button" class="db-btn-secondary" data-close-row-modal data-i18n="common.cancel">Cancel</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Create custom table -->
+    <div id="db-create-table-modal" class="db-modal" hidden>
+      <div class="db-modal-backdrop" data-close-create-table></div>
+      <div class="db-modal-panel" role="dialog" aria-modal="true">
+        <header class="db-modal-header">
+          <h2 data-i18n="database.create_table">Create table</h2>
+          <button type="button" class="db-modal-close" data-close-create-table aria-label="Close">✕</button>
+        </header>
+        <div class="db-modal-body">
+          <p class="db-field-hint" data-i18n="database.custom_table_hint">Use {{bot.tableName.rowKey.column}}</p>
+          <label class="db-field-label" data-i18n="database.table_name">Table name</label>
+          <input type="text" id="db-new-table-name" class="db-field-input" placeholder="prices" />
+          <label class="db-field-label" data-i18n="database.table_columns">Columns (comma-separated)</label>
+          <input type="text" id="db-new-table-columns" class="db-field-input" placeholder="bl_id, price" />
+          <label class="db-field-label" data-i18n="database.key_column">Key column</label>
+          <input type="text" id="db-new-table-key" class="db-field-input" placeholder="bl_id" />
+        </div>
+        <footer class="db-modal-footer">
+          <button type="button" class="db-btn-primary" id="db-create-table-save-btn" data-i18n="common.save">Save</button>
+          <button type="button" class="db-btn-secondary" data-close-create-table data-i18n="common.cancel">Cancel</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Import wizard -->
+    <div id="db-import-modal" class="db-modal" hidden>
+      <div class="db-modal-backdrop" data-close-import></div>
+      <div class="db-modal-panel db-modal-panel-wide" role="dialog" aria-modal="true">
+        <header class="db-modal-header">
+          <h2 data-i18n="database.import_wizard_title">Import</h2>
+          <button type="button" class="db-modal-close" data-close-import aria-label="Close">✕</button>
+        </header>
+        <div class="db-modal-body">
+          <div id="db-import-step-1">
+            <p class="db-field-hint" data-i18n="database.import_intro">Import warehouse items from a file or add them manually.</p>
+            <ul class="db-import-sources">
+              <li data-i18n="database.import_source_txt">.txt — one record per line (<code>email:password</code>)</li>
+              <li data-i18n="database.import_source_json">.json — array of objects <code>[{"email":"…","pass":"…"}]</code></li>
+              <li data-i18n="database.import_source_manual">Manual — button «Add row manually»</li>
+            </ul>
+            <button type="button" id="db-import-pick-file" class="db-btn-secondary" data-i18n="database.pick_file">Choose file…</button>
+            <p id="db-import-file-label" class="db-import-file-label"></p>
+          </div>
+          <div id="db-import-step-2" hidden>
+            <label class="db-field-label" data-i18n="database.product_id">Product ID</label>
+            <input type="text" id="db-import-product-id" class="db-field-input" list="db-product-id-list" placeholder="nitro" />
+            <datalist id="db-product-id-list"></datalist>
+            <div id="db-import-delimiter-row">
+              <label class="db-field-label" data-i18n="database.delimiter">Delimiter</label>
+              <input type="text" id="db-import-delimiter" class="db-field-input" maxlength="3" />
+            </div>
+            <div id="db-import-mapping"></div>
+            <label class="db-field-label" data-i18n="database.static_fields">Static fields (JSON, optional)</label>
+            <textarea id="db-import-static" class="db-field-textarea" rows="3" placeholder='{"proxy_type":"SOCKS5"}'></textarea>
+            <div id="db-import-preview" class="db-import-preview"></div>
+          </div>
+          <div id="db-import-result" class="db-import-result" hidden></div>
+        </div>
+        <footer class="db-modal-footer">
+          <button type="button" class="db-btn-primary" id="db-import-run-btn" hidden data-i18n="database.run_import">Import</button>
+          <button type="button" class="db-btn-secondary" data-close-import data-i18n="common.close">Close</button>
+        </footer>
+      </div>
+    </div>
+
+    <script src="/shared/js/confirm-modal.js"></script>
     <script src="/shared/js/api-config.js"></script>
     <script src="DatabaseManagerView.js"></script>
     <script>
