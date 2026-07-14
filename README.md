@@ -6,7 +6,7 @@
 | Operating System | Windows 10 / 11 (x64) |
 | Core Stack | Electron 33, FastAPI, Python 3 (embedded), SQLite |
 
-Desktop IDE for designing, compiling, and deploying Telegram and VK chat bots from visual node-based scenarios.
+Desktop IDE for designing, compiling, and deploying Telegram chat bots from visual node-based scenarios. Build complex, local-first automations without subscription fees.
 [![Download Windows](https://img.shields.io/badge/Download-Latest%20Release%20(Windows%20x64)-brightgreen?style=for-the-badge&logo=windows)](https://github.com/JWA-Group/BotBuilder/releases/latest)
 
 ---
@@ -99,6 +99,18 @@ npm run build:prod
 ```
 
 Output: `dist-electron/BotBuilder-Setup-{version}.exe`
+
+---
+
+## 🗺️ Roadmap
+
+We are actively expanding BotBuilder to become the ultimate multi-channel visual automation hub. 
+
+- [x] **Phase 1:** Core Node Engine & Runtime compiler (Telegram Support)
+- [ ] **Phase 2:** Linux & macOS cross-platform support (AppImage / DMG builds)
+- [ ] **Phase 3:** **WhatsApp Business API** integration layer
+- [ ] **Phase 4:** **Instagram Graph API** direct messaging nodes
+- [ ] **Phase 5:** Native Telegram WebApps (Mini Apps) drag-and-drop builder
 
 ---
 
