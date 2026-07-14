@@ -7,6 +7,7 @@
 | Core Stack | Electron 33, FastAPI, Python 3 (embedded), SQLite |
 
 Desktop IDE for designing, compiling, and deploying Telegram chat bots from visual node-based scenarios. Build complex, local-first automations without subscription fees.
+
 [![Download Windows](https://img.shields.io/badge/Download-Latest%20Release%20(Windows%20x64)-brightgreen?style=for-the-badge&logo=windows)](https://github.com/JWA-Group/BotBuilder/releases/latest)
 
 ---
