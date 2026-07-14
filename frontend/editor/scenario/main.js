@@ -46,17 +46,19 @@ var user_id = typeof getUserId === "function" ? getUserId() : "1";
 var SCENARIO_SAVE_ICON = "💾";
 var SCENARIO_SAVE_LOADING_ICON = "⏳";
 
-function showScenarioToast(message) {
+function showScenarioToast(message, kind) {
   if (!message) return;
   var existing = document.getElementById("scenario-save-toast");
   if (existing) existing.remove();
   var toast = document.createElement("div");
   toast.id = "scenario-save-toast";
-  toast.className = "scenario-toast";
+  var isError = kind === "error";
+  toast.className = "scenario-toast" + (isError ? " scenario-toast-error" : "");
   toast.setAttribute("role", "status");
   toast.innerHTML =
-    '<span class="scenario-toast-icon" aria-hidden="true">✓</span>' +
-    '<span class="scenario-toast-text"></span>';
+    '<span class="scenario-toast-icon" aria-hidden="true">' +
+    (isError ? "✕" : "✓") +
+    '</span><span class="scenario-toast-text"></span>';
   toast.querySelector(".scenario-toast-text").textContent = message;
   document.body.appendChild(toast);
   requestAnimationFrame(function () {
@@ -69,7 +71,33 @@ function showScenarioToast(message) {
     setTimeout(function () {
       if (toast.parentNode) toast.parentNode.removeChild(toast);
     }, 420);
-  }, 2600);
+  }, isError ? 3200 : 2600);
+}
+
+function createIssueDeliveryMessages(issueBlock) {
+  if (!issueBlock || issueBlock.type !== "data" || issueBlock.data.action !== "issue") return;
+  var productId = String(issueBlock.data.productId || "").trim();
+  if (!productId) {
+    showScenarioToast(tr("editor.issue_need_product_id"), "error");
+    return;
+  }
+  pushUndoSnapshot();
+  var bx = issueBlock.el ? parseFloat(issueBlock.el.style.left) || 0 : panX + 200;
+  var by = issueBlock.el ? parseFloat(issueBlock.el.style.top) || 0 : panY + 200;
+  var okText = tr("editor.issue_msg_success_body");
+  var failText = tr("editor.issue_msg_fail_body", { product: productId });
+  var okId = createBlock("message", bx + 300, by - 90, {
+    text: okText,
+    tagId: issueBlock.data.tagId || "",
+  });
+  var failId = createBlock("message", bx + 300, by + 110, {
+    text: failText,
+    tagId: issueBlock.data.tagId || "",
+  });
+  setConnectionFromOutput(issueBlock.id, 0, okId);
+  setConnectionFromOutput(issueBlock.id, 1, failId);
+  drawConnections();
+  showScenarioToast(tr("editor.create_issue_messages_done"));
 }
 
 let blocks = [];
@@ -85,6 +113,41 @@ let panX = 0;
 let panY = 0;
 
 const canvasWrapper = document.getElementById("canvas-wrapper");
+
+function initSidebarResize() {
+  var editor = document.getElementById("editor");
+  var resizer = document.getElementById("sidebar-resizer");
+  if (!editor || !resizer) return;
+  try {
+    var stored = parseInt(localStorage.getItem("editor_sidebar_width") || "320", 10);
+    if (stored >= 280 && stored <= 720) {
+      editor.style.setProperty("--sidebar-width", stored + "px");
+    }
+  } catch (e) {}
+  var dragging = false;
+  resizer.addEventListener("mousedown", function (e) {
+    dragging = true;
+    resizer.classList.add("is-dragging");
+    document.body.style.cursor = "ew-resize";
+    e.preventDefault();
+  });
+  window.addEventListener("mousemove", function (e) {
+    if (!dragging) return;
+    var w = Math.max(280, Math.min(720, window.innerWidth - e.clientX));
+    editor.style.setProperty("--sidebar-width", w + "px");
+  });
+  window.addEventListener("mouseup", function () {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove("is-dragging");
+    document.body.style.cursor = "";
+    try {
+      var raw = getComputedStyle(editor).getPropertyValue("--sidebar-width").trim();
+      var w = parseInt(raw, 10);
+      if (w) localStorage.setItem("editor_sidebar_width", String(w));
+    } catch (e2) {}
+  });
+}
 
 function initCanvasView() {
   if (!canvasWrapper) return;
@@ -306,6 +369,7 @@ window.applyScenarioPayload = function (data) {
   }
   drawConnections();
   initCanvasView();
+  initSidebarResize();
   syncBlockSelectionStyles();
   clearUndoStack();
 };
@@ -348,6 +412,8 @@ function closeAiScenarioModal() {
 }
 
 function maybeSuggestAiScenario() {
+  /* AI first-run offer disabled until feature is ready */
+  return;
   if (template_id || !bot_id) return;
   try {
     if (localStorage.getItem("scenario_ai_dismiss_" + bot_id)) return;
@@ -426,11 +492,17 @@ function renderBlock(blockData) {
       set: tr("editor.data_action_set"),
       add: tr("editor.data_action_add"),
       subtract: tr("editor.data_action_subtract"),
+      issue: tr("editor.data_action_issue"),
     };
     var action = actionLabels[data.action] || tr("editor.data_configure");
-    var field = (data.fieldName || tr("editor.data_field_default")).slice(0, 30);
-    var typeLabel = data.fieldType === "number" ? tr("editor.data_number_suffix") : "";
-    html = '<div class="title">' + escapeHtml(blockTitleForType("data")) + '</div><div class="preview-text">' + escapeHtml(action) + ': ' + escapeHtml(field || "...") + typeLabel + '</div><div class="output" data-index="0"></div>';
+    if (data.action === "issue") {
+      var pid = (data.productId || tr("editor.data_product_id_default")).slice(0, 28);
+      html = '<div class="title">' + escapeHtml(blockTitleForType("data")) + '</div><div class="preview-text">' + escapeHtml(action) + ': ' + escapeHtml(pid || "...") + '</div><div class="condition-outputs"><div class="output condition-yes" data-index="0" title="' + escapeHtml(tr("editor.data_issue_ok")) + '"></div><div class="output condition-no" data-index="1" title="' + escapeHtml(tr("editor.data_issue_empty")) + '"></div></div>';
+    } else {
+      var field = (data.fieldName || tr("editor.data_field_default")).slice(0, 30);
+      var typeLabel = data.fieldType === "number" ? tr("editor.data_number_suffix") : "";
+      html = '<div class="title">' + escapeHtml(blockTitleForType("data")) + '</div><div class="preview-text">' + escapeHtml(action) + ': ' + escapeHtml(field || "...") + typeLabel + '</div><div class="output" data-index="0"></div>';
+    }
   } else if (type === "condition") {
     const cond = (data.fieldName || tr("editor.preview_condition_if")).slice(0, 25);
     html = '<div class="title">' + escapeHtml(blockTitleForType("condition")) + '</div><div class="preview-text">' + escapeHtml(cond || tr("editor.preview_condition_if")) + '</div><div class="condition-outputs"><div class="output condition-yes" data-index="0" title="' + escapeHtml(tr("editor.condition_yes")) + '"></div><div class="output condition-no" data-index="1" title="' + escapeHtml(tr("editor.condition_no")) + '"></div></div>';
@@ -1171,6 +1243,7 @@ function getRowBreaks(block) {
     return breaks;
   }
   if (block.type === "condition") return [0, 1];
+  if (block.type === "data" && block.data && block.data.action === "issue") return [0, 1];
   return [0];
 }
 
@@ -1191,6 +1264,9 @@ function getOutputColor(blockId, outputIndex) {
   if (!block) return "#888";
   var outIdx = parseInt(String(outputIndex), 10);
   if (block.type === "condition") return outIdx === 0 ? "#16a34a" : "#dc2626";
+  if (block.type === "data" && block.data && block.data.action === "issue") {
+    return outIdx === 0 ? "#16a34a" : "#dc2626";
+  }
   var btns = block.type === "message" ? (block.data.inlineButtons || []) : (block.data.buttons || []);
   if (btns.length === 0) return "#888";
   var rowBreaks = getRowBreaks(block);
@@ -1423,6 +1499,7 @@ function openSidebar(blockData) {
         createTagFromBlock: window.createTagFromBlock,
         editTagFromBlock: window.editTagFromBlock,
         deleteTagFromBlock: window.deleteTagFromBlock,
+        createIssueMessages: createIssueDeliveryMessages,
       });
     } else {
       sidebarContent.innerHTML = '<p class="editor-hint">' + escapeHtml(tr("editor.block_unknown", { type: blockData.type })) + "</p>";
@@ -1432,6 +1509,9 @@ function openSidebar(blockData) {
   sidebar.style.display = "flex";
   sidebar.classList.add("sidebar-visible");
   sidebar.setAttribute("aria-hidden", "false");
+  if (typeof PlaceholderAutocomplete !== "undefined" && PlaceholderAutocomplete.scanRoot) {
+    PlaceholderAutocomplete.scanRoot(sidebarContent, bot_id);
+  }
 }
 
 function applyConnectionFromOutput(fromBlockId, outputIndex, toBlockId) {
@@ -1840,13 +1920,25 @@ window.deleteTagFromBlock = function (blockId) {
   var tagId = (b && (b.data.tagId || b.data.tag)) || "";
   var tag = scenarioTags.find(function (t) { return t.id === tagId; });
   if (!tag) { alert(tr("editor.select_tag")); return; }
-  if (!confirm(tr("editor.delete_tag_confirm", { name: tag.name }))) return;
-  pushUndoSnapshot();
-  scenarioTags = scenarioTags.filter(function (t) { return t.id !== tag.id; });
-  blocks.forEach(function (bl) {
-    if (bl.data.tagId === tag.id || bl.data.tag === tag.id) { bl.data.tagId = ""; bl.data.tag = ""; renderBlock(bl); }
+  var confirmFn = window.AppConfirm && window.AppConfirm.danger
+    ? window.AppConfirm.danger.bind(window.AppConfirm)
+    : null;
+  var promise = confirmFn
+    ? confirmFn({
+        title: tr("common.confirm_delete_title"),
+        message: tr("editor.delete_tag_confirm", { name: tag.name }),
+        detail: tag.name,
+      })
+    : Promise.resolve(window.confirm(tr("editor.delete_tag_confirm", { name: tag.name })));
+  promise.then(function (ok) {
+    if (!ok) return;
+    pushUndoSnapshot();
+    scenarioTags = scenarioTags.filter(function (t) { return t.id !== tag.id; });
+    blocks.forEach(function (bl) {
+      if (bl.data.tagId === tag.id || bl.data.tag === tag.id) { bl.data.tagId = ""; bl.data.tag = ""; renderBlock(bl); }
+    });
+    openSidebar(b);
   });
-  openSidebar(b);
 };
 
 window.createTagFromMenu = function (blockId) { createTagFromBlock(blockId); };
@@ -1856,24 +1948,29 @@ window.deleteTagFromMenu = function (blockId) { deleteTagFromBlock(blockId); }
 function getScenarioFieldsFromBlocks() {
   var fields = {};
   var system = ["tg_user_id", "tg_user_name", "tg_user_date"];
+  var hidden = { current_menu_id: 1 };
   system.forEach(function (f) { fields[f] = 1; });
   blocks.forEach(function (b) {
-    if (b.type === "data" && b.data.fieldName) fields[b.data.fieldName] = (fields[b.data.fieldName] || 0) + 1;
-    if (b.type === "condition" && b.data.fieldName) fields[b.data.fieldName] = (fields[b.data.fieldName] || 0) + 1;
+    if (b.type === "data" && b.data.fieldName && !hidden[b.data.fieldName]) {
+      fields[b.data.fieldName] = (fields[b.data.fieldName] || 0) + 1;
+    }
+    if (b.type === "condition" && b.data.fieldName && !hidden[b.data.fieldName]) {
+      fields[b.data.fieldName] = (fields[b.data.fieldName] || 0) + 1;
+    }
   });
   return Object.keys(fields);
 }
 
 function getScenarioFieldsWithTypes() {
   var types = {};
-  var system = { tg_user_id: "число", tg_user_name: "строка", tg_user_date: "строка" };
+  var system = { tg_user_id: "number", tg_user_name: "string", tg_user_date: "string" };
   Object.keys(system).forEach(function (f) { types[f] = system[f]; });
   blocks.forEach(function (b) {
     if (b.type === "data" && b.data.fieldName) {
-      types[b.data.fieldName] = b.data.fieldType === "number" ? "число" : "строка";
+      types[b.data.fieldName] = b.data.fieldType === "number" ? "number" : "string";
     }
     if (b.type === "condition" && b.data.fieldName && !types[b.data.fieldName]) {
-      types[b.data.fieldName] = "строка";
+      types[b.data.fieldName] = "string";
     }
   });
   return types;
@@ -1881,6 +1978,203 @@ function getScenarioFieldsWithTypes() {
 
 var _cachedBotFields = [];
 var _cachedBotFieldsTime = 0;
+
+function formatDbFieldType(typeKey) {
+  if (typeKey === "number" || typeKey === "число") return tr("editor.db.type_number");
+  if (typeKey === "string" || typeKey === "строка") return tr("editor.db.type_string");
+  return typeKey || tr("editor.db.type_string");
+}
+
+function bindDbDeleteFieldButtons(root) {
+  if (!root) return;
+  root.querySelectorAll(".db-delete-field-btn").forEach(function (btn) {
+    if (btn.dataset.bound === "1") return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", function () {
+      var field = btn.getAttribute("data-field");
+      if (!field || !bot_id) return;
+      var confirmFn = window.AppConfirm && window.AppConfirm.danger
+        ? window.AppConfirm.danger.bind(window.AppConfirm)
+        : null;
+      var promise = confirmFn
+        ? confirmFn({
+            title: tr("common.confirm_delete_title"),
+            message: tr("editor.db.delete_field_confirm", { field: field }),
+            detail: field,
+          })
+        : Promise.resolve(window.confirm(tr("editor.db.delete_field_confirm", { field: field })));
+      promise.then(function (ok) {
+        if (!ok) return;
+        var token = localStorage.getItem("access_token");
+        var headers = {};
+        if (token) headers["Authorization"] = "Bearer " + token;
+        fetch(API_BASE + "/api/projects/" + encodeURIComponent(bot_id) + "/db/field/" + encodeURIComponent(field), {
+          method: "DELETE",
+          headers: headers,
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (res) {
+            if (!res.ok) throw new Error((res.data && res.data.detail) || tr("editor.db.delete_field_error"));
+            _cachedBotFields = [];
+            _cachedBotFieldsTime = 0;
+            showScenarioToast(tr("editor.db.delete_field_ok", { field: field }));
+            renderDatabaseToolPanel();
+          })
+          .catch(function (err) {
+            showScenarioToast(err.message || tr("editor.db.delete_field_error"), "error");
+          });
+      });
+    });
+  });
+}
+
+function renderDatabaseToolPanel() {
+  var modal = document.getElementById("help-modal");
+  var bodyEl = document.getElementById("help-modal-body");
+  var titleEl = document.getElementById("help-modal-title");
+  if (!modal || !bodyEl) return;
+  if (titleEl) titleEl.textContent = tr("editor.db.title");
+
+  var scenarioFields = getScenarioFieldsFromBlocks();
+  var fieldTypes = getScenarioFieldsWithTypes();
+  var usageByField = {};
+
+  blocks.forEach(function (b) {
+    if ((b.type === "data" || b.type === "condition") && b.data.fieldName) {
+      var f = b.data.fieldName;
+      if (!usageByField[f]) usageByField[f] = [];
+      usageByField[f].push({ id: b.id, type: b.type });
+    }
+  });
+
+  var preserveName = "";
+  var nameInputPrev = document.getElementById("db-new-field-name");
+  if (nameInputPrev) preserveName = nameInputPrev.value || "";
+
+  var html = "";
+  html += "<h4>" + escapeHtml(tr("editor.db.scenario_heading")) + "</h4>";
+  html += "<p class='editor-hint'>" + escapeHtml(tr("editor.db.scenario_hint")) + "</p>";
+
+  html += "<h4>" + escapeHtml(tr("editor.db.quick_add_heading")) + "</h4>";
+  html += "<p class='editor-hint'>" + escapeHtml(tr("editor.db.quick_add_hint")) + "</p>";
+  html += "<div class='db-quick-add'>";
+  html += "<input class='editor-field' type='text' id='db-new-field-name' placeholder='" + escapeHtml(tr("editor.db.field_name_placeholder")) + "' autocomplete='off' value='" + escapeHtml(preserveName) + "'/>";
+  html += "<select class='editor-field' id='db-new-field-type'><option value='string'>" + escapeHtml(tr("editor.db.type_string")) + "</option><option value='number'>" + escapeHtml(tr("editor.db.type_number")) + "</option></select>";
+  html += "<button type='button' class='editor-btn' id='db-add-field-btn'>" + escapeHtml(tr("editor.db.create_block_btn")) + "</button>";
+  html += "</div>";
+
+  html += "<h4>" + escapeHtml(tr("editor.db.fields_heading")) + "</h4>";
+  if (!scenarioFields.length) {
+    html += "<p class='editor-hint'><em>" + escapeHtml(tr("editor.db.no_fields")) + "</em></p>";
+  } else {
+    html += "<table class='help-table'><tr><th>" + escapeHtml(tr("editor.db.col_field")) + "</th><th>" + escapeHtml(tr("editor.db.col_type")) + "</th><th>" + escapeHtml(tr("editor.db.col_placeholder")) + "</th><th>" + escapeHtml(tr("editor.db.col_used_in")) + "</th><th></th></tr>";
+    scenarioFields.sort().forEach(function (f) {
+      var t = formatDbFieldType(fieldTypes[f] || "string");
+      var uses = usageByField[f] || [];
+      var useLinks = uses.map(function (u) {
+        var label = u.type === "data" ? tr("editor.db.block_data") : tr("editor.db.block_condition");
+        return "<button type='button' class='editor-btn tiny db-jump-to-block' data-block-id='" + escapeHtml(u.id) + "'>" + escapeHtml(label) + "</button>";
+      }).join(" ");
+      html += "<tr><td><code>" + escapeHtml(f) + "</code></td><td>" + escapeHtml(t) + "</td><td><code>{{" + escapeHtml(f) + "}}</code></td><td>" + useLinks + "</td>";
+      html += "<td><button type='button' class='editor-btn tiny db-delete-field-btn' data-field='" + escapeHtml(f) + "' title='" + escapeHtml(tr("editor.db.delete_field")) + "'>🗑</button></td></tr>";
+    });
+    html += "</table>";
+  }
+
+  html += "<h4>" + escapeHtml(tr("editor.db.bot_db_heading")) + "</h4>";
+  html += "<div id='db-bot-schema'><p class='editor-hint'>" + escapeHtml(tr("editor.loading")) + "</p></div>";
+
+  bodyEl.innerHTML = html;
+  modal.style.display = "flex";
+
+  var addBtn = document.getElementById("db-add-field-btn");
+  if (addBtn) {
+    addBtn.onclick = function () {
+      var nameInput = document.getElementById("db-new-field-name");
+      var typeSelect = document.getElementById("db-new-field-type");
+      if (!nameInput || !typeSelect) return;
+      var name = (nameInput.value || "").trim();
+      var type = typeSelect.value || "string";
+      if (!name) {
+        nameInput.focus();
+        return;
+      }
+      pushUndoSnapshot();
+      var x = panX + 100;
+      var y = panY + 100;
+      createBlock("data", x, y, {
+        action: "set",
+        fieldType: type,
+        fieldName: name,
+        valueSource: "const",
+        fieldValue: ""
+      });
+      nameInput.value = "";
+      _cachedBotFields = [];
+      _cachedBotFieldsTime = 0;
+      renderDatabaseToolPanel();
+    };
+  }
+
+  bodyEl.querySelectorAll(".db-jump-to-block").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var id = btn.dataset.blockId;
+      if (!id) return;
+      var block = blocks.find(function (b) { return b.id === id; });
+      if (!block) return;
+      closeHelpModal();
+      openSidebar(block);
+      if (block.el) {
+        block.el.classList.add("block-highlight");
+        setTimeout(function () {
+          block.el.classList.remove("block-highlight");
+        }, 1200);
+      }
+    });
+  });
+
+  bindDbDeleteFieldButtons(bodyEl);
+
+  var schemaEl = document.getElementById("db-bot-schema");
+  if (schemaEl) {
+    if (!bot_id) {
+      schemaEl.innerHTML = "<p class='help-hint'>" + escapeHtml(tr("editor.db.no_bot_id")) + "</p>";
+    } else {
+      var token = localStorage.getItem("access_token");
+      var headers = {};
+      if (token) headers["Authorization"] = "Bearer " + token;
+      fetch(API_BASE + "/api/analytics/" + bot_id + "/user-data-schema", { headers: headers })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var fl = data.fields || [];
+          if (!fl.length) {
+            schemaEl.innerHTML = "<p><em>" + escapeHtml(tr("editor.db.no_stored_fields")) + "</em></p>";
+            return;
+          }
+          var html2 = "<table class='help-table'><tr><th>" + escapeHtml(tr("editor.db.col_field")) + "</th><th>" + escapeHtml(tr("editor.db.col_type")) + "</th><th>" + escapeHtml(tr("editor.db.col_samples")) + "</th><th></th></tr>";
+          fl.forEach(function (f) {
+            var ft = formatDbFieldType((data.fieldTypes && data.fieldTypes[f]) || "string");
+            var samples = (data.sample && data.sample[f]) || [];
+            html2 += "<tr><td><code>" + escapeHtml(f) + "</code></td><td>" + escapeHtml(ft) + "</td><td>" + escapeHtml(samples.slice(0, 3).join(", ") || "—") + "</td>";
+            html2 += "<td><button type='button' class='editor-btn tiny db-delete-field-btn' data-field='" + escapeHtml(f) + "' title='" + escapeHtml(tr("editor.db.delete_field")) + "'>🗑</button></td></tr>";
+          });
+          html2 += "</table>";
+          schemaEl.innerHTML = html2;
+          bindDbDeleteFieldButtons(schemaEl);
+        })
+        .catch(function () {
+          schemaEl.innerHTML = "<p class='help-error'>" + escapeHtml(tr("editor.db.load_error")) + "</p>";
+        });
+    }
+  }
+  if (typeof PlaceholderAutocomplete !== "undefined" && PlaceholderAutocomplete.scanRoot) {
+    PlaceholderAutocomplete.scanRoot(bodyEl, bot_id);
+  }
+}
+
+window.openDatabaseTool = function () {
+  renderDatabaseToolPanel();
+};
 
 function fetchBotFieldsForAutocomplete(callback) {
   if (!bot_id) { callback([]); return; }
@@ -1989,135 +2283,6 @@ function bindFieldAutocompleteDismiss() {
     });
   });
 }
-
-window.openDatabaseTool = function () {
-  var modal = document.getElementById("help-modal");
-  var bodyEl = document.getElementById("help-modal-body");
-  var titleEl = document.getElementById("help-modal-title");
-  if (!modal || !bodyEl) return;
-  if (titleEl) titleEl.textContent = "База данных";
-
-  var scenarioFields = getScenarioFieldsFromBlocks();
-  var fieldTypes = getScenarioFieldsWithTypes();
-  var usageByField = {};
-
-  blocks.forEach(function (b) {
-    if ((b.type === "data" || b.type === "condition") && b.data.fieldName) {
-      var f = b.data.fieldName;
-      if (!usageByField[f]) usageByField[f] = [];
-      usageByField[f].push({ id: b.id, type: b.type });
-    }
-  });
-
-  var html = "";
-  html += "<h4>База данных сценария</h4>";
-  html += "<p class='editor-hint'>Поля, которые используются в блоках Данные и Условие, и где именно.</p>";
-
-  html += "<h4>Быстрое добавление поля</h4>";
-  html += "<p class='editor-hint'>Создаёт новый блок Данные с выбранным полем и типом.</p>";
-  html += "<div class='db-quick-add'>";
-  html += "<input class='editor-field' type='text' id='db-new-field-name' placeholder='role, balance, email' autocomplete='off'/>";
-  html += "<select class='editor-field' id='db-new-field-type'><option value='string'>Строка</option><option value='number'>Число</option></select>";
-  html += "<button type='button' class='editor-btn' id='db-add-field-btn'>Создать блок</button>";
-  html += "</div>";
-
-  html += "<h4>Поля сценария</h4>";
-  if (!scenarioFields.length) {
-    html += "<p class='editor-hint'><em>Пока нет полей. Добавьте блок Данные или создайте поле выше.</em></p>";
-  } else {
-    html += "<table class='help-table'><tr><th>Поле</th><th>Тип</th><th>Подстановка</th><th>Где используется</th></tr>";
-    scenarioFields.sort().forEach(function (f) {
-      var t = fieldTypes[f] || "строка";
-      var uses = usageByField[f] || [];
-      var useLinks = uses.map(function (u) {
-        var label = u.type === "data" ? "Данные" : "Условие";
-        return "<button type='button' class='editor-btn tiny db-jump-to-block' data-block-id='" + escapeHtml(u.id) + "'>" + escapeHtml(label) + "</button>";
-      }).join(" ");
-      html += "<tr><td><code>" + escapeHtml(f) + "</code></td><td>" + escapeHtml(t) + "</td><td><code>{{" + escapeHtml(f) + "}}</code></td><td>" + useLinks + "</td></tr>";
-    });
-    html += "</table>";
-  }
-
-  html += "<h4>Поля в БД бота</h4>";
-  html += "<div id='db-bot-schema'><p class='editor-hint'>Загрузка...</p></div>";
-
-  bodyEl.innerHTML = html;
-  modal.style.display = "flex";
-
-  var addBtn = document.getElementById("db-add-field-btn");
-  if (addBtn) {
-    addBtn.onclick = function () {
-      var nameInput = document.getElementById("db-new-field-name");
-      var typeSelect = document.getElementById("db-new-field-type");
-      if (!nameInput || !typeSelect) return;
-      var name = (nameInput.value || "").trim();
-      var type = typeSelect.value || "string";
-      if (!name) {
-        nameInput.focus();
-        return;
-      }
-      pushUndoSnapshot();
-      var x = panX + 100;
-      var y = panY + 100;
-      createBlock("data", x, y, {
-        action: "set",
-        fieldType: type,
-        fieldName: name,
-        valueSource: "const",
-        fieldValue: ""
-      });
-      closeHelpModal();
-    };
-  }
-
-  bodyEl.querySelectorAll(".db-jump-to-block").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var id = btn.dataset.blockId;
-      if (!id) return;
-      var block = blocks.find(function (b) { return b.id === id; });
-      if (!block) return;
-      closeHelpModal();
-      openSidebar(block);
-      if (block.el) {
-        block.el.classList.add("block-highlight");
-        setTimeout(function () {
-          block.el.classList.remove("block-highlight");
-        }, 1200);
-      }
-    });
-  });
-
-  var schemaEl = document.getElementById("db-bot-schema");
-  if (schemaEl) {
-    if (!bot_id) {
-      schemaEl.innerHTML = "<p class='help-hint'>Откройте редактор с bot_id в URL, чтобы увидеть данные бота.</p>";
-    } else {
-      var token = localStorage.getItem("access_token");
-      var headers = {};
-      if (token) headers["Authorization"] = "Bearer " + token;
-      fetch(API_BASE + "/api/analytics/" + bot_id + "/user-data-schema", { headers: headers })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          var fl = data.fields || [];
-          if (!fl.length) {
-            schemaEl.innerHTML = "<p><em>Нет записанных полей</em></p>";
-            return;
-          }
-          var html2 = "<table class='help-table'><tr><th>Поле</th><th>Тип</th><th>Примеры значений</th></tr>";
-          fl.forEach(function (f) {
-            var ft = (data.fieldTypes && data.fieldTypes[f]) || "строка";
-            var samples = (data.sample && data.sample[f]) || [];
-            html2 += "<tr><td><code>" + escapeHtml(f) + "</code></td><td>" + escapeHtml(ft) + "</td><td>" + escapeHtml(samples.slice(0, 5).join(", ") || "—") + "</td></tr>";
-          });
-          html2 += "</table>";
-          schemaEl.innerHTML = html2;
-        })
-        .catch(function () {
-          schemaEl.innerHTML = "<p class='help-error'>Ошибка загрузки данных бота.</p>";
-        });
-    }
-  }
-};
 
 window.openHelpModal = function () {
   var modal = document.getElementById("help-modal");
@@ -2605,6 +2770,7 @@ function applyHistoryPreview() {
   syncHistoryModeBtn(false);
   drawConnections();
   initCanvasView();
+  initSidebarResize();
 }
 
 function exitHistoryMode() {
@@ -2772,6 +2938,7 @@ function loadScenario() {
         }
         drawConnections();
         initCanvasView();
+  initSidebarResize();
         hideScenarioLoading();
         clearUndoStack();
       })
@@ -2816,6 +2983,7 @@ function loadScenario() {
       }
       drawConnections();
       initCanvasView();
+  initSidebarResize();
       maybeSuggestAiScenario();
       hideScenarioLoading();
       clearUndoStack();
@@ -2915,6 +3083,10 @@ function initScenarioEditorPlugins() {
     if (typeof TimelineBar !== "undefined" && TimelineBar.refreshLabels) {
       TimelineBar.refreshLabels();
     }
+    var dbModal = document.getElementById("help-modal");
+    if (dbModal && dbModal.style.display === "flex" && document.getElementById("db-add-field-btn")) {
+      renderDatabaseToolPanel();
+    }
     syncCustomToggleBtn();
   });
 }
@@ -2923,6 +3095,7 @@ initScenarioEditorPlugins();
 
 setTimeout(function () {
   initCanvasView();
+  initSidebarResize();
   drawConnections();
 }, 100);
 
@@ -3173,12 +3346,7 @@ setTimeout(function () {
     var btn = document.getElementById("ai-scenario-btn");
     if (btn) {
       btn.onclick = function () {
-        if (!bot_id) {
-          alert("Укажите bot_id в URL для генерации сценария.");
-          return;
-        }
-        if ((blocks.length > 1 || connections.length > 0) && !confirm("Заменить текущий сценарий результатом ИИ?")) return;
-        openAiScenarioModal(false);
+        showScenarioToast(tr("editor.ai_coming_soon"));
       };
     }
     document.addEventListener("keydown", function (ev) {

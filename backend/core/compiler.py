@@ -43,6 +43,19 @@ class CodeGenerator:
             )
         code = shell_template.replace(PLUGIN_DEFINITIONS_MARKER, definitions)
         code = code.replace(PLUGIN_DISPATCH_MARKER, dispatch)
+        from backend.core.bot_runtime_helpers import ensure_button_layout_helpers
+        from backend.core.bot_runtime_data import (
+            ensure_bot_data_runtime,
+            patch_init_user_db,
+            patch_resolve_text,
+            patch_scoped_field_setters,
+        )
+
+        code = ensure_button_layout_helpers(code)
+        code = patch_init_user_db(code)
+        code = ensure_bot_data_runtime(code)
+        code = patch_resolve_text(code)
+        code = patch_scoped_field_setters(code)
         return code
 
     BuildPythonScript = build_python_script

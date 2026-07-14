@@ -36,15 +36,12 @@ def read_bot_proxy(bot_id: int) -> str | None:
 
 
 def render_requirements_txt(platform: str) -> str:
-    platform = (platform or "telegram").strip().lower()
+    _ = platform
     lines = [
+        "aiogram==3.4.1",
+        "pydantic>=2.4.1,<2.10",
         "aiohttp>=3.9.0,<4",
     ]
-    if platform != "vk":
-        lines[:0] = [
-            "aiogram==3.4.1",
-            "pydantic>=2.4.1,<2.10",
-        ]
     return "\n".join(lines) + "\n"
 
 

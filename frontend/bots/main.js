@@ -128,45 +128,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  var platformSelect = document.getElementById("bot-platform");
   var platformHint = document.getElementById("platform-hint");
   var nameInput = document.getElementById("bot-name");
   var tokenInput = document.getElementById("bot-api-token");
 
-  function updatePlatformUi() {
-    var platform = platformSelect ? platformSelect.value : "telegram";
-    if (platform === "vk") {
-      if (platformHint) {
-        platformHint.textContent = tr("bots.vk_hint");
-      }
-      if (nameInput) nameInput.placeholder = tr("bots.vk_name_placeholder");
-      if (tokenInput) tokenInput.placeholder = "vk1.a....";
-    } else {
-      if (platformHint) {
-        var hint = tr("bots.hint_telegram");
-        platformHint.innerHTML = hint.replace(
-          "BotFather",
-          '<a href="https://t.me/BotFather" target="_blank" rel="noopener">BotFather</a>'
-        );
-      }
-      if (nameInput) nameInput.placeholder = tr("bots.name_placeholder");
-      if (tokenInput) tokenInput.placeholder = tr("bots.token_placeholder");
-    }
+  if (platformHint) {
+    var hint = tr("bots.hint_telegram");
+    platformHint.innerHTML = hint.replace(
+      "BotFather",
+      '<a href="https://t.me/BotFather" target="_blank" rel="noopener">BotFather</a>'
+    );
   }
-
-  var vkSetupHelp = document.getElementById("vk-setup-help");
-  if (platformSelect) {
-    platformSelect.addEventListener("change", function () {
-      updatePlatformUi();
-      if (vkSetupHelp) vkSetupHelp.hidden = platformSelect.value !== "vk";
-    });
-    updatePlatformUi();
-    if (vkSetupHelp) vkSetupHelp.hidden = platformSelect.value !== "vk";
-  }
-
-  function platformLabel(platform) {
-    return platform === "vk" ? tr("bots.platform_vk") : tr("bots.platform_telegram");
-  }
+  if (nameInput) nameInput.placeholder = tr("bots.name_placeholder");
+  if (tokenInput) tokenInput.placeholder = tr("bots.token_placeholder");
 
   var addForm = document.getElementById("add-bot-form");
   var addError = document.getElementById("add-bot-error");
@@ -176,7 +150,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (addError) addError.classList.remove("visible");
       var name = document.getElementById("bot-name").value.trim();
       var api_token = document.getElementById("bot-api-token").value.trim();
-      var platform = platformSelect ? platformSelect.value : "telegram";
+      var platform = "telegram";
       if (!name || !api_token) {
         if (addError) {
           addError.textContent = tr("error.required_field");
@@ -247,25 +221,21 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else {
         const html = bots
           .map(function (bot) {
-            var plat = bot.platform || "telegram";
+            var plat = "telegram";
             var token = bot.api_token || "";
             return (
               '<div class="bot-card" data-bot-id="' +
               bot.id +
               '" data-bot-name="' +
               escapeHtml(bot.name) +
-              '" data-platform="' +
-              escapeHtml(plat) +
-              '">' +
+              '" data-platform="telegram">' +
               '<div class="bot-card-header">' +
               "<h3>" +
               escapeHtml(bot.name) +
               "</h3>" +
               '<div class="bot-card-badges">' +
-              '<span class="bot-platform-badge bot-platform-' +
-              escapeHtml(plat) +
-              '">' +
-              escapeHtml(platformLabel(plat)) +
+              '<span class="bot-platform-badge bot-platform-telegram">' +
+              escapeHtml(tr("bots.platform_telegram")) +
               "</span>" +
               '<span class="bot-status-badge status-stopped" data-bot-id="' +
               bot.id +

@@ -39,6 +39,8 @@ module.exports = {
     dialog_invalid_undo: "Undo steps (Ctrl+Z) must be between 1 and 500.",
     dialog_open_failed: "Failed to open window",
     dialog_db_title: "Select database or JSON export file",
+    dialog_txt_title: "Select .txt file for import",
+    dialog_import_title: "Select import file",
   },
   ru: {
     menu_settings: "Настройки",
@@ -79,6 +81,8 @@ module.exports = {
     dialog_invalid_undo: "Шагов отмены (Ctrl+Z) должно быть от 1 до 500.",
     dialog_open_failed: "Не удалось открыть окно",
     dialog_db_title: "Выберите файл базы данных или экспорт JSON",
+    dialog_txt_title: "Выберите .txt файл для импорта",
+    dialog_import_title: "Выберите файл для импорта",
   },
   es: {
     menu_settings: "Ajustes",
@@ -119,5 +123,7 @@ module.exports = {
     dialog_invalid_undo: "Los pasos de deshacer (Ctrl+Z) deben estar entre 1 y 500.",
     dialog_open_failed: "No se pudo abrir la ventana",
     dialog_db_title: "Seleccione archivo de base de datos o exportación JSON",
+    dialog_txt_title: "Seleccione archivo .txt para importar",
+    dialog_import_title: "Seleccione archivo para importar",
   },
 };

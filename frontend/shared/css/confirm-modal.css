@@ -1,0 +1,135 @@
+/* Shared danger confirm dialog (matches bots delete modal) */
+
+body.app-confirm-open {
+  overflow: hidden;
+}
+
+.app-confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.app-confirm-modal[hidden] {
+  display: none !important;
+}
+
+.app-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.app-confirm-panel {
+  position: relative;
+  width: min(100%, 420px);
+  padding: 28px 24px 22px;
+  border-radius: 16px;
+  border: 1px solid var(--border-main);
+  background: var(--bg-panel);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22);
+  text-align: center;
+  animation: app-confirm-in 0.22s ease-out;
+}
+
+@keyframes app-confirm-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.app-confirm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: var(--danger-bg, #fef2f2);
+  color: var(--danger-text, #b91c1c);
+  border: 1px solid var(--danger-border, #fecaca);
+}
+
+.app-confirm-icon svg {
+  width: 26px;
+  height: 26px;
+  display: block;
+}
+
+.app-confirm-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.app-confirm-text {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.app-confirm-detail {
+  margin: 0 0 20px;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+  background: var(--bg-muted);
+  border: 1px solid var(--border-main);
+  border-radius: 10px;
+  word-break: break-word;
+}
+
+.app-confirm-detail[hidden] {
+  display: none !important;
+}
+
+.app-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.app-confirm-btn {
+  flex: 1;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.app-confirm-cancel {
+  background: var(--bg-muted);
+  color: var(--text-main);
+  border-color: var(--border-main);
+}
+
+.app-confirm-cancel:hover {
+  background: var(--bg-hover);
+}
+
+.app-confirm-danger {
+  background: var(--danger-text, #b91c1c);
+  color: #fff;
+  border-color: var(--danger-text, #b91c1c);
+}
+
+.app-confirm-danger:hover {
+  background: #991b1b;
+  box-shadow: 0 4px 14px rgba(185, 28, 28, 0.35);
+}

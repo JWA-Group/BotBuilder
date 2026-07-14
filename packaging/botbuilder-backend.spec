@@ -61,6 +61,10 @@ hiddenimports = [
     "backend.routes.projects",
     "backend.routes.deployment",
     "backend.routes.monitor",
+    "backend.routes.inventory",
+    "backend.core.inventory_manager",
+    "backend.core.bot_runtime_helpers",
+    "backend.core.compiler",
     "core.runner",
 ]
 

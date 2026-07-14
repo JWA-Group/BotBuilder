@@ -10,7 +10,7 @@ class Bot(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     name = Column(String, nullable=False)
     api_token = Column(String, nullable=False)
-    platform = Column(String, nullable=False, default="telegram")  # telegram | vk
+    platform = Column(String, nullable=False, default="telegram")  # telegram only
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="bots")

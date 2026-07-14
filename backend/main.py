@@ -36,7 +36,7 @@ from backend.db.database import init_db
 from backend.core.broadcast import normalize_telegram_html
 from backend.core.app_paths import ensure_data_dirs, get_frontend_dir, resolve_plugin_folder
 from backend.core.plugin_manager import get_plugin_manager
-from backend.routes import auth, bots, commands, bot_runner, scenario, templates, analytics, miniapps, config, plugins, projects, deployment, monitor
+from backend.routes import auth, bots, commands, bot_runner, scenario, templates, analytics, miniapps, config, plugins, projects, deployment, monitor, inventory
 from backend.core.monitor import start_monitor_services, stop_monitor_services, MonitorAPIMiddleware
 
 
@@ -45,6 +45,16 @@ async def lifespan(app: FastAPI):
     ensure_data_dirs()
     await init_db()
     get_plugin_manager().reload()
+    try:
+        from backend.utils.generate_main import recompile_all_project_bots
+
+        n = recompile_all_project_bots()
+        if n:
+            import logging
+
+            logging.getLogger("botbuilder").info("Recompiled main.py for %s bot project(s)", n)
+    except Exception:
+        pass
     start_monitor_services()
     gid = os.environ.get("GOOGLE_CLIENT_ID", "")
     if gid:
@@ -103,6 +113,7 @@ app.include_router(plugins.router)
 app.include_router(projects.router)
 app.include_router(deployment.router)
 app.include_router(monitor.router)
+app.include_router(inventory.router)
 
 
 class BroadcastNormalizeBody(BaseModel):

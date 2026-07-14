@@ -62,6 +62,10 @@ html:not(.theme-light):not(.theme-dark) {
   --toolbar-btn-hover-bg: #ffffff;
   --toolbar-label: #2563eb;
 
+  --scrollbar-track: #eef0f3;
+  --scrollbar-thumb: #c4cad4;
+  --scrollbar-thumb-hover: #9aa3b2;
+
   --phone-bezel: #27272a;
   --phone-chrome: #5288c1;
   --tg-bubble: #effdde;
@@ -134,6 +138,10 @@ html.theme-dark {
   --toolbar-btn-border: #2e2e38;
   --toolbar-btn-hover-bg: #3f3f46;
   --toolbar-label: #93c5fd;
+
+  --scrollbar-track: #1a1a22;
+  --scrollbar-thumb: #3f3f4a;
+  --scrollbar-thumb-hover: #52525e;
 
   --phone-bezel: #2a2a32;
   --phone-chrome: #3d6fa0;
@@ -248,4 +256,35 @@ select option {
 
 svg {
   color: inherit;
+}
+
+/* Global scrollbars */
+:root {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }

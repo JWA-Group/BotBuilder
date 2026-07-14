@@ -76,6 +76,9 @@ def ensure_bot_user_db(bot_id: int) -> Path:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_activity_direction ON activity_log(direction)"
         )
+        from backend.core.bot_data_store import ensure_extended_bot_tables
+
+        ensure_extended_bot_tables(conn)
         conn.commit()
     finally:
         conn.close()
