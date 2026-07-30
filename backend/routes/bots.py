@@ -18,7 +18,7 @@ from backend.core.scenario_deps import PhantomNodeError, normalize_scenario_docu
 router = APIRouter()
 from backend.core.app_paths import PROJECTS_DIR
 
-@router.post("/create", response_model=BotOut)
+@router.post("/create")
 async def create_bot(bot: BotCreate, db: AsyncSession = Depends(get_db)):
     from backend.core.auth_deps import DEFAULT_USER_ID
 
@@ -29,24 +29,50 @@ async def create_bot(bot: BotCreate, db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Локальный пользователь не найден. Перезапустите приложение.")
 
+    kind = bot.kind if bot.kind in ("scenario", "moderator") else "scenario"
+    display_name = (bot.name or "").strip() or (
+        "Channel Moderator" if kind == "moderator" else "Telegram Bot"
+    )
+    token = (bot.api_token or "").strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Укажите API token из BotFather")
+
     new_bot = Bot(
-        name=bot.name,
-        api_token=bot.api_token,
+        name=display_name,
+        api_token=token,
         user_id=bot.user_id,
         platform=bot.platform,
+        kind=kind,
     )
     db.add(new_bot)
     await db.commit()
     await db.refresh(new_bot)
 
-    create_bot_project(new_bot.id, bot.name, bot.api_token, platform=bot.platform)
+    create_bot_project(
+        new_bot.id,
+        display_name,
+        token,
+        platform=bot.platform,
+        kind=kind,
+    )
+    started = None
+    if kind == "moderator":
+        try:
+            from backend.routes.bot_runner import start_bot as start_bot_process
+
+            started = await start_bot_process(new_bot.id)
+        except Exception as exc:
+            started = {"status": "error", "detail": str(exc)}
     try:
         from backend.core.monitor import log_api
 
-        log_api(f"Создан бот #{new_bot.id} «{new_bot.name}» ({new_bot.platform})")
+        log_api(f"Создан бот #{new_bot.id} «{new_bot.name}» ({new_bot.platform}/{kind})")
     except Exception:
         pass
-    return new_bot
+    payload = BotOut.model_validate(new_bot).model_dump()
+    if started is not None:
+        payload["start"] = started
+    return payload
 
 @router.get("/my", response_model=list[BotOut])
 async def get_user_bots(user_id: int, db: AsyncSession = Depends(get_db)):

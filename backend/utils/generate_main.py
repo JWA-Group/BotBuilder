@@ -9,6 +9,163 @@ def get_bot_platform(bot_id: int) -> str:
     """Платформа бота: только telegram."""
     return "telegram"
 
+
+def get_bot_kind(bot_id: int) -> str:
+    """Bot kind: scenario (default) or moderator (Channel Hub only)."""
+    path = os.path.join(BASE_DIR, f"bot_{bot_id}", "config.json")
+    if not os.path.isfile(path):
+        return "scenario"
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        kind = str((data or {}).get("kind") or "scenario").strip().lower()
+        return "moderator" if kind == "moderator" else "scenario"
+    except (OSError, json.JSONDecodeError, TypeError):
+        return "scenario"
+
+
+MODERATOR_MAIN_TEMPLATE = '''# -*- coding: utf-8 -*-
+"""Dedicated Channel Hub moderation bot (no scenario editor)."""
+import asyncio
+import json
+import logging
+import os
+import socket
+import sys
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiohttp import ClientSession, TCPConnector
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+BASE_DIR = os.path.dirname(__file__)
+DATA_DIR = os.environ.get("BOT_DATA_DIR", BASE_DIR)
+os.makedirs(DATA_DIR, exist_ok=True)
+USER_DB_PATH = os.path.join(DATA_DIR, "user_data.db")
+
+_log_handlers = []
+if os.environ.get("BOTBUILDER_DOCKER", "").strip().lower() in ("1", "true", "yes"):
+    _log_handlers.append(logging.StreamHandler(sys.stdout))
+_log_path = os.path.join(DATA_DIR, "bot.log")
+try:
+    _log_handlers.append(logging.FileHandler(_log_path, encoding="utf-8"))
+except OSError:
+    pass
+if not _log_handlers:
+    _log_handlers.append(logging.NullHandler())
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=_log_handlers,
+    force=True,
+)
+log = logging.getLogger("bot")
+
+with open(os.path.join(BASE_DIR, "config.json"), encoding="utf-8") as f:
+    config = json.load(f)
+TOKEN = config.get("api_key") or config.get("token") or ""
+
+
+class ProxyAwareSession(AiohttpSession):
+    async def create_session(self) -> ClientSession:
+        if self._should_reset_connector:
+            await self.close()
+        if self._session is None or self._session.closed:
+            self._session = ClientSession(
+                connector=TCPConnector(family=socket.AF_INET, limit=100),
+                trust_env=True,
+            )
+            self._should_reset_connector = False
+        return self._session
+
+
+bot = Bot(
+    token=TOKEN,
+    session=ProxyAwareSession(),
+    default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+)
+dp = Dispatcher()
+
+
+def _init_user_db():
+    import sqlite3
+    conn = sqlite3.connect(USER_DB_PATH)
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS users (
+            tg_user_id INTEGER PRIMARY KEY,
+            tg_user_name TEXT,
+            tg_user_date TEXT
+        )"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS user_data (
+            user_id INTEGER NOT NULL,
+            field TEXT NOT NULL,
+            value TEXT,
+            updated_at REAL,
+            PRIMARY KEY (user_id, field)
+        )"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS activity_log (
+            user_id INTEGER,
+            event_time REAL,
+            event_type TEXT,
+            block_id TEXT,
+            direction TEXT
+        )"""
+    )
+    conn.commit()
+    conn.close()
+
+
+_init_user_db()
+
+
+@dp.message(F.chat.type == "private", F.text)
+async def on_private_help(message: types.Message):
+    await message.answer(
+        "Это бот модерации Менеджера каналов.\\n"
+        "Добавьте меня админом в канал и связанную группу обсуждений."
+    )
+
+
+async def main():
+    log.info("Connecting to Telegram API...")
+    try:
+        me = await asyncio.wait_for(bot.get_me(), timeout=45.0)
+    except asyncio.TimeoutError:
+        log.error("Таймаут подключения к Telegram API (45с).")
+        raise SystemExit(1)
+    log.info("Start polling as @%s (id=%s) [moderator]", me.username, me.id)
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except Exception as exc:
+        log.exception("Bot stopped: %s", exc)
+        raise
+'''
+
+
+def generate_moderator_main(bot_id: int) -> bool:
+    """Generate Channel-Hub-only main.py (no scenario FSM)."""
+    from backend.core.channel_hub_runtime import patch_channel_hub_runtime
+
+    bot_path = os.path.join(BASE_DIR, f"bot_{bot_id}")
+    os.makedirs(bot_path, exist_ok=True)
+    code = patch_channel_hub_runtime(MODERATOR_MAIN_TEMPLATE)
+    main_path = os.path.join(bot_path, "main.py")
+    with open(main_path, "w", encoding="utf-8") as f:
+        f.write(code)
+    return True
+
+
 # --- Шаблон main.py по сценарию (редактор блоков + связи) ---
 SCENARIO_MAIN_TEMPLATE = '''# -*- coding: utf-8 -*-
 """Бот, управляемый сценарием (scenario.json). Поддержка команд, данных, условий, медиа."""
@@ -570,13 +727,23 @@ async def run_from_block(
             if prompt:
                 msg_text = resolve_text(prompt, user_id)
             else:
-                msg_text = " "
+                input_type = info.get("field_type", "string")
+                msg_text = temporal_input_hint(input_type) or "Введите значение:"
             await state.set_state(ScenarioState.awaiting_data_input)
             await state.update_data(
                 data_block_id=info["block_id"],
                 data_field=info["field"],
                 data_field_type=info.get("field_type", "string"),
                 data_next_id=info.get("next_id"),
+            )
+            save_pending_input(
+                user_id,
+                {
+                    "data_block_id": info["block_id"],
+                    "data_field": info["field"],
+                    "data_field_type": info.get("field_type", "string"),
+                    "data_next_id": info.get("next_id"),
+                },
             )
             _clear_last_reply_keyboard(chat_id, user_id=user_id)
             await bot.send_message(
@@ -586,6 +753,15 @@ async def run_from_block(
             )
             return
         return
+
+
+async def restore_pending_input_state(state: FSMContext, user_id: int) -> bool:
+    pending = load_pending_input(user_id)
+    if not pending or not pending.get("data_field"):
+        return False
+    await state.set_state(ScenarioState.awaiting_data_input)
+    await state.update_data(**pending)
+    return True
 
 
 def get_command_blocks():
@@ -635,10 +811,52 @@ def format_location_point(loc) -> str:
         return ""
 
 
+def normalize_temporal_value(value, field_type: str) -> str:
+    """Normalize user-entered date/time to stable ISO-like strings."""
+    from datetime import datetime
+
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    normalized = raw.replace("T", " ").replace("/", ".")
+    formats = {
+        "date": ("%Y-%m-%d", "%d.%m.%Y", "%d-%m-%Y"),
+        "time": ("%H:%M", "%H:%M:%S"),
+        "datetime": (
+            "%Y-%m-%d %H:%M",
+            "%Y-%m-%d %H:%M:%S",
+            "%d.%m.%Y %H:%M",
+            "%d-%m-%Y %H:%M",
+        ),
+    }
+    for fmt in formats.get(field_type, ()):
+        try:
+            parsed = datetime.strptime(normalized, fmt)
+            if field_type == "date":
+                return parsed.strftime("%Y-%m-%d")
+            if field_type == "time":
+                return parsed.strftime("%H:%M")
+            return parsed.strftime("%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+    return ""
+
+
+def temporal_input_hint(field_type: str) -> str:
+    if field_type == "date":
+        return "Введите дату в формате ДД.ММ.ГГГГ."
+    if field_type == "time":
+        return "Введите время в формате ЧЧ:ММ."
+    if field_type == "datetime":
+        return "Введите дату и время в формате ДД.ММ.ГГГГ ЧЧ:ММ."
+    return ""
+
+
 @dp.message(F.text.in_({"/start", "/Start"}))
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.clear()
     user_id = message.from_user.id if message.from_user else 0
+    clear_pending_input(user_id)
     _clear_last_reply_keyboard(message.chat.id, user_id=user_id)
     username = (message.from_user.username or message.from_user.first_name or "") if message.from_user else ""
     ensure_user_registered(user_id, tg_username=message.from_user.username if message.from_user else None,
@@ -674,6 +892,49 @@ async def on_unlinked_inline(callback: types.CallbackQuery):
 @dp.callback_query(F.data)
 async def on_inline(callback: types.CallbackQuery, state: FSMContext):
     block_id = callback.data
+    if block_id.startswith("__appt:"):
+        parts = block_id.split(":", 2)
+        if len(parts) != 3:
+            await callback.answer("Некорректная заявка", show_alert=True)
+            return
+        action, appointment_id = parts[1], parts[2]
+        admin_user_id = callback.from_user.id if callback.from_user else 0
+        current_chat = str(callback.message.chat.id) if callback.message else ""
+        if not is_appointment_moderator(admin_user_id, current_chat):
+            await callback.answer("Недостаточно прав", show_alert=True)
+            return
+        status = "accepted" if action == "accept" else "rejected"
+        appointment = get_appointment(appointment_id)
+        if not appointment:
+            await callback.answer("Заявка не найдена", show_alert=True)
+            return
+        if not update_appointment_status(
+            appointment_id,
+            status,
+            moderator_id=admin_user_id,
+        ):
+            await callback.answer("Заявка уже обработана", show_alert=True)
+            return
+        status_text = "✅ Принята" if status == "accepted" else "❌ Отклонена"
+        await callback.answer(status_text)
+        if callback.message:
+            try:
+                await callback.message.edit_reply_markup(reply_markup=None)
+                await callback.message.answer(
+                    f"{status_text}: заявка №{appointment_id}"
+                )
+            except Exception:
+                pass
+        user_message = (
+            f"✅ Ваша заявка №{appointment_id} подтверждена."
+            if status == "accepted"
+            else f"❌ Ваша заявка №{appointment_id} отклонена."
+        )
+        try:
+            await bot.send_message(int(appointment["user_id"]), user_message)
+        except Exception:
+            pass
+        return
     await callback.answer()
     if block_id not in BLOCKS_BY_ID:
         return
@@ -696,9 +957,11 @@ async def on_awaiting_data_contact(message: types.Message, state: FSMContext):
     next_id = data.get("data_next_id")
     if not field:
         await state.clear()
+        clear_pending_input(user_id)
         return
-    set_user_field(user_id, field, phone)
+    apply_scoped_field_value(user_id, field, phone)
     await state.clear()
+    clear_pending_input(user_id)
     if next_id:
         await run_from_block(
             bot,
@@ -725,9 +988,11 @@ async def on_awaiting_data_location(message: types.Message, state: FSMContext):
     next_id = data.get("data_next_id")
     if not field:
         await state.clear()
+        clear_pending_input(user_id)
         return
-    set_user_field(user_id, field, val)
+    apply_scoped_field_value(user_id, field, val)
     await state.clear()
+    clear_pending_input(user_id)
     if next_id:
         await run_from_block(
             bot,
@@ -755,15 +1020,21 @@ async def on_awaiting_data_input(message: types.Message, state: FSMContext):
         if data_block_id:
             set_user_field(user_id, f"_fwd_pending_{data_block_id}", "")
 
+    if txt.lower() == "/start":
+        clear_pending_input(user_id)
+        await cmd_start(message, state)
+        return
     if txt.startswith("/"):
         _clear_forward_pending()
         await state.clear()
+        clear_pending_input(user_id)
         await message.answer("Действие отменено.")
         return
     menu_texts = get_all_menu_button_texts()
     if txt in menu_texts:
         _clear_forward_pending()
         await state.clear()
+        clear_pending_input(user_id)
         await message.answer("Действие отменено. Нажатие кнопки меню прервало ввод.")
         return
     field = data.get("data_field", "")
@@ -775,10 +1046,16 @@ async def on_awaiting_data_input(message: types.Message, state: FSMContext):
         except (ValueError, TypeError):
             await message.answer("Введите число.")
             return
+    elif field_type in ("date", "time", "datetime"):
+        val = normalize_temporal_value(txt, field_type)
+        if not val:
+            await message.answer(temporal_input_hint(field_type))
+            return
     else:
         val = txt
-    set_user_field(user_id, field, val)
+    apply_scoped_field_value(user_id, field, val)
     await state.clear()
+    clear_pending_input(user_id)
     if next_id:
         await run_from_block(
             bot,
@@ -794,6 +1071,15 @@ async def on_awaiting_data_input(message: types.Message, state: FSMContext):
         await message.answer("Данные сохранены.")
 
 
+@dp.message(ScenarioState.awaiting_data_input)
+async def on_awaiting_data_unsupported(message: types.Message):
+    """Keep the pending FSM state and explain accepted input kinds."""
+    await message.answer(
+        "Отправьте текст, контакт или геопозицию. "
+        "Для отмены отправьте команду, например /start."
+    )
+
+
 @dp.callback_query(ScenarioState.awaiting_data_input, F.data)
 async def on_callback_while_awaiting_input(callback: types.CallbackQuery, state: FSMContext):
     """Отмена ввода при нажатии inline-кнопки."""
@@ -803,6 +1089,7 @@ async def on_callback_while_awaiting_input(callback: types.CallbackQuery, state:
     user_id = callback.from_user.id if callback.from_user else 0
     if data_block_id and user_id:
         set_user_field(user_id, f"_fwd_pending_{data_block_id}", "")
+    clear_pending_input(user_id)
     await state.clear()
     await callback.message.answer("Действие отменено.")
 
@@ -885,7 +1172,7 @@ async def on_menu_contact(message: types.Message, state: FSMContext):
             if nblock and nblock.get("type") == "data":
                 dd = nblock.get("data") or {}
                 fn = (dd.get("fieldName") or "").strip() or "phone"
-                set_user_field(user_id, fn, phone)
+                apply_scoped_field_value(user_id, fn, phone)
                 nn = get_next_block(next_id, 0)
                 if nn:
                     await run_from_block(
@@ -942,7 +1229,7 @@ async def on_menu_location(message: types.Message, state: FSMContext):
             if nblock and nblock.get("type") == "data":
                 dd = nblock.get("data") or {}
                 fn = (dd.get("fieldName") or "").strip() or "location"
-                set_user_field(user_id, fn, loc_val)
+                apply_scoped_field_value(user_id, fn, loc_val)
                 nn = get_next_block(next_id, 0)
                 if nn:
                     await run_from_block(
@@ -970,9 +1257,44 @@ async def on_menu_location(message: types.Message, state: FSMContext):
     await state.clear()
 
 
+@dp.message(F.contact)
+async def on_contact_without_state(message: types.Message, state: FSMContext):
+    """Resume persisted Data input after a hot reload."""
+    user_id = message.from_user.id if message.from_user else 0
+    if await restore_pending_input_state(state, user_id):
+        await on_awaiting_data_contact(message, state)
+        return
+    await message.answer("Сейчас бот не ожидает контакт. Отправьте /start.")
+
+
+@dp.message(F.location)
+async def on_location_without_state(message: types.Message, state: FSMContext):
+    """Resume persisted Data input after a hot reload."""
+    user_id = message.from_user.id if message.from_user else 0
+    if await restore_pending_input_state(state, user_id):
+        await on_awaiting_data_location(message, state)
+        return
+    await message.answer("Сейчас бот не ожидает геопозицию. Отправьте /start.")
+
+
 @dp.message(F.text)
 async def on_text_message(message: types.Message, state: FSMContext):
+    # Defensive fallback: imported/legacy scenarios may reach the generic text
+    # handler while an input field is pending. Never lose that user value.
+    current_state = await state.get_state()
+    pending = await state.get_data()
     user_id = message.from_user.id if message.from_user else 0
+    if not pending.get("data_field"):
+        restored = await restore_pending_input_state(state, user_id)
+        if restored:
+            current_state = await state.get_state()
+            pending = await state.get_data()
+    if (
+        current_state == ScenarioState.awaiting_data_input.state
+        or pending.get("data_field")
+    ):
+        await on_awaiting_data_input(message, state)
+        return
     ensure_user_registered(user_id,
         tg_username=message.from_user.username if message.from_user else None,
         tg_first_name=message.from_user.first_name if message.from_user else None)
@@ -1096,6 +1418,9 @@ def _copy_scenario_plugin_assets(bot_path: str, scenario: dict) -> None:
 
 def generate_main_from_scenario(bot_id: int, platform: str | None = None) -> bool:
     """Генерирует main.py из scenario.json через plugin compiler."""
+    if get_bot_kind(bot_id) == "moderator":
+        return generate_moderator_main(bot_id)
+
     from backend.core.compiler import CodeGenerator
 
     bot_path = os.path.join(BASE_DIR, f"bot_{bot_id}")
@@ -1327,6 +1652,9 @@ def generate_main_py(bot_id: int):
     """Генерирует main.py: при наличии scenario.json — по сценарию, иначе — по FSM/handlers."""
     bot_path = os.path.join(BASE_DIR, f"bot_{bot_id}")
     os.makedirs(bot_path, exist_ok=True)
+
+    if get_bot_kind(bot_id) == "moderator":
+        return generate_moderator_main(bot_id)
 
     scenario_path = os.path.join(bot_path, "scenario.json")
     if os.path.exists(scenario_path):

@@ -150,14 +150,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (addError) addError.classList.remove("visible");
       var name = document.getElementById("bot-name").value.trim();
       var api_token = document.getElementById("bot-api-token").value.trim();
+      var kindModerator = !!(document.getElementById("bot-kind-moderator") || {}).checked;
       var platform = "telegram";
-      if (!name || !api_token) {
+      if (!api_token || (!name && !kindModerator)) {
         if (addError) {
           addError.textContent = tr("error.required_field");
           addError.classList.add("visible");
         }
         return;
       }
+      if (kindModerator && !name) name = "Channel Moderator";
       var btn = addForm.querySelector(".btn-primary");
       if (btn) btn.disabled = true;
       try {
@@ -169,12 +171,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             api_token: api_token,
             user_id: parseInt(user_id, 10),
             platform: platform,
+            kind: kindModerator ? "moderator" : "scenario",
           }),
         });
         var data = res.ok ? await res.json() : await res.json().catch(function () { return {}; });
         if (res.ok) {
           document.getElementById("bot-name").value = "";
           document.getElementById("bot-api-token").value = "";
+          if (document.getElementById("bot-kind-moderator")) {
+            document.getElementById("bot-kind-moderator").checked = false;
+          }
+          if (kindModerator) {
+            window.location.href = "/channel-hub/";
+            return;
+          }
           window.location.reload();
           return;
         }
@@ -223,20 +233,40 @@ document.addEventListener("DOMContentLoaded", async () => {
           .map(function (bot) {
             var plat = "telegram";
             var token = bot.api_token || "";
+            var isMod = (bot.kind || "scenario") === "moderator";
+            var badges =
+              '<span class="bot-platform-badge bot-platform-telegram">' +
+              escapeHtml(tr("bots.platform_telegram")) +
+              "</span>";
+            if (isMod) {
+              badges +=
+                '<span class="bot-platform-badge bot-kind-moderator">' +
+                escapeHtml(tr("bots.kind_badge")) +
+                "</span>";
+            }
+            var scenarioLink = isMod
+              ? '<a class="btn-scenario" href="/channel-hub/">' +
+                escapeHtml(tr("bots.open_channel_hub")) +
+                "</a>"
+              : '<a class="btn-scenario" href="/editor/scenario/index.html?bot_id=' +
+                bot.id +
+                '">' +
+                escapeHtml(tr("bots.scenario_editor")) +
+                "</a>";
             return (
               '<div class="bot-card" data-bot-id="' +
               bot.id +
               '" data-bot-name="' +
               escapeHtml(bot.name) +
-              '" data-platform="telegram">' +
+              '" data-platform="telegram" data-kind="' +
+              (isMod ? "moderator" : "scenario") +
+              '">' +
               '<div class="bot-card-header">' +
               "<h3>" +
               escapeHtml(bot.name) +
               "</h3>" +
               '<div class="bot-card-badges">' +
-              '<span class="bot-platform-badge bot-platform-telegram">' +
-              escapeHtml(tr("bots.platform_telegram")) +
-              "</span>" +
+              badges +
               '<span class="bot-status-badge status-stopped" data-bot-id="' +
               bot.id +
               '">—</span>' +
@@ -262,11 +292,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               escapeHtml(tr("bots.delete")) +
               "</button>" +
               "</div>" +
-              '<a class="btn-scenario" href="/editor/scenario/index.html?bot_id=' +
-              bot.id +
-              '">' +
-              escapeHtml(tr("bots.scenario_editor")) +
-              "</a>" +
+              scenarioLink +
               "</div></div>"
             );
           })

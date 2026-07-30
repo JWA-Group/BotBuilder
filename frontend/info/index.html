@@ -76,19 +76,23 @@
 
           <a href="#quickstart" data-i18n="info.nav.quickstart">Quick start</a>
 
+          <a href="#monitor" data-i18n="info.nav.monitor">Monitoring</a>
+
+          <a href="#channel-manager" data-i18n="info.nav.channel_manager">Channel Manager</a>
+
+          <a href="#post-editor" data-i18n="info.nav.post_editor">Post Editor</a>
+
           <a href="#bots" data-i18n="info.nav.bots">Chat bots</a>
 
           <a href="#scenario" data-i18n="info.nav.scenario">Scenario editor</a>
 
-          <a href="#plugins" data-i18n="info.nav.plugins">Plugins & blocks</a>
-
           <a href="#templates" data-i18n="info.nav.templates">Templates</a>
-
-          <a href="#analytics" data-i18n="info.nav.analytics">Analytics & data</a>
 
           <a href="#mailing" data-i18n="info.nav.mailing">Broadcasts</a>
 
-          <a href="#monitor" data-i18n="info.nav.monitor">Monitoring</a>
+          <a href="#analytics" data-i18n="info.nav.analytics">Bot Analytics & data</a>
+
+          <a href="#plugins" data-i18n="info.nav.plugins">Plugins & blocks</a>
 
           <a href="#deploy" data-i18n="info.nav.deploy">Deploy</a>
 
@@ -124,6 +128,30 @@
 
               <article class="info-module">
 
+                <h3 data-i18n-html="info.modules.monitor.title_html"><a href="/monitor/">Monitoring</a></h3>
+
+                <p data-i18n="info.modules.monitor.desc">CPU/RAM, bot processes, logs.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.channel_manager.title_html"><a href="/channel-hub/">Channel Manager</a></h3>
+
+                <p data-i18n="info.modules.channel_manager.desc">Channels, moderator bots, stats and comments.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.post_editor.title_html"><a href="/post-studio/">Post Editor</a></h3>
+
+                <p data-i18n="info.modules.post_editor.desc">Compose, schedule and publish channel posts.</p>
+
+              </article>
+
+              <article class="info-module">
+
                 <h3 data-i18n-html="info.modules.bots.title_html"><a href="/bots/">Chat bots</a></h3>
 
                 <p data-i18n="info.modules.bots.desc">Bot list, tokens, start/stop, open the scenario builder.</p>
@@ -140,41 +168,9 @@
 
               <article class="info-module">
 
-                <h3 data-i18n-html="info.modules.plugins.title_html"><a href="/plugins/">Plugins</a></h3>
-
-                <p data-i18n="info.modules.plugins.desc">Block catalog: built-in and custom.</p>
-
-              </article>
-
-              <article class="info-module">
-
-                <h3 data-i18n-html="info.modules.builder.title_html"><a href="/plugin-builder/">Component wizard</a></h3>
-
-                <p data-i18n="info.modules.builder.desc">Create and edit custom blocks.</p>
-
-              </article>
-
-              <article class="info-module">
-
                 <h3 data-i18n-html="info.modules.templates.title_html"><a href="/templates/">Template library</a></h3>
 
                 <p data-i18n="info.modules.templates.desc">Ready scenarios, import/export .bbpack.json.</p>
-
-              </article>
-
-              <article class="info-module">
-
-                <h3 data-i18n-html="info.modules.analytics.title_html"><a href="/analytics/">Analytics</a></h3>
-
-                <p data-i18n="info.modules.analytics.desc">Activity charts and calendar.</p>
-
-              </article>
-
-              <article class="info-module">
-
-                <h3 data-i18n-html="info.modules.database.title_html"><a href="/database/">Database</a></h3>
-
-                <p data-i18n="info.modules.database.desc">View and edit user_data.db.</p>
 
               </article>
 
@@ -188,9 +184,33 @@
 
               <article class="info-module">
 
-                <h3 data-i18n-html="info.modules.monitor.title_html"><a href="/monitor/">Monitoring</a></h3>
+                <h3 data-i18n-html="info.modules.analytics.title_html"><a href="/analytics/">Bot Analytics</a></h3>
 
-                <p data-i18n="info.modules.monitor.desc">CPU/RAM, bot processes, logs.</p>
+                <p data-i18n="info.modules.analytics.desc">Activity charts and calendar for chat bots.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.builder.title_html"><a href="/plugin-builder/">Component wizard</a></h3>
+
+                <p data-i18n="info.modules.builder.desc">Create and edit custom blocks.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.plugins.title_html"><a href="/plugins/">Plugins</a></h3>
+
+                <p data-i18n="info.modules.plugins.desc">Block catalog: built-in and custom.</p>
+
+              </article>
+
+              <article class="info-module">
+
+                <h3 data-i18n-html="info.modules.database.title_html"><a href="/database/">Database</a></h3>
+
+                <p data-i18n="info.modules.database.desc">View and edit user_data.db.</p>
 
               </article>
 
@@ -236,6 +256,111 @@
 
 
 
+
+
+          <section class="info-section" id="monitor">
+
+            <h2 data-i18n="info.monitor.title">Monitoring</h2>
+
+            <p data-i18n-html="info.monitor.desc_html">Monitoring shows load, processes and streaming logs.</p>
+
+          </section>
+
+
+
+
+
+          <section class="info-section" id="channel-manager">
+
+            <h2 data-i18n="info.channel_manager.title">Channel Manager</h2>
+
+            <p data-i18n-html="info.channel_manager.intro_html">Channel Manager connects Telegram channels to BotBuilder.</p>
+
+            <h3 data-i18n="info.channel_manager.how_title">How to connect a channel</h3>
+
+            <ol class="info-steps">
+
+              <li data-i18n="info.channel_manager.how1">Create or select a moderator bot.</li>
+
+              <li data-i18n="info.channel_manager.how2">Add the bot as a channel administrator.</li>
+
+              <li data-i18n-html="info.channel_manager.how3_html">Add the channel and bind it to the moderator bot.</li>
+
+              <li data-i18n="info.channel_manager.how4">Open the channel card for stats, feed and actions.</li>
+
+            </ol>
+
+            <h3 data-i18n="info.channel_manager.features_title">What you get</h3>
+
+            <ul>
+
+              <li data-i18n="info.channel_manager.feat1">Connected channels list.</li>
+
+              <li data-i18n="info.channel_manager.feat2">Views, reactions and charts; PDF export.</li>
+
+              <li data-i18n="info.channel_manager.feat3">Post feed; open Post Editor to create or update.</li>
+
+              <li data-i18n="info.channel_manager.feat4">Comment moderation.</li>
+
+            </ul>
+
+            <div class="info-callout" data-i18n="info.channel_manager.note">
+
+              Keep the moderator bot running while you publish or moderate.
+
+            </div>
+
+          </section>
+
+
+
+
+          <section class="info-section" id="post-editor">
+
+            <h2 data-i18n="info.post_editor.title">Post Editor</h2>
+
+            <p data-i18n-html="info.post_editor.intro_html">Post Editor builds channel posts.</p>
+
+            <h3 data-i18n="info.post_editor.how_title">How to publish a post</h3>
+
+            <ol class="info-steps">
+
+              <li data-i18n="info.post_editor.how1">Select a channel connected in Channel Manager.</li>
+
+              <li data-i18n="info.post_editor.how2">Compose rows or switch to HTML mode.</li>
+
+              <li data-i18n="info.post_editor.how3">Save draft, publish now, or schedule.</li>
+
+              <li data-i18n="info.post_editor.how4">Update published posts; New Post after success.</li>
+
+            </ol>
+
+            <h3 data-i18n="info.post_editor.features_title">Editor features</h3>
+
+            <ul>
+
+              <li data-i18n="info.post_editor.feat1">Formatting toolbar in the visual editor.</li>
+
+              <li data-i18n="info.post_editor.feat2">Media and inline buttons.</li>
+
+              <li data-i18n="info.post_editor.feat3">Draft and published history.</li>
+
+              <li data-i18n="info.post_editor.feat4">Start a new post in one click after publish.</li>
+
+            </ul>
+
+            <div class="info-callout" data-i18n="info.post_editor.note">
+
+              Publishing needs a live moderator bot with channel rights.
+
+            </div>
+
+          </section>
+
+
+
+
+
           <section class="info-section" id="bots">
 
             <h2 data-i18n="info.bots.title">Chat bots</h2>
@@ -263,6 +388,7 @@
             </div>
 
           </section>
+
 
 
 
@@ -305,6 +431,64 @@
             </ul>
 
           </section>
+
+
+
+
+          <section class="info-section" id="templates">
+
+            <h2 data-i18n="info.templates.title">Template library</h2>
+
+            <p data-i18n-html="info.templates.intro_html">In Templates — local and marketplace packages.</p>
+
+            <ul>
+
+              <li data-i18n-html="info.templates.item1_html"><strong>Preview</strong> — view the graph before installing.</li>
+
+              <li data-i18n-html="info.templates.item2_html"><strong>Install on bot</strong> — apply to a project.</li>
+
+              <li data-i18n-html="info.templates.item3_html"><strong>Import / export</strong> — share files.</li>
+
+              <li data-i18n-html="info.templates.item4_html"><strong>Edit template</strong> — scenario editor in template mode.</li>
+
+            </ul>
+
+          </section>
+
+
+
+
+          <section class="info-section" id="mailing">
+
+            <h2 data-i18n="info.mailing.title">Broadcasts</h2>
+
+            <p data-i18n-html="info.mailing.desc_html">Send HTML messages with media to subscribers.</p>
+
+            <div class="info-callout" data-i18n="info.mailing.note">
+
+              The bot must be available (valid token).
+
+            </div>
+
+          </section>
+
+
+
+
+          <section class="info-section" id="analytics">
+
+            <h2 data-i18n="info.analytics.title">Bot Analytics & database</h2>
+
+            <h3 data-i18n="info.analytics.section_title">Bot Analytics</h3>
+
+            <p data-i18n-html="info.analytics.desc_html">Analytics shows activity for the selected bot.</p>
+
+            <h3 data-i18n="info.database.section_title">Database</h3>
+
+            <p data-i18n-html="info.database.desc_html">Database opens the project user_data.db.</p>
+
+          </section>
+
 
 
 
@@ -360,70 +544,6 @@
 
 
 
-          <section class="info-section" id="templates">
-
-            <h2 data-i18n="info.templates.title">Template library</h2>
-
-            <p data-i18n-html="info.templates.intro_html">In Templates — local and marketplace packages.</p>
-
-            <ul>
-
-              <li data-i18n-html="info.templates.item1_html"><strong>Preview</strong> — view the graph before installing.</li>
-
-              <li data-i18n-html="info.templates.item2_html"><strong>Install on bot</strong> — apply to a project.</li>
-
-              <li data-i18n-html="info.templates.item3_html"><strong>Import / export</strong> — share files.</li>
-
-              <li data-i18n-html="info.templates.item4_html"><strong>Edit template</strong> — scenario editor in template mode.</li>
-
-            </ul>
-
-          </section>
-
-
-
-          <section class="info-section" id="analytics">
-
-            <h2 data-i18n="info.analytics.title">Analytics & database</h2>
-
-            <h3 data-i18n="info.analytics.section_title">Analytics</h3>
-
-            <p data-i18n-html="info.analytics.desc_html">Analytics shows activity for the selected bot.</p>
-
-            <h3 data-i18n="info.database.section_title">Database</h3>
-
-            <p data-i18n-html="info.database.desc_html">Database opens the project user_data.db.</p>
-
-          </section>
-
-
-
-          <section class="info-section" id="mailing">
-
-            <h2 data-i18n="info.mailing.title">Broadcasts</h2>
-
-            <p data-i18n-html="info.mailing.desc_html">Send HTML messages with media to subscribers.</p>
-
-            <div class="info-callout" data-i18n="info.mailing.note">
-
-              The bot must be available (valid token).
-
-            </div>
-
-          </section>
-
-
-
-          <section class="info-section" id="monitor">
-
-            <h2 data-i18n="info.monitor.title">Monitoring</h2>
-
-            <p data-i18n-html="info.monitor.desc_html">Monitoring shows load, processes and streaming logs.</p>
-
-          </section>
-
-
-
           <section class="info-section" id="deploy">
 
             <h2 data-i18n="info.deploy.title">Deploy</h2>
@@ -441,6 +561,7 @@
             <p data-i18n="info.deploy.outro">Before deploy, ensure the scenario is saved and the token is current.</p>
 
           </section>
+
 
 
 

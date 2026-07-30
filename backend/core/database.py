@@ -26,7 +26,22 @@ MAX_ROWS = 10_000
 
 CORE_USER_COLUMNS = ("tg_user_id", "tg_user_name", "tg_user_date")
 INTERNAL_USER_FIELDS = frozenset({"current_menu_id"})
-TABLE_ORDER = ("users_wide", "bot_globals", "inventory_items", "users", "user_data", "activity_log")
+TABLE_ORDER = (
+    "users_wide",
+    "bot_globals",
+    "appointments",
+    "inventory_items",
+    "channel_posts",
+    "channel_comments",
+    "channel_member_events",
+    "user_warnings",
+    "moderation_rules",
+    "moderation_actions",
+    "channel_registry",
+    "users",
+    "user_data",
+    "activity_log",
+)
 
 MANAGED_TABLES: dict[str, dict[str, Any]] = {
     "users_wide": {
@@ -46,6 +61,80 @@ MANAGED_TABLES: dict[str, dict[str, Any]] = {
         "label": "Inventory items",
         "primary_key": ["id"],
         "editable_columns": ["product_id", "content", "status", "assigned_to_user", "issued_at", "created_at"],
+        "use_rowid": False,
+    },
+    "appointments": {
+        "label": "Appointments",
+        "primary_key": ["id"],
+        "editable_columns": [
+            "service",
+            "scheduled_for",
+            "status",
+            "comment",
+            "updated_at",
+            "moderated_by",
+            "moderated_at",
+        ],
+        "use_rowid": False,
+    },
+    "channel_registry": {
+        "label": "Channel registry",
+        "primary_key": ["chat_id"],
+        "editable_columns": ["title", "chat_type", "username", "linked_chat_id", "members_count", "updated_at"],
+        "use_rowid": False,
+    },
+    "channel_posts": {
+        "label": "Channel posts",
+        "primary_key": ["id"],
+        "editable_columns": [
+            "text",
+            "views_count",
+            "forwards_count",
+            "comments_count",
+            "reactions_count",
+            "created_at",
+        ],
+        "use_rowid": False,
+    },
+    "channel_comments": {
+        "label": "Channel comments",
+        "primary_key": ["id"],
+        "editable_columns": ["text", "is_deleted", "moderated", "username"],
+        "use_rowid": False,
+    },
+    "channel_member_events": {
+        "label": "Channel member events",
+        "primary_key": ["id"],
+        "editable_columns": ["event_type", "username", "invite_link_used", "timestamp"],
+        "use_rowid": False,
+    },
+    "user_warnings": {
+        "label": "User warnings",
+        "primary_key": ["id"],
+        "editable_columns": ["warning_count", "reason", "username", "last_warned_at"],
+        "use_rowid": False,
+    },
+    "moderation_rules": {
+        "label": "Moderation rules",
+        "primary_key": ["id"],
+        "editable_columns": [
+            "forbidden_keywords",
+            "block_links",
+            "block_stickers",
+            "block_media",
+            "anti_flood",
+            "max_warnings",
+            "mute_duration_minutes",
+            "mute_permanent",
+            "enabled",
+            "updated_at",
+        ],
+        "use_rowid": False,
+    },
+    "moderation_actions": {
+        "label": "Moderation actions",
+        "primary_key": ["id"],
+        "editable_columns": ["action", "reason", "duration_minutes", "source"],
         "use_rowid": False,
     },
     "users": {
@@ -77,6 +166,9 @@ def _connect(bot_id: int) -> sqlite3.Connection:
     db_path = ensure_bot_user_db(bot_id)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
+    from backend.core.bot_data_store import ensure_extended_bot_tables
+
+    ensure_extended_bot_tables(conn)
     ensure_custom_tables_meta(conn)
     return conn
 
@@ -152,7 +244,12 @@ def _scenario_field_names(bot_id: int) -> set[str]:
 
 def _is_internal_field(field: str) -> bool:
     name = (field or "").strip()
-    return name in INTERNAL_USER_FIELDS or name.startswith("_issued_")
+    return (
+        name in INTERNAL_USER_FIELDS
+        or name.startswith("_issued_")
+        or name.startswith("_pending_")
+        or name.startswith("_fwd_pending_")
+    )
 
 
 def _collect_custom_fields(conn: sqlite3.Connection, bot_id: int) -> list[str]:
@@ -188,7 +285,8 @@ def _scenario_field_types(bot_id: int) -> dict[str, str]:
         name = str(payload.get("fieldName") or "").strip()
         if not name or not TABLE_NAME_RE.match(name):
             continue
-        types[name] = "number" if payload.get("fieldType") == "number" else "string"
+        field_type = str(payload.get("fieldType") or "string")
+        types[name] = field_type if field_type in {"number", "date", "time", "datetime"} else "string"
     return types
 
 

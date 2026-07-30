@@ -45,7 +45,7 @@ def _sync_migrate_users(sync_conn):
 
 
 def _sync_migrate_bots(sync_conn):
-    """Добавляем platform для существующих таблиц bots."""
+    """Добавляем platform/kind для существующих таблиц bots."""
     try:
         r = sync_conn.execute(text(
             "SELECT COUNT(*) FROM pragma_table_info('bots') WHERE name='platform'"
@@ -53,6 +53,16 @@ def _sync_migrate_bots(sync_conn):
         if r.scalar() == 0:
             sync_conn.execute(text(
                 "ALTER TABLE bots ADD COLUMN platform VARCHAR NOT NULL DEFAULT 'telegram'"
+            ))
+    except Exception:
+        pass
+    try:
+        r = sync_conn.execute(text(
+            "SELECT COUNT(*) FROM pragma_table_info('bots') WHERE name='kind'"
+        ))
+        if r.scalar() == 0:
+            sync_conn.execute(text(
+                "ALTER TABLE bots ADD COLUMN kind VARCHAR NOT NULL DEFAULT 'scenario'"
             ))
     except Exception:
         pass

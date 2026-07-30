@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="channel_hub.title">Channel Hub</title>
+    <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+    <link rel="stylesheet" href="/shared/css/page-shell.css" />
+    <link rel="stylesheet" href="/analytics/analytics.css?v=1" />
+    <link rel="stylesheet" href="/database/database.css?v=1" />
+    <link rel="stylesheet" href="channel-hub.css?v=6" />
+    <!-- Chart.js / PDF libs load lazily — sync CDN in <head> froze the app for seconds -->
+  </head>
+  <body>
+    <div class="dashboard">
+      <header class="dashboard-header">
+        <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
+        <h1 class="page-title" data-i18n="channel_hub.title">Channel Hub</h1>
+      </header>
+
+      <main class="dashboard-content an-page ch-page" id="ch-dashboard-root">
+        <div class="an-toolbar ch-toolbar">
+          <div class="an-toolbar-left">
+            <label class="an-label" for="bot-select" data-i18n="channel_hub.moderator_bot">Moderator bot</label>
+            <select id="bot-select" class="an-select db-input"></select>
+            <span id="ch-live-badge" class="ch-live-badge" data-i18n="channel_hub.live_sync">Live Sync Active</span>
+          </div>
+          <div class="an-toolbar-right">
+            <div class="an-range" role="group" aria-label="Period">
+              <button type="button" class="an-range-btn" data-range="24h" data-i18n="channel_hub.range_24h">24h</button>
+              <button type="button" class="an-range-btn" data-range="7d" data-i18n="channel_hub.range_7d">7d</button>
+              <button type="button" class="an-range-btn an-range-btn-active" data-range="30d" data-i18n="channel_hub.range_30d">30d</button>
+              <button type="button" class="an-range-btn" data-range="all" data-i18n="channel_hub.range_all">All Time</button>
+            </div>
+            <button type="button" id="ch-export-pdf" class="db-btn-secondary" data-i18n="channel_hub.export_pdf">Export PDF Report</button>
+          </div>
+        </div>
+
+        <section id="ch-setup-panel" class="an-panel ch-setup-panel">
+          <h2 data-i18n="channel_hub.setup_title">Connect moderator bot</h2>
+          <p class="ch-setup-hint" data-i18n="channel_hub.setup_hint">
+            Create a separate bot in BotFather, paste its token here, then add that bot as admin to your channel and discussion group.
+          </p>
+          <div class="ch-setup-form">
+            <label class="an-label" for="mod-token" data-i18n="bots.token">API token</label>
+            <input type="text" id="mod-token" class="db-input ch-input-wide" data-i18n-placeholder="bots.token_placeholder" placeholder="123456:ABC-DEF..." />
+            <label class="an-label" for="mod-name" data-i18n="bots.name">Name (optional)</label>
+            <input type="text" id="mod-name" class="db-input ch-input-wide" placeholder="Channel Moderator" />
+            <button type="button" id="mod-connect" class="db-btn-primary" data-i18n="channel_hub.connect">Connect & start</button>
+          </div>
+          <ol class="ch-setup-steps">
+            <li data-i18n="channel_hub.step1">Create a bot in @BotFather and copy the token</li>
+            <li data-i18n="channel_hub.step2">Paste the token above and click Connect</li>
+            <li data-i18n="channel_hub.step3">Add the bot as admin to the channel + linked discussion</li>
+          </ol>
+        </section>
+
+        <div id="ch-status" class="an-status" hidden></div>
+
+        <div class="ch-tabs" role="tablist">
+          <button type="button" class="ch-tab ch-tab-active" data-tab="analytics" data-i18n="channel_hub.tab_analytics">Analytics</button>
+          <button type="button" class="ch-tab" data-tab="rules" data-i18n="channel_hub.tab_rules">Auto-moderation</button>
+          <button type="button" class="ch-tab" data-tab="moderation" data-i18n="channel_hub.tab_moderation">Live moderation</button>
+        </div>
+
+        <section id="tab-analytics" class="ch-tab-panel" data-pdf-section="analytics">
+          <section class="an-kpi-grid" aria-label="KPI">
+            <article class="an-kpi ch-glass-card">
+              <p class="an-kpi-label" data-i18n="channel_hub.kpi_subscribers">Subscribers</p>
+              <div class="an-kpi-value" id="kpi-subscribers">—</div>
+            </article>
+            <article class="an-kpi ch-glass-card">
+              <p class="an-kpi-label" data-i18n="channel_hub.kpi_joins">Joins today</p>
+              <div class="an-kpi-value" id="kpi-joins">—</div>
+            </article>
+            <article class="an-kpi ch-glass-card">
+              <p class="an-kpi-label" data-i18n="channel_hub.kpi_leaves">Leaves today</p>
+              <div class="an-kpi-value" id="kpi-leaves">—</div>
+            </article>
+            <article class="an-kpi ch-glass-card">
+              <p class="an-kpi-label" data-i18n="channel_hub.kpi_err">Engagement index</p>
+              <div class="an-kpi-value" id="kpi-err">—</div>
+            </article>
+            <article class="an-kpi ch-glass-card">
+              <p class="an-kpi-label" data-i18n="channel_hub.kpi_moderated">Comments moderated</p>
+              <div class="an-kpi-value" id="kpi-moderated">—</div>
+            </article>
+          </section>
+
+          <section class="ch-chart-grid">
+            <div class="an-panel ch-glass-card ch-chart-span-2">
+              <div class="an-panel-head">
+                <div>
+                  <h2 data-i18n="channel_hub.growth_title">Subscriber growth</h2>
+                  <p class="an-panel-sub" data-i18n="channel_hub.growth_sub">Joins vs leaves</p>
+                </div>
+              </div>
+              <div class="an-chart-wrap ch-chart-tall">
+                <canvas id="ch-growth-chart"></canvas>
+              </div>
+            </div>
+
+            <div class="an-panel ch-glass-card">
+              <div class="an-panel-head ch-panel-head-row">
+                <div>
+                  <h2 data-i18n="channel_hub.hours_title">Peak commenting hours</h2>
+                  <p class="an-panel-sub" data-i18n="channel_hub.hours_sub">Comments by hour (UTC)</p>
+                </div>
+                <div class="ch-view-switch" data-switch="activity" role="group">
+                  <button type="button" class="ch-view-btn ch-view-active" data-view="bar" data-i18n="channel_hub.view_bar">Bar</button>
+                  <button type="button" class="ch-view-btn" data-view="pie" data-i18n="channel_hub.view_pie">Pie</button>
+                </div>
+              </div>
+              <div class="an-chart-wrap ch-chart-tall">
+                <canvas id="ch-hours-chart"></canvas>
+              </div>
+            </div>
+
+            <div class="an-panel ch-glass-card">
+              <div class="an-panel-head">
+                <div>
+                  <h2 data-i18n="channel_hub.top_posts_chart_title">Top 5 posts</h2>
+                  <p class="an-panel-sub" data-i18n="channel_hub.top_posts_chart_sub">By engagement index</p>
+                </div>
+              </div>
+              <div class="an-chart-wrap ch-chart-tall">
+                <canvas id="ch-top-posts-chart"></canvas>
+              </div>
+            </div>
+
+            <div class="an-panel ch-glass-card">
+              <div class="an-panel-head ch-panel-head-row">
+                <div>
+                  <h2 data-i18n="channel_hub.reactions_title">Reactions</h2>
+                  <p class="an-panel-sub" data-i18n="channel_hub.reactions_sub">Emoji distribution</p>
+                </div>
+                <div class="ch-view-switch" data-switch="reactions" role="group">
+                  <button type="button" class="ch-view-btn ch-view-active" data-view="pie" data-i18n="channel_hub.view_pie">Pie</button>
+                  <button type="button" class="ch-view-btn" data-view="bar" data-i18n="channel_hub.view_bar">Bar</button>
+                </div>
+              </div>
+              <div class="an-chart-wrap ch-chart-tall">
+                <canvas id="ch-reactions-chart"></canvas>
+              </div>
+            </div>
+
+            <div class="an-panel ch-glass-card">
+              <div class="an-panel-head ch-panel-head-row">
+                <div>
+                  <h2 data-i18n="channel_hub.mod_actions_title">Moderation actions</h2>
+                  <p class="an-panel-sub" data-i18n="channel_hub.mod_actions_sub">Clean / warn / mute / ban</p>
+                </div>
+                <div class="ch-view-switch" data-switch="moderation" role="group">
+                  <button type="button" class="ch-view-btn ch-view-active" data-view="pie" data-i18n="channel_hub.view_donut">Donut</button>
+                  <button type="button" class="ch-view-btn" data-view="bar" data-i18n="channel_hub.view_bar">Bar</button>
+                </div>
+              </div>
+              <div class="an-chart-wrap ch-chart-tall">
+                <canvas id="ch-mod-chart"></canvas>
+              </div>
+            </div>
+          </section>
+
+          <section class="an-panel ch-table-panel ch-glass-card">
+            <div class="an-panel-head ch-panel-head-row">
+              <div>
+                <h2 data-i18n="channel_hub.posts_title">Top posts</h2>
+                <p class="an-panel-sub" data-i18n="channel_hub.posts_sub_compact">Click a row to open post details</p>
+              </div>
+              <input
+                type="search"
+                id="ch-posts-search"
+                class="db-input ch-posts-search"
+                data-i18n-placeholder="channel_hub.posts_search"
+                placeholder="Search posts…"
+              />
+            </div>
+            <div class="ch-table-wrap">
+              <table class="ch-table ch-posts-compact" id="ch-posts-table">
+                <thead>
+                  <tr>
+                    <th><button type="button" class="ch-sort-btn" data-sort="message_id" data-i18n="channel_hub.col_post_id">Post ID</button></th>
+                    <th data-i18n="channel_hub.col_link">Link</th>
+                    <th><button type="button" class="ch-sort-btn" data-sort="views_count" data-i18n="channel_hub.col_views">Views</button></th>
+                    <th><button type="button" class="ch-sort-btn" data-sort="comments_count" data-i18n="channel_hub.col_comments">Comments</button></th>
+                    <th><button type="button" class="ch-sort-btn ch-sort-active" data-sort="engagement" data-i18n="channel_hub.col_engagement">Engagement</button></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <div id="ch-post-modal" class="ch-modal" hidden>
+          <div class="ch-modal-backdrop" data-close-modal="1"></div>
+          <div class="ch-modal-card ch-glass-card" role="dialog" aria-modal="true">
+            <div class="ch-modal-head">
+              <h2 data-i18n="channel_hub.post_detail_title">Post details</h2>
+              <button type="button" class="db-btn-secondary ch-btn-sm" id="ch-post-modal-close" data-i18n="common.close">Close</button>
+            </div>
+            <div class="ch-modal-metrics">
+              <div><span class="an-label" data-i18n="channel_hub.col_post_id">Post ID</span><strong id="pm-id">—</strong></div>
+              <div><span class="an-label" data-i18n="channel_hub.col_views">Views</span><strong id="pm-views">—</strong></div>
+              <div><span class="an-label" data-i18n="channel_hub.col_comments">Comments</span><strong id="pm-comments">—</strong></div>
+              <div><span class="an-label" data-i18n="channel_hub.col_reactions">Reactions</span><strong id="pm-reactions">—</strong></div>
+              <div><span class="an-label" data-i18n="channel_hub.col_engagement">Engagement</span><strong id="pm-engagement">—</strong></div>
+            </div>
+            <a id="pm-link" class="ch-post-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+            <pre id="pm-text" class="ch-post-fulltext"></pre>
+          </div>
+        </div>
+
+        <section id="tab-rules" class="ch-tab-panel" hidden>
+          <div class="an-panel ch-rules-panel ch-glass-card">
+            <div class="ch-toggle-grid">
+              <label class="ch-toggle"><input type="checkbox" id="rule-block-links" checked /> <span data-i18n="channel_hub.block_links">Block links</span></label>
+              <label class="ch-toggle"><input type="checkbox" id="rule-block-stickers" /> <span data-i18n="channel_hub.block_stickers">Block stickers</span></label>
+              <label class="ch-toggle"><input type="checkbox" id="rule-block-media" /> <span data-i18n="channel_hub.block_media">Block media</span></label>
+              <label class="ch-toggle"><input type="checkbox" id="rule-anti-flood" /> <span data-i18n="channel_hub.anti_flood">Anti-flood</span></label>
+              <label class="ch-toggle"><input type="checkbox" id="rule-mute-permanent" /> <span data-i18n="channel_hub.mute_permanent">Permanent ban at max warnings</span></label>
+              <label class="ch-toggle"><input type="checkbox" id="rule-instant-mute" /> <span data-i18n="channel_hub.instant_mute_on_warn">Instant mute on warn</span></label>
+              <label class="ch-toggle"><input type="checkbox" id="rule-enabled" checked /> <span data-i18n="channel_hub.rules_enabled">Rules enabled</span></label>
+            </div>
+
+            <h3 class="ch-rules-section" data-i18n="channel_hub.flood_section">Anti-flood fine-tuning</h3>
+            <div class="ch-num-grid">
+              <label>
+                <span data-i18n="channel_hub.flood_max_messages">Max messages</span>
+                <input type="number" id="rule-flood-max" class="db-input" min="1" max="100" value="5" />
+              </label>
+              <label>
+                <span data-i18n="channel_hub.flood_window">Time window (seconds)</span>
+                <input type="number" id="rule-flood-window" class="db-input" min="1" max="600" value="10" />
+              </label>
+              <label>
+                <span data-i18n="channel_hub.flood_action">Flood action</span>
+                <select id="rule-flood-action" class="db-input an-select">
+                  <option value="warn" data-i18n="channel_hub.warn">Warn</option>
+                  <option value="mute" data-i18n="channel_hub.mute_1h">Mute</option>
+                  <option value="ban" data-i18n="channel_hub.ban">Ban</option>
+                </select>
+              </label>
+            </div>
+
+            <h3 class="ch-rules-section" data-i18n="channel_hub.warn_section">Warning lifecycle</h3>
+            <div class="ch-num-grid">
+              <label>
+                <span data-i18n="channel_hub.max_warnings">Max warnings</span>
+                <input type="number" id="rule-max-warnings" class="db-input" min="1" max="20" value="3" />
+              </label>
+              <label>
+                <span data-i18n="channel_hub.warn_decay_hours">Warn decay (hours)</span>
+                <input type="number" id="rule-warn-decay" class="db-input" min="0" max="8760" value="24" />
+              </label>
+              <label>
+                <span data-i18n="channel_hub.mute_minutes">Mute duration (minutes)</span>
+                <input type="number" id="rule-mute-minutes" class="db-input" min="0" max="525600" value="60" />
+              </label>
+              <label>
+                <span data-i18n="channel_hub.instant_mute_minutes">Instant mute (minutes)</span>
+                <input type="number" id="rule-instant-mute-mins" class="db-input" min="1" max="1440" value="10" />
+              </label>
+            </div>
+
+            <label class="an-label" for="rule-keyword-input" data-i18n="channel_hub.keywords">Forbidden keywords</label>
+            <div class="ch-chips" id="rule-chips"></div>
+            <div class="ch-chip-input-row">
+              <input
+                type="text"
+                id="rule-keyword-input"
+                class="db-input ch-input-wide"
+                data-i18n-placeholder="channel_hub.keyword_comma_placeholder"
+                placeholder="crypto, casino, scam, @bot"
+              />
+              <button type="button" id="rule-add-keyword" class="db-btn-secondary" data-i18n="common.add">Add</button>
+            </div>
+            <p class="ch-field-hint" data-i18n="channel_hub.keyword_comma_hint">Paste several words separated by commas — they become removable tags.</p>
+
+            <label class="an-label" for="rule-whitelist-input" data-i18n="channel_hub.allowed_urls">Allowed URLs whitelist</label>
+            <div class="ch-chips" id="rule-url-chips"></div>
+            <div class="ch-chip-input-row">
+              <input
+                type="text"
+                id="rule-whitelist-input"
+                class="db-input ch-input-wide"
+                data-i18n-placeholder="channel_hub.whitelist_placeholder"
+                placeholder="github.com, youtube.com, t.me/mychannel"
+              />
+              <button type="button" id="rule-add-url" class="db-btn-secondary" data-i18n="common.add">Add</button>
+            </div>
+            <p class="ch-field-hint" data-i18n="channel_hub.whitelist_hint">Domains or t.me/path. Hidden markdown links are inspected via Telegram entities.</p>
+
+            <button type="button" id="rule-save" class="db-btn-primary" data-i18n="common.save">Save</button>
+          </div>
+        </section>
+
+        <section id="tab-moderation" class="ch-tab-panel" hidden>
+          <div class="ch-mod-layout">
+            <aside class="ch-mod-feed an-panel ch-glass-card">
+              <div class="an-panel-head">
+                <div>
+                  <h2 data-i18n="channel_hub.live_title">Live comments</h2>
+                  <p class="an-panel-sub" data-i18n="channel_hub.live_sub">Filtered violation feed</p>
+                </div>
+              </div>
+              <input type="search" id="ch-feed-search" class="db-input ch-input-wide" data-i18n-placeholder="channel_hub.feed_search" placeholder="Search comments or users…" />
+              <div class="ch-filter-row" role="group">
+                <button type="button" class="ch-filter-btn ch-filter-active" data-filter="all" data-i18n="channel_hub.filter_all">All</button>
+                <button type="button" class="ch-filter-btn" data-filter="flagged" data-i18n="channel_hub.filter_flagged">Flagged / Spam</button>
+                <button type="button" class="ch-filter-btn" data-filter="muted" data-i18n="channel_hub.filter_muted">Muted</button>
+                <button type="button" class="ch-filter-btn" data-filter="banned" data-i18n="channel_hub.filter_banned">Banned</button>
+              </div>
+              <div id="ch-feed-list" class="ch-feed-list"></div>
+            </aside>
+
+            <aside class="ch-mod-inspector an-panel ch-glass-card" id="ch-inspector">
+              <div class="an-panel-head">
+                <div>
+                  <h2 data-i18n="channel_hub.inspector_title">User inspector</h2>
+                  <p class="an-panel-sub" data-i18n="channel_hub.inspector_sub">Select a comment to inspect the user</p>
+                </div>
+              </div>
+              <div id="ch-inspector-empty" class="ch-inspector-empty" data-i18n="channel_hub.inspector_empty">No user selected</div>
+              <div id="ch-inspector-body" hidden>
+                <div class="ch-inspector-meta">
+                  <div><span class="an-label" data-i18n="channel_hub.col_user">User</span><strong id="insp-username">—</strong></div>
+                  <div><span class="an-label" data-i18n="channel_hub.telegram_id">Telegram ID</span><code id="insp-userid">—</code></div>
+                  <div><span class="an-label" data-i18n="channel_hub.joined_at">Joined</span><span id="insp-joined">—</span></div>
+                  <div><span class="an-label" data-i18n="channel_hub.warnings">Warnings</span><span id="insp-warnings" class="ch-warn-badge">0</span></div>
+                </div>
+                <p class="ch-inspector-reason" id="insp-reason"></p>
+                <div class="ch-inspector-actions">
+                  <button type="button" class="db-btn-secondary" data-insp-act="warn" data-i18n="channel_hub.warn">Warn</button>
+                  <button type="button" class="db-btn-secondary" data-insp-act="mute" data-mins="60" data-i18n="channel_hub.mute_1h">Mute 1h</button>
+                  <button type="button" class="db-btn-secondary" data-insp-act="mute" data-mins="1440" data-i18n="channel_hub.mute_24h">Mute 24h</button>
+                  <button type="button" class="db-btn-danger" data-insp-act="ban" data-i18n="channel_hub.ban">Ban Forever</button>
+                  <button type="button" class="db-btn-primary" data-insp-act="clear_warnings" data-i18n="channel_hub.clear_warnings">Clear Warnings</button>
+                  <button type="button" class="db-btn-secondary" data-insp-act="unban" data-i18n="channel_hub.unban">Unban</button>
+                </div>
+                <p class="ch-decay-timer" id="insp-decay"></p>
+                <h3 class="ch-inspector-h" data-i18n="channel_hub.comment_history">Comment history</h3>
+                <div id="insp-history" class="ch-inspector-history"></div>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/shared/js/api-config.js"></script>
+    <script src="ChannelHubView.js?v=8"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.ChannelHubView) window.ChannelHubView.init();
+      });
+    </script>
+  </body>
+</html>

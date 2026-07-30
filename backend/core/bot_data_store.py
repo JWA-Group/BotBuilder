@@ -39,14 +39,45 @@ CREATE INDEX IF NOT EXISTS idx_inventory_product_status
 ON inventory_items(product_id, status, id)
 """
 
+APPOINTMENTS_DDL = """
+CREATE TABLE IF NOT EXISTS appointments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    service TEXT,
+    scheduled_for TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    comment TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    moderated_by INTEGER,
+    moderated_at TEXT
+)
+"""
+
+APPOINTMENTS_INDEX_DDL = """
+CREATE INDEX IF NOT EXISTS idx_appointments_status_time
+ON appointments(status, scheduled_for, id)
+"""
+
 
 def ensure_extended_bot_tables(conn: sqlite3.Connection) -> None:
     conn.execute(BOT_GLOBALS_DDL)
     conn.execute(INVENTORY_ITEMS_DDL)
     conn.execute(INVENTORY_INDEX_DDL)
+    conn.execute(APPOINTMENTS_DDL)
+    conn.execute(APPOINTMENTS_INDEX_DDL)
+    appointment_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(appointments)").fetchall()
+    }
+    if "moderated_by" not in appointment_columns:
+        conn.execute("ALTER TABLE appointments ADD COLUMN moderated_by INTEGER")
+    if "moderated_at" not in appointment_columns:
+        conn.execute("ALTER TABLE appointments ADD COLUMN moderated_at TEXT")
     from backend.core.custom_tables import ensure_custom_tables_meta
+    from backend.core.channel_hub_store import ensure_channel_hub_tables
 
     ensure_custom_tables_meta(conn)
+    ensure_channel_hub_tables(conn)
 
 
 def normalize_user_field_name(field: str) -> str:
@@ -125,7 +156,11 @@ def list_placeholder_suggestions(conn: sqlite3.Connection, bot_id: int) -> list[
             field = str(row[0])
             if field.startswith(ISSUED_PREFIX):
                 add(f"issued.{field[len(ISSUED_PREFIX):]}")
-            elif field not in ("current_menu_id",):
+            elif (
+                field not in ("current_menu_id",)
+                and not field.startswith("_pending_")
+                and not field.startswith("_fwd_pending_")
+            ):
                 add(f"user.{field}")
                 add(field)
 
@@ -150,6 +185,7 @@ def list_placeholder_suggestions(conn: sqlite3.Connection, bot_id: int) -> list[
                 continue
             for col in meta["columns"]:
                 add(f"bot.{logical}.{row_key}.{col}")
+                add(f"table.{logical}.{row_key}.{col}")
 
     add("issued.email")
     add("issued.pass")

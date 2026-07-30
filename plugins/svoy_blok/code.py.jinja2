@@ -51,4 +51,4 @@ async def _type_handler_svoy_blok(bot, chat_id, user_id, block_id, ctx, data, di
 
     next_id = get_next_block(block_id, 0)
     if next_id:
-        await execute_block(bot, chat_id, user_id, next_id, ctx)
+        return await execute_block(bot, chat_id, user_id, next_id, ctx)

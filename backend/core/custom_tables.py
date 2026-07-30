@@ -18,6 +18,7 @@ RESERVED_LOGICAL_NAMES = frozenset(
         "user_data",
         "bot_globals",
         "inventory_items",
+        "appointments",
         "activity_log",
         "users_wide",
         META_TABLE,

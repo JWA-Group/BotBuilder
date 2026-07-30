@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <title data-i18n="publisher.title">Post Studio</title>
+    <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app_theme") === "dark" ? "dark" : "light";
+          document.documentElement.classList.add("theme-" + t);
+        } catch (e) {
+          document.documentElement.classList.add("theme-light");
+        }
+      })();
+    </script>
+    <script src="/shared/js/theme.js"></script>
+    <script src="/shared/js/locales.js"></script>
+    <script src="/shared/js/i18n.js"></script>
+    <link rel="stylesheet" href="/shared/css/page-shell.css" />
+    <link rel="stylesheet" href="/database/database.css?v=1" />
+    <link rel="stylesheet" href="post-studio.css?v=16" />
+  </head>
+  <body>
+    <div class="dashboard">
+      <header class="dashboard-header">
+        <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
+        <h1 class="page-title" data-i18n="publisher.title">Post Studio</h1>
+      </header>
+
+      <main class="dashboard-content ps-page">
+        <div class="ps-toolbar ps-glass">
+          <div class="ps-toolbar-left">
+            <label class="ps-label" for="ps-bot-select" data-i18n="common.bot">Bot</label>
+            <select id="ps-bot-select" class="db-input"></select>
+            <label class="ps-label" for="ps-channel-select" data-i18n="publisher.channel">Channel</label>
+            <select id="ps-channel-select" class="db-input"></select>
+          </div>
+          <div class="ps-toolbar-right ps-seg" role="tablist">
+            <button type="button" class="ps-seg-btn ps-tab-btn ps-tab-active" data-tab="studio" data-i18n="publisher.tab_studio">Studio</button>
+            <button type="button" class="ps-seg-btn ps-tab-btn" data-tab="history" data-i18n="publisher.tab_history">History</button>
+          </div>
+        </div>
+
+        <p id="ps-edit-banner-text" class="ps-edit-hint" hidden></p>
+
+        <section id="ps-tab-studio" class="ps-tab-panel">
+          <div class="ps-layout">
+            <div class="ps-editor-col">
+              <!-- Block 1: Header & mode -->
+              <section class="ps-card ps-glass">
+                <div class="ps-card-head">
+                  <div>
+                    <h2 class="ps-card-title" data-i18n="publisher.title">Post Studio</h2>
+                    <p class="ps-card-sub" data-i18n="publisher.composer_sub">Compose, schedule and publish to your channel</p>
+                  </div>
+                  <div class="ps-card-head-actions">
+                    <div class="ps-seg" role="group" aria-label="Editor mode">
+                      <button type="button" class="ps-seg-btn ps-mode-btn ps-mode-active" data-mode="visual" data-i18n="publisher.mode_visual">Visual</button>
+                      <button type="button" class="ps-seg-btn ps-mode-btn" data-mode="html" data-i18n="publisher.mode_html">HTML</button>
+                    </div>
+                    <button type="button" class="db-btn-primary" id="ps-new-post" data-i18n="publisher.new_post">New Post</button>
+                    <button type="button" class="db-btn-secondary" id="ps-clear-all" data-i18n="publisher.clear_all">Clear All</button>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Block 2: Text editor -->
+              <section class="ps-card ps-glass">
+                <div id="ps-visual-wrap">
+                  <div class="ps-fmt-bar" id="ps-editor-toolbar">
+                    <div class="ps-tool-group">
+                      <button type="button" class="ps-tool" data-cmd="bold" title="Bold"><b>B</b></button>
+                      <button type="button" class="ps-tool" data-cmd="italic" title="Italic"><i>I</i></button>
+                      <button type="button" class="ps-tool" data-cmd="underline" title="Underline"><u>U</u></button>
+                      <button type="button" class="ps-tool" data-cmd="strike" title="Strike"><s>S</s></button>
+                    </div>
+                    <span class="ps-tool-sep" aria-hidden="true"></span>
+                    <div class="ps-tool-group">
+                      <button type="button" class="ps-tool" data-cmd="code" title="Code">&lt;/&gt;</button>
+                      <button type="button" class="ps-tool" data-cmd="blockquote" title="Quote">❝</button>
+                      <button type="button" class="ps-tool" data-cmd="spoiler" data-i18n-title="publisher.tool_spoiler" title="Spoiler">▮</button>
+                    </div>
+                    <span class="ps-tool-sep" aria-hidden="true"></span>
+                    <div class="ps-tool-group">
+                      <button type="button" class="ps-tool" data-cmd="link" title="Link">🔗</button>
+                    </div>
+                  </div>
+                  <div id="ps-editor" class="ps-editor" contenteditable="true" spellcheck="true"></div>
+                </div>
+                <div id="ps-html-wrap" hidden>
+                  <textarea id="ps-html-input" class="ps-html-input" spellcheck="false" data-i18n-placeholder="publisher.html_placeholder" placeholder="<b>Hello</b>"></textarea>
+                </div>
+              </section>
+
+              <!-- Block 3: Media + Keyboard -->
+              <section class="ps-card ps-glass ps-section" data-section="media">
+                <button type="button" class="ps-section-toggle" data-collapse="ps-media-body" aria-expanded="true">
+                  <span data-i18n="publisher.media_title">Media Attachments</span>
+                  <span class="ps-chevron">▾</span>
+                </button>
+                <div id="ps-media-body" class="ps-section-body">
+                  <div class="ps-section-actions">
+                    <button type="button" class="db-btn-secondary" id="ps-add-media" data-i18n="publisher.add_media">Add Photos/Videos</button>
+                    <button type="button" class="db-btn-secondary" id="ps-reorder-hint" data-i18n="publisher.reorder_album" disabled>Reorder Album</button>
+                  </div>
+                  <div id="ps-dropzone" class="ps-dropzone">
+                    <span data-i18n="publisher.dropzone">Drag photos, videos or documents here (max 10)</span>
+                    <input type="file" id="ps-file-input" multiple accept="image/*,video/*,.pdf,.zip,.doc,.docx" hidden />
+                  </div>
+                  <div id="ps-media-list" class="ps-media-list"></div>
+                  <p id="ps-media-mode" class="ps-hint"></p>
+                </div>
+              </section>
+
+              <section class="ps-card ps-glass ps-section" data-section="keyboard">
+                <button type="button" class="ps-section-toggle" data-collapse="ps-keyboard-body" aria-expanded="true">
+                  <span data-i18n="publisher.keyboard_title">Inline Keyboard Grid</span>
+                  <span class="ps-chevron">▾</span>
+                </button>
+                <div id="ps-keyboard-body" class="ps-section-body">
+                  <div class="ps-section-actions">
+                    <button type="button" class="ps-btn-dashed" id="ps-add-row" data-i18n="publisher.add_row">+ Add Row</button>
+                  </div>
+                  <div id="ps-keyboard" class="ps-keyboard"></div>
+                </div>
+              </section>
+
+              <!-- Block 4: Action footer -->
+              <footer class="ps-card ps-glass ps-action-footer" id="ps-action-footer">
+                <div class="ps-footer-actions" id="ps-footer-actions">
+                  <div class="ps-footer-row ps-footer-primary">
+                    <button type="button" class="db-btn-secondary" id="ps-save-draft" data-i18n="publisher.save_draft">Save Draft</button>
+                    <button type="button" class="db-btn-secondary" id="ps-update-tg" data-i18n="publisher.save_update" disabled>Update Post in Telegram</button>
+                    <button type="button" class="db-btn-primary ps-cta-primary" id="ps-send" data-i18n="publisher.send_now">Publish Now</button>
+                  </div>
+                  <div class="ps-footer-row ps-footer-schedule" id="ps-footer-schedule">
+                    <button type="button" class="db-btn-secondary" id="ps-schedule" data-i18n="publisher.schedule">Schedule</button>
+                    <input type="datetime-local" id="ps-schedule-at" class="db-input ps-datetime" aria-label="Schedule at" />
+                  </div>
+                </div>
+              </footer>
+            </div>
+
+            <!-- Telegram Live Preview — structure preserved -->
+            <aside class="ps-preview-panel">
+              <div class="ps-preview-shell ps-glass">
+                <div class="ps-tg-frame">
+                  <div class="ps-tg-header">
+                    <div class="ps-tg-avatar" id="ps-preview-avatar">TG</div>
+                    <div>
+                      <div class="ps-tg-name" id="ps-preview-name" data-i18n="publisher.preview_channel">Channel</div>
+                      <div class="ps-tg-badge" data-i18n="publisher.preview_badge">channel</div>
+                    </div>
+                  </div>
+                  <div class="ps-tg-bubble">
+                    <div id="ps-preview-media" class="ps-tg-media" hidden></div>
+                    <div id="ps-preview-text" class="ps-tg-text"></div>
+                    <div id="ps-preview-buttons" class="ps-tg-buttons"></div>
+                    <div class="ps-tg-meta">
+                      <span id="ps-preview-time">12:00</span>
+                      <span class="ps-tg-views">👁 1</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="ps-tab-history" class="ps-tab-panel" hidden>
+          <div class="ps-history-toolbar">
+            <button type="button" class="db-btn-secondary" id="ps-refresh-history" data-i18n="publisher.refresh">Refresh</button>
+          </div>
+          <div id="ps-history-list" class="ps-history-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="ps-confirm-modal" class="ps-modal" hidden>
+      <div class="ps-modal-backdrop" data-close="1"></div>
+      <div class="ps-modal-card ps-glass">
+        <h2 id="ps-confirm-title" data-i18n="publisher.delete_title">Delete post?</h2>
+        <p id="ps-confirm-text" data-i18n="publisher.delete_text">This will remove the post from Telegram if it was published.</p>
+        <div class="ps-modal-actions">
+          <button type="button" class="db-btn-secondary" id="ps-confirm-cancel" data-i18n="common.cancel">Cancel</button>
+          <button type="button" class="db-btn-danger" id="ps-confirm-ok" data-i18n="publisher.delete">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ps-link-modal" class="ps-modal" hidden>
+      <div class="ps-modal-backdrop" data-close="1"></div>
+      <div class="ps-modal-card ps-glass">
+        <h2 data-i18n="publisher.link_prompt">Link URL</h2>
+        <p class="ps-hint" data-i18n="publisher.link_hint">Select text in the editor, then paste https://… or tg://…</p>
+        <label class="ps-schedule-label" for="ps-link-url">
+          <span data-i18n="publisher.link_prompt">Link URL</span>
+          <input type="url" id="ps-link-url" class="db-input" placeholder="https://" autocomplete="off" />
+        </label>
+        <div class="ps-modal-actions">
+          <button type="button" class="db-btn-secondary" id="ps-link-cancel" data-i18n="common.cancel">Cancel</button>
+          <button type="button" class="db-btn-primary" id="ps-link-apply" data-i18n="publisher.link_apply">Insert link</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="PostStudioView.js?v=13"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        if (window.PostStudioView) window.PostStudioView.init();
+      });
+    </script>
+  </body>
+</html>

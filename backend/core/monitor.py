@@ -217,8 +217,10 @@ log_hub = LogHub()
 _SKIP_API_LOG_RE = (
     re.compile(r"^/api/monitor/"),
     re.compile(r"^/api/bots/status/\d+$"),
+    re.compile(r"^/api/bots/start/\d+$"),
     re.compile(r"^/api/health$"),
     re.compile(r"^/api/analytics/"),
+    re.compile(r"^/api/channel/\d+/snapshot$"),
 )
 
 

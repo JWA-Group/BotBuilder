@@ -526,5 +526,5 @@ async def _type_handler_weather(bot, chat_id, user_id, block_id, ctx, data, disa
 
     if next_id:
 
-        await execute_block(bot, chat_id, user_id, next_id, ctx)
+        return await execute_block(bot, chat_id, user_id, next_id, ctx)
 

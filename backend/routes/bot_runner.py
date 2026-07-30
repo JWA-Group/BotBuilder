@@ -4,7 +4,12 @@ import json
 import subprocess
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
-from backend.utils.generate_main import generate_main_from_scenario, get_bot_platform
+from backend.utils.generate_main import (
+    generate_main_from_scenario,
+    generate_moderator_main,
+    get_bot_kind,
+    get_bot_platform,
+)
 from backend.core.scenario_deps import PhantomNodeError
 from core.runner import bot_runner
 
@@ -102,7 +107,10 @@ async def start_bot(bot_id: int):
         raise HTTPException(status_code=404, detail="main.py не найден")
 
     try:
-        generate_main_from_scenario(bot_id, platform=get_bot_platform(bot_id))
+        if get_bot_kind(bot_id) == "moderator":
+            generate_moderator_main(bot_id)
+        else:
+            generate_main_from_scenario(bot_id, platform=get_bot_platform(bot_id))
     except PhantomNodeError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     except ValueError as e:

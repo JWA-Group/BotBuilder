@@ -14,7 +14,8 @@
     "fieldName": "role",
     "fieldValue": "",
     "valueSource": "const",
-    "inputPrompt": "",
+    "inputOnlyIfEmpty": true,
+    "inputPrompt": "Введите значение:",
     "tagId": "",
     "productId": ""
   },
@@ -41,7 +42,10 @@
       "label": "Тип поля",
       "options": [
         { "value": "string", "label": "Строка" },
-        { "value": "number", "label": "Число" }
+        { "value": "number", "label": "Число" },
+        { "value": "date", "label": "Дата" },
+        { "value": "time", "label": "Время" },
+        { "value": "datetime", "label": "Дата и время" }
       ],
       "hideWhen": { "action": "issue" }
     },
@@ -49,7 +53,8 @@
       "key": "fieldName",
       "type": "field_autocomplete",
       "label": "Имя поля",
-      "placeholder": "balance или bot.price",
+      "placeholder": "user.balance, bot.price или table.prices.nitro.price",
+      "hint": "user.* — данные пользователя; bot.* — общее значение; table.таблица.ключ.столбец — ячейка созданной таблицы.",
       "hideWhen": { "action": "issue" }
     },
     {
@@ -80,7 +85,8 @@
       "label": "Источник значения",
       "options": [
         { "value": "const", "label": "Константа / шаблон" },
-        { "value": "input", "label": "Запросить у пользователя" }
+        { "value": "input", "label": "Запросить у пользователя" },
+        { "value": "current_datetime", "label": "Текущие дата и время" }
       ],
       "showWhen": { "action": "set" }
     },
@@ -89,13 +95,21 @@
       "type": "text",
       "label": "Значение",
       "placeholder": "100 или {{поле}}",
-      "showWhen": { "action": ["set", "add", "subtract"] }
+      "showWhen": { "action": ["set", "add", "subtract"] },
+      "hideWhen": { "valueSource": ["input", "current_datetime"] }
     },
     {
       "key": "inputPrompt",
       "type": "textarea",
       "label": "Текст запроса",
       "placeholder": "Введите ваше имя:",
+      "showWhen": { "action": "set", "valueSource": "input" }
+    },
+    {
+      "key": "inputOnlyIfEmpty",
+      "type": "checkbox",
+      "label": "Не спрашивать повторно, если поле уже заполнено",
+      "hint": "Если значение уже есть в базе, бот сразу продолжит сценарий.",
       "showWhen": { "action": "set", "valueSource": "input" }
     }
   ]
