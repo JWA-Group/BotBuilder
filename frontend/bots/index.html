@@ -42,7 +42,6 @@
               name="name"
               data-i18n-placeholder="bots.name_placeholder"
               placeholder="Bot name from BotFather"
-              required
             />
             <label for="bot-api-token" data-i18n="bots.token">API token</label>
             <input
@@ -53,6 +52,10 @@
               placeholder="123456:ABC-DEF..."
               required
             />
+            <label class="bots-kind-toggle" for="bot-kind-moderator">
+              <input type="checkbox" id="bot-kind-moderator" />
+              <span data-i18n="bots.kind_moderator">Moderator bot (Channel Hub only — no scenario)</span>
+            </label>
             <button type="submit" class="btn-primary" data-i18n="bots.add_btn">Add bot</button>
           </form>
           <div id="add-bot-error" class="form-error" role="alert"></div>

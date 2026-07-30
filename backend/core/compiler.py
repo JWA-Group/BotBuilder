@@ -50,12 +50,14 @@ class CodeGenerator:
             patch_resolve_text,
             patch_scoped_field_setters,
         )
+        from backend.core.channel_hub_runtime import patch_channel_hub_runtime
 
         code = ensure_button_layout_helpers(code)
         code = patch_init_user_db(code)
         code = ensure_bot_data_runtime(code)
         code = patch_resolve_text(code)
         code = patch_scoped_field_setters(code)
+        code = patch_channel_hub_runtime(code)
         return code
 
     BuildPythonScript = build_python_script

@@ -17,7 +17,7 @@ import requests
 from backend.core.app_paths import PROJECTS_DIR
 TELEGRAM_API_BASE = "https://api.telegram.org/bot{token}/{method}"
 
-TELEGRAM_ALLOWED_TAGS = frozenset({"b", "i", "u", "s", "a", "code", "pre"})
+TELEGRAM_ALLOWED_TAGS = frozenset({"b", "i", "u", "s", "a", "code", "pre", "blockquote", "tg-spoiler"})
 TAG_ALIASES = {
     "strong": "b",
     "em": "i",
@@ -46,10 +46,9 @@ class TelegramForbiddenError(TelegramSendError):
 
 
 HEADING_TAGS = frozenset({"h1", "h2", "h3", "h4", "h5", "h6"})
-BLOCK_BREAK_TAGS = frozenset({"p", "div", "section", "article", "blockquote", "header", "footer", "li", "tr"})
+BLOCK_BREAK_TAGS = frozenset({"p", "div", "section", "article", "header", "footer", "li", "tr"})
 TRANSPARENT_TAGS = frozenset(
     {
-        "span",
         "font",
         "tbody",
         "thead",
@@ -164,9 +163,30 @@ class TelegramHTMLNormalizer(HTMLParser):
             return
 
         if tag in BLOCK_BREAK_TAGS or tag in TRANSPARENT_TAGS:
-            if tag in {"p", "div", "section", "article", "blockquote", "header", "footer"}:
+            if tag in {"p", "div", "section", "article", "header", "footer"}:
                 self._close_all_inline()
                 self._newline()
+            return
+
+        if tag == "blockquote":
+            self._close_all_inline()
+            self._newline()
+            self.stack.append("blockquote")
+            self.parts.append("<blockquote>")
+            return
+
+        if tag == "tg-spoiler":
+            self._open_inline("tg-spoiler")
+            return
+
+        if tag == "span":
+            classes = ""
+            for key, value in attrs:
+                if key.lower() == "class" and value:
+                    classes = value.lower()
+                    break
+            if "tg-spoiler" in classes.split():
+                self._open_inline("tg-spoiler")
             return
 
         normalized = TAG_ALIASES.get(tag, tag)
@@ -195,7 +215,16 @@ class TelegramHTMLNormalizer(HTMLParser):
             self._newline()
             return
 
-        if tag in {"p", "div", "section", "article", "blockquote", "header", "footer", "li", "tr"}:
+        if tag == "blockquote":
+            self._close_tag("blockquote")
+            self._newline()
+            return
+
+        if tag in {"tg-spoiler", "span"}:
+            self._close_tag("tg-spoiler")
+            return
+
+        if tag in {"p", "div", "section", "article", "header", "footer", "li", "tr"}:
             self._close_all_inline()
             self._newline()
             return

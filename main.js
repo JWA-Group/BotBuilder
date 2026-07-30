@@ -56,6 +56,8 @@ const childWindows = new Map();
 const APP_WINDOWS = [
   { id: "home", path: "/dashboard/", width: 1100, height: 760 },
   { id: "analytics", path: "/analytics/", width: 1200, height: 860 },
+  { id: "channel-hub", path: "/channel-hub/", width: 1280, height: 900 },
+  { id: "post-studio", path: "/post-studio/", width: 1360, height: 900 },
   { id: "database", path: "/database/", width: 1280, height: 820 },
   { id: "bots", path: "/bots/", width: 1200, height: 820 },
   { id: "templates", path: "/templates/", width: 1100, height: 820 },
@@ -71,6 +73,8 @@ const APP_WINDOWS = [
 const WINDOW_LABEL_KEYS = {
   home: "win_home",
   analytics: "win_analytics",
+  "channel-hub": "win_channel_hub",
+  "post-studio": "win_post_studio",
   database: "win_database",
   bots: "win_bots",
   templates: "win_templates",
@@ -1122,6 +1126,34 @@ async function createMainWindow(port) {
   applyThemeToWindow(mainWindow, bootSettings.theme);
   applyLangToWindow(mainWindow, resolveAppLang(bootSettings));
 }
+
+ipcMain.handle("pdf:export", async (event, payload = {}) => {
+  const sender = event.sender;
+  if (!sender || sender.isDestroyed()) {
+    throw new Error("No webContents for PDF export");
+  }
+  const defaultName = String(payload.defaultName || "channel-hub-report.pdf").replace(
+    /[<>:"/\\|?*]/g,
+    "_"
+  );
+  const { canceled, filePath } = await dialog.showSaveDialog({
+    title: "Export PDF",
+    defaultPath: path.join(app.getPath("documents"), defaultName),
+    filters: [{ name: "PDF", extensions: ["pdf"] }],
+  });
+  if (canceled || !filePath) {
+    return { ok: false, canceled: true };
+  }
+  const pdfBuffer = await sender.printToPDF({
+    printBackground: true,
+    landscape: false,
+    pageSize: "A4",
+    margins: { marginType: "default" },
+    preferCSSPageSize: true,
+  });
+  fs.writeFileSync(filePath, pdfBuffer);
+  return { ok: true, path: filePath };
+});
 
 ipcMain.handle("get-port", () => loadSettings().port);
 ipcMain.handle("get-settings", () => loadSettings());

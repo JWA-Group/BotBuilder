@@ -348,7 +348,9 @@ html, body {
   color: #1B6B2B;
 }
 
-.add-bot-form input {
+.add-bot-form input[type="text"],
+.add-bot-form input[type="password"],
+.add-bot-form input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]) {
   width: 100%;
   max-width: 400px;
   padding: 10px 12px;
@@ -360,7 +362,9 @@ html, body {
   color: var(--color-text);
 }
 
-.add-bot-form input:focus {
+.add-bot-form input[type="text"]:focus,
+.add-bot-form input[type="password"]:focus,
+.add-bot-form input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):focus {
   outline: none;
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px var(--color-accent-50);
@@ -386,6 +390,42 @@ html, body {
 .add-bot-form .btn-primary:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.bots-kind-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 16px;
+  max-width: 400px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  color: var(--text-main);
+}
+
+.bots-kind-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  margin: 2px 0 0;
+  padding: 0;
+  flex-shrink: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.bots-kind-toggle span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bot-kind-moderator {
+  background: #ecfdf5;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
 }
 
 .form-error {

@@ -1967,7 +1967,10 @@ function getScenarioFieldsWithTypes() {
   Object.keys(system).forEach(function (f) { types[f] = system[f]; });
   blocks.forEach(function (b) {
     if (b.type === "data" && b.data.fieldName) {
-      types[b.data.fieldName] = b.data.fieldType === "number" ? "number" : "string";
+      var fieldType = b.data.fieldType || "string";
+      types[b.data.fieldName] = ["number", "date", "time", "datetime"].indexOf(fieldType) >= 0
+        ? fieldType
+        : "string";
     }
     if (b.type === "condition" && b.data.fieldName && !types[b.data.fieldName]) {
       types[b.data.fieldName] = "string";
@@ -1982,6 +1985,9 @@ var _cachedBotFieldsTime = 0;
 function formatDbFieldType(typeKey) {
   if (typeKey === "number" || typeKey === "число") return tr("editor.db.type_number");
   if (typeKey === "string" || typeKey === "строка") return tr("editor.db.type_string");
+  if (typeKey === "date") return "date";
+  if (typeKey === "time") return "time";
+  if (typeKey === "datetime") return "datetime";
   return typeKey || tr("editor.db.type_string");
 }
 
@@ -2189,7 +2195,13 @@ function fetchBotFieldsForAutocomplete(callback) {
   fetch(API_BASE + "/api/analytics/" + bot_id + "/user-data-schema", { headers: headers })
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      _cachedBotFields = (data.fields || []);
+      var seen = {};
+      _cachedBotFields = [];
+      (data.fields || []).concat(data.placeholders || []).forEach(function (field) {
+        if (!field || seen[field]) return;
+        seen[field] = true;
+        _cachedBotFields.push(field);
+      });
       _cachedBotFieldsTime = now;
       callback(_cachedBotFields);
     })

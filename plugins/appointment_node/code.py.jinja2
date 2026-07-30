@@ -1,0 +1,95 @@
+{# Handler for block type: appointment #}
+async def _type_handler_appointment(bot, chat_id, user_id, block_id, ctx, data, disable):
+    scheduled_field = (data.get("scheduledField") or "appointment_at").strip()
+    comment_field = (data.get("commentField") or "").strip()
+    scheduled_for = resolve_field_value(user_id, scheduled_field)
+    comment = resolve_field_value(user_id, comment_field) if comment_field else ""
+    service = resolve_text(str(data.get("service") or "Запись"), user_id)
+
+    if not scheduled_for:
+        next_id = get_next_block(block_id, 1)
+        if next_id:
+            return await execute_block(bot, chat_id, user_id, next_id, ctx)
+        return
+
+    appointment_id = create_appointment_request(
+        user_id,
+        service,
+        scheduled_for,
+        comment or "",
+    )
+    if not appointment_id:
+        next_id = get_next_block(block_id, 1)
+        if next_id:
+            return await execute_block(bot, chat_id, user_id, next_id, ctx)
+        return
+
+    appointment = get_appointment(appointment_id) or {}
+    created_at = str(appointment.get("created_at") or "")
+    admin_override = resolve_text(str(data.get("adminChatId") or ""), user_id).strip()
+    admin_chat_ids = get_admin_notification_chat_ids(admin_override)
+    if admin_chat_ids:
+        username = get_user_field(user_id, "tg_user_name") or ""
+        admin_text = (
+            f"📅 <b>Новая заявка №{appointment_id}</b>\n"
+            f"Услуга: {service}\n"
+            f"На дату: {scheduled_for}\n"
+            f"Заявка создана: {created_at or '—'}\n"
+            f"Пользователь: {username or '—'} (ID: <code>{user_id}</code>)"
+        )
+        if comment:
+            admin_text += f"\nКомментарий: {comment}"
+        admin_kb = InlineKeyboardMarkup(
+            inline_keyboard=[[
+                InlineKeyboardButton(
+                    text="✅ Принять",
+                    callback_data=f"__appt:accept:{appointment_id}",
+                ),
+                InlineKeyboardButton(
+                    text="❌ Отклонить",
+                    callback_data=f"__appt:reject:{appointment_id}",
+                ),
+            ]]
+        )
+        for admin_chat_id in admin_chat_ids:
+            try:
+                await bot.send_message(
+                    admin_chat_id,
+                    admin_text,
+                    reply_markup=admin_kb,
+                )
+            except Exception as exc:
+                log.warning(
+                    "Appointment #%s notification to %s failed: %s",
+                    appointment_id,
+                    admin_chat_id,
+                    exc,
+                )
+
+    appointment_id_token = "{" + "{appointment_id}" + "}"
+    scheduled_for_token = "{" + "{appointment_scheduled_for}" + "}"
+    created_at_token = "{" + "{appointment_created_at}" + "}"
+    pending_message = str(
+        data.get("userPendingMessage")
+        or (
+            f"Заявка №{appointment_id_token} на {scheduled_for_token} "
+            f"отправлена администратору {created_at_token}."
+        )
+    )
+    pending_message = pending_message.replace(
+        appointment_id_token,
+        str(appointment_id),
+    )
+    pending_message = pending_message.replace(
+        scheduled_for_token,
+        scheduled_for,
+    )
+    pending_message = pending_message.replace(
+        created_at_token,
+        created_at,
+    )
+    await bot.send_message(chat_id, resolve_text(pending_message, user_id))
+
+    next_id = get_next_block(block_id, 0)
+    if next_id:
+        return await execute_block(bot, chat_id, user_id, next_id, ctx)

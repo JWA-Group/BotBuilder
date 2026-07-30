@@ -11,6 +11,7 @@ class Bot(Base):
     name = Column(String, nullable=False)
     api_token = Column(String, nullable=False)
     platform = Column(String, nullable=False, default="telegram")  # telegram only
+    kind = Column(String, nullable=False, default="scenario")  # scenario | moderator
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="bots")

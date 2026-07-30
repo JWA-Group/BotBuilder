@@ -55,6 +55,25 @@ def _sanitize_block_data(block: dict[str, Any]) -> None:
             data.get("disableWebPagePreview"),
             False,
         )
+    if "inputOnlyIfEmpty" in data:
+        data["inputOnlyIfEmpty"] = _coerce_scenario_bool(
+            data.get("inputOnlyIfEmpty"),
+            True,
+        )
+    for key in (
+        "inputPrompt",
+        "fieldValue",
+        "fieldName",
+        "tagId",
+        "scheduledField",
+        "commentField",
+        "adminChatId",
+        "service",
+        "userPendingMessage",
+    ):
+        if key not in data or data[key] is None or isinstance(data[key], str):
+            continue
+        data[key] = "" if data[key] in ({}, []) else str(data[key])
 
 
 def normalize_scenario_document(raw: dict[str, Any] | None) -> dict[str, Any]:

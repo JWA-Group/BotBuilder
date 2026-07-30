@@ -64,4 +64,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("windows:open", { windowId: windowId, query: query || "" }),
   openCurrentPageInNewWindow: () => ipcRenderer.invoke("windows:open-current"),
   notifyThemeChange: (theme) => ipcRenderer.invoke("theme:set", theme),
+  exportPdf: (payload) => ipcRenderer.invoke("pdf:export", payload || {}),
 });

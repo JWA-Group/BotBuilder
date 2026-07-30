@@ -1,0 +1,64 @@
+{
+  "type": "appointment",
+  "name": "Запись / заявка",
+  "icon": "📅",
+  "color": "#0f766e",
+  "description": "Создаёт запись, сохраняет её в БД и отправляет админу на подтверждение",
+  "palette": true,
+  "connectable": true,
+  "executable": true,
+  "outputs": 2,
+  "outputLabels": ["Заявка создана", "Ошибка"],
+  "defaults": {
+    "service": "Стрижка",
+    "scheduledField": "appointment_at",
+    "commentField": "",
+    "adminChatId": "",
+    "userPendingMessage": "Заявка №{{appointment_id}} на {{appointment_scheduled_for}} отправлена администратору {{appointment_created_at}}.",
+    "tagId": ""
+  },
+  "fields": [
+    {
+      "key": "tagId",
+      "type": "tag_select",
+      "label": "Тэг"
+    },
+    {
+      "type": "info",
+      "label": "Как настроить",
+      "text": "Сначала сохраните дату и время блоком «Данные» в поле appointment_at. Всем пользователям с role=admin придёт заявка. Дополнительно можно указать несколько chat_id через запятую или задать bot_globals: admin_chat_id / admin_chat_ids. Для строгих прав задайте admin_user_ids."
+    },
+    {
+      "key": "service",
+      "type": "text",
+      "label": "Услуга",
+      "placeholder": "Стрижка"
+    },
+    {
+      "key": "scheduledField",
+      "type": "field_autocomplete",
+      "label": "Поле с датой и временем",
+      "placeholder": "appointment_at"
+    },
+    {
+      "key": "commentField",
+      "type": "field_autocomplete",
+      "label": "Поле с комментарием (необязательно)",
+      "placeholder": "appointment_comment"
+    },
+    {
+      "key": "adminChatId",
+      "type": "text",
+      "label": "Chat ID администраторов",
+      "hint": "Несколько ID через запятую. Можно оставить пустым: используются role=admin и bot_globals.admin_chat_id/admin_chat_ids.",
+      "placeholder": "123456789, 987654321"
+    },
+    {
+      "key": "userPendingMessage",
+      "type": "textarea",
+      "label": "Сообщение пользователю",
+      "hint": "Доступно: {{appointment_id}}, {{appointment_scheduled_for}}, {{appointment_created_at}}",
+      "rows": 2
+    }
+  ]
+}

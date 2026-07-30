@@ -23,7 +23,8 @@
       "key": "fieldName",
       "type": "field_autocomplete",
       "label": "Поле",
-      "placeholder": "balance, user.balance или bot.price"
+      "placeholder": "user.balance, bot.price или table.prices.nitro.price",
+      "hint": "Для таблицы: table.имя_таблицы.ключ_строки.столбец"
     },
     {
       "key": "operator",
@@ -32,7 +33,8 @@
       "options": [
         { "value": "eq", "label": "Равно" },
         { "value": "ne", "label": "Не равно" },
-        { "value": "exists", "label": "Существует" },
+        { "value": "empty", "label": "Пусто / null" },
+        { "value": "exists", "label": "Заполнено (не пусто)" },
         { "value": "gt", "label": "Больше" },
         { "value": "gte", "label": "Больше или равно" },
         { "value": "lt", "label": "Меньше" },
@@ -45,7 +47,7 @@
       "type": "text",
       "label": "Значение для сравнения",
       "placeholder": "admin",
-      "hideWhen": { "operator": "exists" }
+      "hideWhen": { "operator": ["exists", "empty", "not_empty", "is_null"] }
     }
   ]
 }

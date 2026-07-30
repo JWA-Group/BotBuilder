@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 
 PERPLEXITY_URL = "https://api.perplexity.ai/v1/sonar"
 
-VALID_TYPES = frozenset({"start", "message", "menu", "command", "data", "condition", "note"})
+VALID_TYPES = frozenset(
+    {"start", "message", "menu", "command", "data", "condition", "appointment", "note"}
+)
 
 SYSTEM_PROMPT = """Ты проектируешь сценарии Telegram-бота для визуального редактора блоков.
 Ответь ОДНИМ JSON-объектом без markdown и без текста вокруг. Только валидный JSON.
@@ -48,14 +50,19 @@ SYSTEM_PROMPT = """Ты проектируешь сценарии Telegram-бо�
   Для геолокации: {\"text\": \"Где я\", \"url\": \"\", \"request_location\": true}
   (request_contact и request_location не на одной кнопке.)
 - data.data: {\"action\": \"set\"|\"add\"|\"subtract\", \"fieldName\": \"...\", \"fieldValue\": \"...\",
-    \"fieldType\": \"string\"|\"number\", \"valueSource\": \"const\"|\"input\",
-    \"inputPrompt\": \"опционально — подсказка при input\"}
+    \"fieldType\": \"string\"|\"number\"|\"date\"|\"time\"|\"datetime\",
+    \"valueSource\": \"const\"|\"input\"|\"current_datetime\",
+    \"inputPrompt\": \"опционально — подсказка при input\", \"inputOnlyIfEmpty\": true}
   valueSource \"input\" = отдельное текстовое сообщение пользователя (не подставляй {{...}} как ввод).
   Для копирования id/даты используй \"const\" и {{tg_user_id}}, {{tg_user_name}}, {{tg_user_date}}, {{user_id}} (=tg_user_id), {{now_msk}} или {{current_timestamp}}.
   Не выдумывай {{contact_phone}} — такого поля нет.
 - Если во входном сообщении пользователя передан список **уже существующих имён полей** (user_data) — для того же смысла используй **точно эти** fieldName; не создавай синонимы (например не добавляй user_phone если уже есть phone). Новые fieldName добавляй только для действительно новых данных.
-- condition.data: {\"fieldName\": \"...\", \"operator\": \"eq\"|\"ne\"|\"gt\"|\"lt\"|\"exists\"|\"role\", \"compareValue\": \"...\"}
+- condition.data: {\"fieldName\": \"...\", \"operator\": \"eq\"|\"ne\"|\"gt\"|\"lt\"|\"empty\"|\"exists\"|\"role\", \"compareValue\": \"...\"}
   outputIndex 0 = условие истинно, 1 = ложно.
+- appointment.data: {\"service\": \"Название услуги\", \"scheduledField\": \"appointment_at\",
+    \"commentField\": \"comment\", \"adminChatId\": \"необязательно, ID через запятую\",
+    \"userPendingMessage\": \"Заявка №{{appointment_id}} на {{appointment_scheduled_for}} отправлена\"}
+  Перед appointment сохрани дату/время в scheduledField через data fieldType datetime.
 
 connections: [{\"from\": \"id\", \"to\": \"id\", \"outputIndex\": число}]
 - Для start, command, data (после const/add/subtract), message (цепочка после сообщения): outputIndex 0.
@@ -165,9 +172,27 @@ def _default_data(typ: str) -> dict[str, Any]:
     if typ == "command":
         return {"command": "/start", "tagId": ""}
     if typ == "data":
-        return {"action": "set", "fieldType": "string", "fieldName": "field", "fieldValue": "", "valueSource": "const"}
+        return {
+            "action": "set",
+            "fieldType": "string",
+            "fieldName": "field",
+            "fieldValue": "",
+            "valueSource": "const",
+            "inputOnlyIfEmpty": True,
+        }
     if typ == "condition":
         return {"fieldName": "role", "operator": "eq", "compareValue": "user"}
+    if typ == "appointment":
+        return {
+            "service": "Услуга",
+            "scheduledField": "appointment_at",
+            "commentField": "comment",
+            "adminChatId": "",
+            "userPendingMessage": (
+                "Заявка №{{appointment_id}} на {{appointment_scheduled_for}} "
+                "отправлена администратору {{appointment_created_at}}."
+            ),
+        }
     if typ == "start":
         return {}
     return {}

@@ -37,7 +37,6 @@ async def _type_handler_message(bot, chat_id, user_id, block_id, ctx, data, disa
                 rows.append(kb_row)
         if rows:
             kb = InlineKeyboardMarkup(inline_keyboard=rows)
-
     if media_type == "photo" and base_media and os.path.exists(base_media):
         await bot.send_photo(
             chat_id, FSInputFile(base_media),

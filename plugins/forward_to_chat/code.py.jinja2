@@ -58,7 +58,7 @@ async def _type_handler_forward_to_chat(bot, chat_id, user_id, block_id, ctx, da
         )
         next_id = get_next_block(block_id, 0)
         if next_id:
-            await execute_block(bot, chat_id, user_id, next_id, ctx)
+            return await execute_block(bot, chat_id, user_id, next_id, ctx)
         return
 
     try:
@@ -71,7 +71,7 @@ async def _type_handler_forward_to_chat(bot, chat_id, user_id, block_id, ctx, da
         )
         next_id = get_next_block(block_id, 0)
         if next_id:
-            await execute_block(bot, chat_id, user_id, next_id, ctx)
+            return await execute_block(bot, chat_id, user_id, next_id, ctx)
         return
 
     uname = get_user_field(user_id, "tg_username") or ""
@@ -115,10 +115,10 @@ async def _type_handler_forward_to_chat(bot, chat_id, user_id, block_id, ctx, da
         await bot.send_message(chat_id, err_msg, disable_web_page_preview=disable)
         next_id = get_next_block(block_id, 0)
         if next_id:
-            await execute_block(bot, chat_id, user_id, next_id, ctx)
+            return await execute_block(bot, chat_id, user_id, next_id, ctx)
         return
 
     await bot.send_message(chat_id, ok_msg, disable_web_page_preview=disable)
     next_id = get_next_block(block_id, 0)
     if next_id:
-        await execute_block(bot, chat_id, user_id, next_id, ctx)
+        return await execute_block(bot, chat_id, user_id, next_id, ctx)

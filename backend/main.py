@@ -36,7 +36,7 @@ from backend.db.database import init_db
 from backend.core.broadcast import normalize_telegram_html
 from backend.core.app_paths import ensure_data_dirs, get_frontend_dir, resolve_plugin_folder
 from backend.core.plugin_manager import get_plugin_manager
-from backend.routes import auth, bots, commands, bot_runner, scenario, templates, analytics, miniapps, config, plugins, projects, deployment, monitor, inventory
+from backend.routes import auth, bots, commands, bot_runner, scenario, templates, analytics, miniapps, config, plugins, projects, deployment, monitor, inventory, channel_hub, publisher
 from backend.core.monitor import start_monitor_services, stop_monitor_services, MonitorAPIMiddleware
 
 
@@ -56,12 +56,24 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
     start_monitor_services()
+    try:
+        from backend.core.publisher import start_publisher_scheduler
+
+        start_publisher_scheduler()
+    except Exception:
+        pass
     gid = os.environ.get("GOOGLE_CLIENT_ID", "")
     if gid:
         print("Google OAuth: настроен")
     else:
         print("Google OAuth: не настроен (GOOGLE_CLIENT_ID пуст). Создайте .env в корне проекта.")
     yield
+    try:
+        from backend.core.publisher import stop_publisher_scheduler
+
+        await stop_publisher_scheduler()
+    except Exception:
+        pass
     stop_monitor_services()
 
 
@@ -114,6 +126,9 @@ app.include_router(projects.router)
 app.include_router(deployment.router)
 app.include_router(monitor.router)
 app.include_router(inventory.router)
+app.include_router(channel_hub.router)
+app.include_router(channel_hub.telegram_router)
+app.include_router(publisher.router)
 
 
 class BroadcastNormalizeBody(BaseModel):
