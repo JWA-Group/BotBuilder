@@ -476,7 +476,6 @@ function sleep(ms) {
 }
 
 async function sidecarMatchesInstall(port) {
-  if (!app.isPackaged) return true;
   try {
     const body = await httpGetJson(`http://${HOST}:${port}${HEALTH_PATH}`);
     if (!body || body.status !== "ok") return false;
@@ -491,15 +490,11 @@ async function sidecarMatchesInstall(port) {
 /** Stop a stale sidecar so updates / reinstall pick up new frontend from disk. */
 async function retireExistingSidecar(port) {
   if (!(await isHealthOk(port))) return;
-  if (app.isPackaged) {
+  // Dev: always recycle so backend/.py edits load (uvicorn has no reload here).
+  // Packaged: recycle when the running build does not match this install.
+  if (!app.isPackaged || !(await sidecarMatchesInstall(port))) {
     await postShutdown(port);
     await sleep(700);
-    return;
-  }
-  const matches = await sidecarMatchesInstall(port);
-  if (!matches) {
-    await postShutdown(port);
-    await sleep(500);
   }
 }
 
@@ -799,7 +794,8 @@ async function resolveRuntimePort() {
 
   for (let attempt = 0; attempt < 5; attempt++) {
     if (await isHealthOk(port)) {
-      if (!app.isPackaged && (await sidecarMatchesInstall(port))) {
+      // Never attach to a leftover sidecar in dev — it keeps stale Python code in memory.
+      if (app.isPackaged && (await sidecarMatchesInstall(port))) {
         ownsSidecar = false;
         sidecarProcess = null;
         return port;

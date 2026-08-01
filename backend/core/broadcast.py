@@ -486,7 +486,7 @@ def _is_image_path(path: Path) -> bool:
     return path.suffix.lower() in {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
 
-def _parse_telegram_response(resp: requests.Response) -> dict[str, Any]:
+def _parse_telegram_response(resp: requests.Response) -> Any:
     try:
         data = resp.json()
     except ValueError as exc:
@@ -505,9 +505,7 @@ def _parse_telegram_response(resp: requests.Response) -> dict[str, Any]:
                 "Telegram не принял HTML-разметку сообщения. Упростите форматирование."
             )
         raise TelegramSendError(description)
-    result = data.get("result")
-    return result if isinstance(result, dict) else {}
-
+    return data.get("result")
 
 def _tg_call_sync(
     token: str,
@@ -516,7 +514,7 @@ def _tg_call_sync(
     json_payload: dict[str, Any] | None = None,
     data: dict[str, Any] | None = None,
     files: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+) -> Any:
     url = TELEGRAM_API_BASE.format(token=token, method=method)
     last_exc: Exception | None = None
     for attempt in range(TG_CONNECT_RETRIES):
@@ -551,7 +549,7 @@ async def _tg_call(
     json_payload: dict[str, Any] | None = None,
     data: dict[str, Any] | None = None,
     files: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+) -> Any:
     return await asyncio.to_thread(
         _tg_call_sync,
         token,
@@ -562,22 +560,70 @@ async def _tg_call(
     )
 
 
+def _build_reply_markup(keyboard: list[Any]) -> dict[str, Any] | None:
+    rows: list[list[dict[str, str]]] = []
+    for row in keyboard or []:
+        if not isinstance(row, list):
+            continue
+        buttons: list[dict[str, str]] = []
+        for btn in row:
+            if not isinstance(btn, dict):
+                continue
+            text = str(btn.get("text") or "").strip()
+            if not text:
+                continue
+            btype = str(btn.get("type") or btn.get("btn_type") or "url").strip().lower()
+            value = str(btn.get("value") or "").strip()
+            if btype in ("url", "url_link", "link") and value:
+                buttons.append({"text": text, "url": value})
+            elif btype in ("callback", "callback_data", "data") and value:
+                buttons.append({"text": text, "callback_data": value[:64]})
+        if buttons:
+            rows.append(buttons)
+    if not rows:
+        return None
+    return {"inline_keyboard": rows}
+
+
+def _message_id_from_result(result: Any) -> int | None:
+    if isinstance(result, dict):
+        mid = result.get("message_id")
+        try:
+            return int(mid) if mid is not None else None
+        except (TypeError, ValueError):
+            return None
+    if isinstance(result, list):
+        ids = [_message_id_from_result(item) for item in result]
+        ids = [i for i in ids if i is not None]
+        return ids[0] if ids else None
+    return None
+
+
 async def _send_photos(
     token: str,
     chat_id: int,
     image_paths: list[Path],
     caption: str | None,
-) -> None:
+    *,
+    reply_markup: dict[str, Any] | None = None,
+) -> list[int]:
     cap = (caption[:CAPTION_LIMIT] if caption else None) or None
+    message_ids: list[int] = []
     for index, image_path in enumerate(image_paths):
         payload: dict[str, Any] = {"chat_id": str(chat_id)}
         if index == 0 and cap:
             payload["caption"] = cap
             payload["parse_mode"] = "HTML"
+        if index == 0 and reply_markup:
+            payload["reply_markup"] = json.dumps(reply_markup, ensure_ascii=False)
         with open(image_path, "rb") as fh:
             files = {"photo": (image_path.name, fh.read())}
-            await _tg_call(token, "sendPhoto", data=payload, files=files)
+            result = await _tg_call(token, "sendPhoto", data=payload, files=files)
+        mid = _message_id_from_result(result)
+        if mid is not None:
+            message_ids.append(mid)
         await asyncio.sleep(SEND_DELAY_SEC)
+    return message_ids
 
 
 async def _send_to_user(
@@ -588,55 +634,80 @@ async def _send_to_user(
     file_paths: list[Path],
     *,
     image_position: str = "before",
-) -> None:
+    inline_keyboard: list[Any] | None = None,
+) -> list[int]:
+    """Send content to one user. Returns Telegram message_ids for later delete."""
     position = (image_position or "before").strip().lower()
     if position not in {"before", "after"}:
         position = "before"
 
     has_text = bool(html_text and html_text.strip())
     has_images = bool(image_paths)
+    markup = _build_reply_markup(inline_keyboard or [])
+    message_ids: list[int] = []
 
     if position == "before":
         if has_images:
-            await _send_photos(token, chat_id, image_paths, html_text if has_text else None)
-        elif has_text:
-            await _tg_call(
-                token,
-                "sendMessage",
-                json_payload={
-                    "chat_id": chat_id,
-                    "text": html_text,
-                    "parse_mode": "HTML",
-                    "disable_web_page_preview": True,
-                },
+            message_ids.extend(
+                await _send_photos(
+                    token,
+                    chat_id,
+                    image_paths,
+                    html_text if has_text else None,
+                    reply_markup=markup,
+                )
             )
+        elif has_text:
+            payload: dict[str, Any] = {
+                "chat_id": chat_id,
+                "text": html_text,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+            }
+            if markup:
+                payload["reply_markup"] = markup
+            result = await _tg_call(token, "sendMessage", json_payload=payload)
+            mid = _message_id_from_result(result)
+            if mid is not None:
+                message_ids.append(mid)
             await asyncio.sleep(SEND_DELAY_SEC)
     else:
         if has_text:
-            await _tg_call(
-                token,
-                "sendMessage",
-                json_payload={
-                    "chat_id": chat_id,
-                    "text": html_text,
-                    "parse_mode": "HTML",
-                    "disable_web_page_preview": True,
-                },
-            )
+            payload = {
+                "chat_id": chat_id,
+                "text": html_text,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": True,
+            }
+            if markup:
+                payload["reply_markup"] = markup
+            result = await _tg_call(token, "sendMessage", json_payload=payload)
+            mid = _message_id_from_result(result)
+            if mid is not None:
+                message_ids.append(mid)
             await asyncio.sleep(SEND_DELAY_SEC)
+        elif markup and has_images:
+            message_ids.extend(
+                await _send_photos(token, chat_id, image_paths, None, reply_markup=markup)
+            )
+            has_images = False
         if has_images:
-            await _send_photos(token, chat_id, image_paths, None)
+            message_ids.extend(await _send_photos(token, chat_id, image_paths, None))
 
     for doc_path in file_paths:
         with open(doc_path, "rb") as fh:
             files = {"document": (doc_path.name, fh.read())}
-            await _tg_call(
+            result = await _tg_call(
                 token,
                 "sendDocument",
                 data={"chat_id": str(chat_id)},
                 files=files,
             )
+        mid = _message_id_from_result(result)
+        if mid is not None:
+            message_ids.append(mid)
         await asyncio.sleep(SEND_DELAY_SEC)
+    return message_ids
 
 
 async def _run_broadcast_job(
@@ -648,23 +719,52 @@ async def _run_broadcast_job(
     file_paths: list[Path],
     token: str,
     image_position: str,
+    *,
+    inline_keyboard: list[Any] | None = None,
+    studio_post_id: int | None = None,
 ) -> None:
     job = _jobs[job_id]
     job["status"] = "running"
     job["total"] = len(recipient_ids)
+    job["studio_post_id"] = studio_post_id
+    job["bot_id"] = bot_id
 
+    deliveries: list[dict[str, Any]] = job.setdefault("deliveries", [])
+    log = __import__("logging").getLogger("broadcast")
     try:
         for chat_id in recipient_ids:
+            if job.get("cancel"):
+                job["status"] = "cancelled"
+                break
             try:
-                await _send_to_user(
+                mids = await _send_to_user(
                     token,
                     chat_id,
                     html_text,
                     image_paths,
                     file_paths,
                     image_position=image_position,
+                    inline_keyboard=inline_keyboard,
                 )
                 job["sent"] += 1
+                batch: list[dict[str, Any]] = []
+                for mid in mids or []:
+                    item = {"chat_id": int(chat_id), "telegram_message_id": int(mid)}
+                    deliveries.append(item)
+                    batch.append(item)
+                # Persist immediately so history-delete can retract mid-flight sends.
+                if studio_post_id is not None and batch:
+                    try:
+                        from backend.core import broadcast_studio
+
+                        broadcast_studio.save_deliveries(bot_id, int(studio_post_id), batch)
+                    except Exception as exc:  # noqa: BLE001
+                        log.warning(
+                            "Incremental delivery save failed bot=%s post=%s: %s",
+                            bot_id,
+                            studio_post_id,
+                            exc,
+                        )
             except TelegramForbiddenError:
                 job["failed"] += 1
                 job["errors"].append({"user_id": chat_id, "error": "blocked"})
@@ -674,12 +774,29 @@ async def _run_broadcast_job(
             except Exception as exc:  # noqa: BLE001 — per-recipient isolation
                 job["failed"] += 1
                 job["errors"].append({"user_id": chat_id, "error": str(exc)})
-        job["status"] = "completed"
+        if job.get("status") != "cancelled":
+            job["status"] = "completed"
+        job["deliveries"] = deliveries
     except Exception as exc:  # noqa: BLE001
         job["status"] = "failed"
         job["error"] = str(exc)
+        job["deliveries"] = deliveries
     finally:
         job["finished"] = True
+        if studio_post_id is not None:
+            try:
+                from backend.core import broadcast_studio
+
+                if deliveries:
+                    broadcast_studio.save_deliveries(bot_id, int(studio_post_id), deliveries)
+                broadcast_studio.mark_job_finished(bot_id, int(studio_post_id), job)
+            except Exception as exc:  # noqa: BLE001
+                log.warning(
+                    "Failed to update broadcast studio post bot=%s post=%s: %s",
+                    bot_id,
+                    studio_post_id,
+                    exc,
+                )
 
 
 def get_broadcast_job(job_id: str) -> dict[str, Any] | None:
@@ -695,7 +812,30 @@ def get_broadcast_job(job_id: str) -> dict[str, Any] | None:
         "finished": job.get("finished", False),
         "error": job.get("error"),
         "errors": (job.get("errors") or [])[:20],
+        "deliveries": list(job.get("deliveries") or []),
+        "cancel": bool(job.get("cancel")),
     }
+
+
+def cancel_broadcast_job(job_id: str | None) -> list[dict[str, Any]]:
+    """Stop further sends and return deliveries collected so far."""
+    if not job_id:
+        return []
+    job = _jobs.get(str(job_id))
+    if not job:
+        return []
+    job["cancel"] = True
+    return list(job.get("deliveries") or [])
+
+
+def pop_job_deliveries(job_id: str | None) -> list[dict[str, Any]]:
+    """Return in-memory delivery rows for a job (does not clear them)."""
+    if not job_id:
+        return []
+    job = _jobs.get(str(job_id))
+    if not job:
+        return []
+    return list(job.get("deliveries") or [])
 
 
 def start_broadcast(
@@ -706,6 +846,8 @@ def start_broadcast(
     image_paths: list[str] | None = None,
     file_paths: list[str] | None = None,
     image_position: str = "before",
+    inline_keyboard: list[Any] | None = None,
+    studio_post_id: int | None = None,
 ) -> dict[str, Any]:
     """Validate payload, queue async broadcast, return job metadata."""
     config = _load_bot_config(bot_id)
@@ -738,6 +880,9 @@ def start_broadcast(
         "finished": False,
         "errors": [],
         "error": None,
+        "deliveries": [],
+        "cancel": False,
+        "studio_post_id": studio_post_id,
     }
 
     position = (image_position or "before").strip().lower()
@@ -754,6 +899,8 @@ def start_broadcast(
             files,
             token,
             position,
+            inline_keyboard=inline_keyboard,
+            studio_post_id=studio_post_id,
         )
     )
 

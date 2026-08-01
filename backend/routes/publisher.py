@@ -31,12 +31,20 @@ class PostPayload(BaseModel):
     text_html: str = ""
     media_files: list[Any] = Field(default_factory=list)
     inline_keyboard: list[Any] = Field(default_factory=list)
+    tags: list[Any] = Field(default_factory=list)
+    auto_delete_at: float | str | None = None
     scheduled_at: float | None = None
     post_id: int | None = None
+    meta_only: bool = False
 
 
 class NormalizePayload(BaseModel):
     html: str = ""
+
+
+class AutoDeletePayload(BaseModel):
+    bot_id: int
+    auto_delete_at: float | str | None = None
 
 
 @router.get("/bots")
@@ -110,6 +118,13 @@ async def get_post(
     return {"post": post}
 
 
+def _auto_delete_arg(body: PostPayload) -> float | None:
+    try:
+        return pub.parse_auto_delete_at(body.auto_delete_at)
+    except pub.PublisherError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.post("/send-now")
 async def send_now(
     body: PostPayload,
@@ -125,6 +140,8 @@ async def send_now(
             text_html=body.text_html,
             media_files=body.media_files,
             inline_keyboard=body.inline_keyboard,
+            tags=body.tags,
+            auto_delete_at=_auto_delete_arg(body),
             post_id=body.post_id,
         )
         return {"ok": True, "post": post}
@@ -149,6 +166,8 @@ async def schedule_post(
             text_html=body.text_html,
             media_files=body.media_files,
             inline_keyboard=body.inline_keyboard,
+            tags=body.tags,
+            auto_delete_at=_auto_delete_arg(body),
             scheduled_at=float(body.scheduled_at),
             post_id=body.post_id,
         )
@@ -172,6 +191,8 @@ async def save_draft(
             text_html=body.text_html,
             media_files=body.media_files,
             inline_keyboard=body.inline_keyboard,
+            tags=body.tags,
+            auto_delete_at=_auto_delete_arg(body),
             post_id=body.post_id,
         )
         return {"ok": True, "post": post}
@@ -194,10 +215,28 @@ async def update_post(
             text_html=body.text_html,
             media_files=body.media_files,
             inline_keyboard=body.inline_keyboard,
+            tags=body.tags,
+            auto_delete_at=body.auto_delete_at,
             scheduled_at=body.scheduled_at,
             channel_id=str(body.channel_id) if body.channel_id is not None else None,
             channel_title=body.channel_title,
+            meta_only=bool(body.meta_only),
         )
+        return {"ok": True, "post": post}
+    except pub.PublisherError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.patch("/posts/{post_id}/auto-delete")
+async def patch_auto_delete(
+    post_id: int,
+    body: AutoDeletePayload,
+    user_id: int = Depends(get_current_user_id_required),
+    db: AsyncSession = Depends(get_db),
+):
+    await _ensure_access(db, body.bot_id, user_id)
+    try:
+        post = pub.update_auto_delete(body.bot_id, post_id, body.auto_delete_at)
         return {"ok": True, "post": post}
     except pub.PublisherError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -207,12 +246,16 @@ async def update_post(
 async def remove_post(
     post_id: int,
     bot_id: int = Query(...),
+    purge: bool = Query(False),
     user_id: int = Depends(get_current_user_id_required),
     db: AsyncSession = Depends(get_db),
 ):
     await _ensure_access(db, bot_id, user_id)
     try:
-        result = pub.delete_post(bot_id, post_id)
+        if purge:
+            result = pub.purge_post(bot_id, post_id)
+        else:
+            result = pub.delete_post(bot_id, post_id, deleted_by="manual")
         return result
     except pub.PublisherError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

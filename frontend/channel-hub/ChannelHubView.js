@@ -5,6 +5,16 @@
   "use strict";
 
   var PIE_COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f87171", "#a78bfa", "#fb7185", "#2dd4bf", "#94a3b8"];
+  var TAG_CHART_COLORS = {
+    indigo: "#6366f1",
+    emerald: "#10b981",
+    amber: "#f59e0b",
+    rose: "#f43f5e",
+    sky: "#0ea5e9",
+    purple: "#a855f7",
+    teal: "#14b8a6",
+    orange: "#f97316",
+  };
 
   var CHART_THROTTLE_MS = 4500;
   var FEED_POLL_MS = 5000;
@@ -17,13 +27,10 @@
     range: "30d",
     keywords: [],
     whitelist: [],
-    growthChart: null,
-    hoursChart: null,
-    topPostsChart: null,
-    reactionsChart: null,
-    modChart: null,
-    views: { activity: "bar", reactions: "pie", moderation: "pie" },
-    chartCache: { hours: [], reactions: [], moderation: [], topPosts: [] },
+    widgetCharts: {},
+    views: { activity: "bar", tags: "pie", moderation: "pie" },
+    chartCache: { growth: [], hours: [], tags: [], moderation: [], topPosts: [] },
+    lastSnap: null,
     postsAll: [],
     postsIndex: {},
     postsSort: { key: "engagement", dir: "desc" },
@@ -102,44 +109,288 @@
     }, isError ? 4200 : 2600);
   }
 
-  function inlineCloneStyles(sourceRoot, cloneRoot) {
+  function isSafeCssColor(value) {
+    if (!value) return false;
+    var v = String(value).trim().toLowerCase();
+    if (v === "transparent") return true;
+    if (!v || v === "currentcolor" || v === "inherit" || v === "initial" || v === "unset") return false;
+    // html2canvas only accepts classic hex/rgb/hsl/named colors.
+    return /^(#([0-9a-f]{3,8})|rgba?\(|hsla?\(|[a-z]+)$/i.test(v);
+  }
+
+  function cssColorToRgb(value, fallback) {
+    var v = String(value || "").trim();
+    if (!v) return fallback || "transparent";
+    if (isSafeCssColor(v)) return v;
+    try {
+      if (!cssColorToRgb._ctx) {
+        var c = document.createElement("canvas");
+        c.width = 1;
+        c.height = 1;
+        cssColorToRgb._ctx = c.getContext("2d", { willReadFrequently: true });
+      }
+      var ctx = cssColorToRgb._ctx;
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = "#000000";
+      ctx.fillStyle = v;
+      var normalized = String(ctx.fillStyle || "");
+      if (isSafeCssColor(normalized) && normalized !== "#000000") return normalized;
+      // Some engines keep modern syntax on fillStyle — read pixels instead.
+      ctx.fillRect(0, 0, 1, 1);
+      var d = ctx.getImageData(0, 0, 1, 1).data;
+      if (!d || (d[0] === 0 && d[1] === 0 && d[2] === 0 && d[3] === 0 && v !== "transparent")) {
+        return fallback || "transparent";
+      }
+      if (d[3] >= 255) return "rgb(" + d[0] + ", " + d[1] + ", " + d[2] + ")";
+      return "rgba(" + d[0] + ", " + d[1] + ", " + d[2] + ", " + (Math.round((d[3] / 255) * 1000) / 1000) + ")";
+    } catch (e) {
+      return fallback || "transparent";
+    }
+  }
+
+  function safeCssColor(value, fallback) {
+    return cssColorToRgb(value, fallback || "transparent");
+  }
+
+  function resolveThemeColor(cssVar, fallback) {
+    var probe = document.createElement("div");
+    probe.style.cssText =
+      "position:fixed;left:-9999px;top:0;width:1px;height:1px;background:var(" +
+      cssVar +
+      "," +
+      (fallback || "#ffffff") +
+      ");";
+    document.body.appendChild(probe);
+    var resolved = window.getComputedStyle(probe).backgroundColor;
+    document.body.removeChild(probe);
+    return cssColorToRgb(resolved, fallback || "#ffffff");
+  }
+
+  function resolveExportBg() {
+    return resolveThemeColor("--bg-main", "#ffffff");
+  }
+
+  function resolvePanelBg() {
+    return resolveThemeColor("--bg-panel", "#ffffff");
+  }
+
+  function paintExportClone(sourceRoot, cloneRoot, opts) {
+    opts = opts || {};
     if (!sourceRoot || !cloneRoot) return;
+    var panelBg = opts.panelBg || resolvePanelBg();
+    var textColor = opts.textColor || resolveThemeColor("--text-main", "#111827");
+    var borderColor = opts.borderColor || resolveThemeColor("--border-subtle", "#e4e4e7");
     var srcNodes = [sourceRoot].concat(Array.prototype.slice.call(sourceRoot.querySelectorAll("*")));
     var cloneNodes = [cloneRoot].concat(Array.prototype.slice.call(cloneRoot.querySelectorAll("*")));
     var n = Math.min(srcNodes.length, cloneNodes.length);
-    for (var i = 0; i < n; i++) {
-      var cs = window.getComputedStyle(srcNodes[i]);
-      var style = cloneNodes[i].style;
-      style.background = cs.backgroundColor;
-      style.backgroundImage = "none";
-      style.backgroundColor = cs.backgroundColor;
-      style.color = cs.color;
-      style.borderColor = cs.borderColor;
-      style.outlineColor = cs.outlineColor;
-      style.boxShadow = "none";
-      style.backdropFilter = "none";
-      style.webkitBackdropFilter = "none";
-      style.textShadow = "none";
-      style.filter = "none";
-      if (cs.borderRadius) style.borderRadius = cs.borderRadius;
-      if (cs.padding) style.padding = cs.padding;
-      if (cs.margin) style.margin = cs.margin;
-      if (cs.font) style.font = cs.font;
-      if (cs.display === "none") style.display = "none";
+
+    function copyBorderSide(style, side, cs) {
+      var widthKey = "border" + side + "Width";
+      var styleKey = "border" + side + "Style";
+      var colorKey = "border" + side + "Color";
+      var width = parseFloat(cs[widthKey]) || 0;
+      var bStyle = cs[styleKey] || "none";
+      style[widthKey] = cs[widthKey];
+      style[styleKey] = bStyle;
+      if (width > 0 && bStyle && bStyle !== "none") {
+        var col = cssColorToRgb(cs[colorKey], borderColor);
+        style[colorKey] = col === "transparent" ? borderColor : col;
+      } else {
+        style[colorKey] = "transparent";
+      }
     }
-    Array.prototype.forEach.call(cloneRoot.querySelectorAll("canvas"), function (c, idx) {
-      var srcCanvas = sourceRoot.querySelectorAll("canvas")[idx];
-      if (!srcCanvas) return;
+
+    for (var i = 0; i < n; i++) {
+      var src = srcNodes[i];
+      var dst = cloneNodes[i];
+      if (!src || !dst || !dst.style) continue;
+      var cs = window.getComputedStyle(src);
+      var hide =
+        src.classList.contains("ch-dash-widget-actions") ||
+        src.classList.contains("ch-dash-drag-handle") ||
+        src.classList.contains("ch-dash-resize") ||
+        src.classList.contains("ch-dash-widget-tools") ||
+        src.getAttribute("data-pdf-hide") === "1";
+      dst.removeAttribute("class");
+      dst.removeAttribute("draggable");
+      dst.style.cssText = "";
+      if (hide || cs.display === "none" || cs.visibility === "hidden") {
+        dst.style.display = "none";
+        continue;
+      }
+      dst.style.display = cs.display;
+      dst.style.visibility = "visible";
+      dst.style.opacity = cs.opacity;
+      dst.style.position = cs.position;
+      dst.style.top = cs.top;
+      dst.style.left = cs.left;
+      dst.style.right = cs.right;
+      dst.style.bottom = cs.bottom;
+      dst.style.boxSizing = "border-box";
+      dst.style.width = cs.width;
+      dst.style.height = cs.height;
+      dst.style.minWidth = cs.minWidth;
+      dst.style.minHeight = cs.minHeight;
+      dst.style.maxWidth = cs.maxWidth;
+      dst.style.maxHeight = cs.maxHeight;
+      dst.style.margin = cs.margin;
+      dst.style.padding = cs.padding;
+      copyBorderSide(dst.style, "Top", cs);
+      copyBorderSide(dst.style, "Right", cs);
+      copyBorderSide(dst.style, "Bottom", cs);
+      copyBorderSide(dst.style, "Left", cs);
+      dst.style.borderRadius = cs.borderRadius;
+      dst.style.backgroundImage = "none";
+      dst.style.backgroundColor = safeCssColor(cs.backgroundColor, "transparent");
+      dst.style.color = safeCssColor(cs.color, textColor);
+      dst.style.outline = "none";
+      dst.style.boxShadow = "none";
+      dst.style.filter = "none";
+      dst.style.backdropFilter = "none";
+      dst.style.overflow = cs.overflow === "visible" ? "visible" : cs.overflow;
+      dst.style.fontFamily = cs.fontFamily;
+      dst.style.fontSize = cs.fontSize;
+      dst.style.fontWeight = cs.fontWeight;
+      dst.style.fontStyle = cs.fontStyle;
+      dst.style.lineHeight = cs.lineHeight;
+      dst.style.letterSpacing = cs.letterSpacing;
+      dst.style.textAlign = cs.textAlign;
+      dst.style.whiteSpace = cs.whiteSpace;
+      dst.style.wordBreak = cs.wordBreak;
+      dst.style.textDecoration = cs.textDecoration;
+      dst.style.flexDirection = cs.flexDirection;
+      dst.style.flexWrap = cs.flexWrap;
+      dst.style.flex = cs.flex;
+      dst.style.flexGrow = cs.flexGrow;
+      dst.style.flexShrink = cs.flexShrink;
+      dst.style.flexBasis = cs.flexBasis;
+      dst.style.alignItems = cs.alignItems;
+      dst.style.alignSelf = cs.alignSelf;
+      dst.style.justifyContent = cs.justifyContent;
+      dst.style.gap = cs.gap;
+      dst.style.rowGap = cs.rowGap;
+      dst.style.columnGap = cs.columnGap;
+      dst.style.gridTemplateColumns = cs.gridTemplateColumns;
+      dst.style.gridTemplateRows = cs.gridTemplateRows;
+      dst.style.gridColumn = cs.gridColumn;
+      dst.style.gridRow = cs.gridRow;
+      if (dst.tagName === "TABLE") {
+        dst.style.borderCollapse = cs.borderCollapse;
+        dst.style.width = "100%";
+      }
+      if (dst.namespaceURI === "http://www.w3.org/2000/svg" || dst.tagName === "svg" || dst.ownerSVGElement) {
+        try {
+          var fill = cs.fill;
+          var stroke = cs.stroke;
+          if (fill && fill !== "none") dst.setAttribute("fill", safeCssColor(fill, textColor));
+          if (stroke && stroke !== "none" && isSafeCssColor(stroke)) dst.setAttribute("stroke", stroke);
+          else if (stroke === "none") dst.setAttribute("stroke", "none");
+        } catch (eSvg) { /* ignore */ }
+      }
+    }
+    // Root card: solid panel + explicit frame (html2canvas often drops theme borders).
+    cloneRoot.style.display = "flex";
+    cloneRoot.style.flexDirection = "column";
+    cloneRoot.style.boxSizing = "border-box";
+    cloneRoot.style.width = (opts.width || sourceRoot.offsetWidth) + "px";
+    cloneRoot.style.height = (opts.height || sourceRoot.offsetHeight) + "px";
+    cloneRoot.style.backgroundColor = panelBg;
+    cloneRoot.style.overflow = "hidden";
+    cloneRoot.style.margin = "0";
+    cloneRoot.style.border = "1px solid " + borderColor;
+    cloneRoot.style.borderRadius = window.getComputedStyle(sourceRoot).borderRadius || "16px";
+
+    var liveCanvases = sourceRoot.querySelectorAll("canvas");
+    var cloneCanvases = cloneRoot.querySelectorAll("canvas");
+    for (var c = 0; c < cloneCanvases.length; c++) {
+      var srcCanvas = liveCanvases[c];
+      var dstCanvas = cloneCanvases[c];
+      if (!srcCanvas || !dstCanvas || !dstCanvas.parentNode) continue;
       try {
         var img = cloneRoot.ownerDocument.createElement("img");
         img.src = srcCanvas.toDataURL("image/png");
-        img.width = srcCanvas.width;
-        img.height = srcCanvas.height;
-        img.style.width = srcCanvas.style.width || (srcCanvas.clientWidth + "px");
-        img.style.height = srcCanvas.style.height || (srcCanvas.clientHeight + "px");
+        img.style.width = (srcCanvas.clientWidth || srcCanvas.width) + "px";
+        img.style.height = (srcCanvas.clientHeight || srcCanvas.height) + "px";
+        img.style.display = "block";
         img.style.maxWidth = "100%";
-        if (c.parentNode) c.parentNode.replaceChild(img, c);
-      } catch (e) { /* ignore */ }
+        dstCanvas.parentNode.replaceChild(img, dstCanvas);
+      } catch (eCanvas) { /* ignore */ }
+    }
+  }
+
+  function withBlankExportFrame(run) {
+    return new Promise(function (resolve, reject) {
+      var iframe = document.createElement("iframe");
+      iframe.setAttribute("aria-hidden", "true");
+      iframe.style.cssText =
+        "position:fixed;left:-12000px;top:0;width:1600px;height:1200px;border:0;opacity:0;pointer-events:none;";
+      document.body.appendChild(iframe);
+      var doc = iframe.contentDocument;
+      if (!doc) {
+        iframe.remove();
+        reject(new Error("export frame unavailable"));
+        return;
+      }
+      doc.open();
+      doc.write(
+        "<!doctype html><html><head><meta charset='utf-8'></head>" +
+          "<body style='margin:0;padding:0;background:#ffffff;'></body></html>"
+      );
+      doc.close();
+      Promise.resolve()
+        .then(function () {
+          return run(doc, iframe);
+        })
+        .then(function (result) {
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+          resolve(result);
+        })
+        .catch(function (err) {
+          if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+          reject(err);
+        });
+    });
+  }
+
+  function captureElementPng(sourceEl, bg) {
+    var cssW = Math.max(1, sourceEl.offsetWidth);
+    var cssH = Math.max(1, sourceEl.offsetHeight);
+    var panelBg = resolvePanelBg();
+    var textColor = resolveThemeColor("--text-main", "#111827");
+    var borderColor = resolveThemeColor("--border-subtle", "#e4e4e7");
+    return withBlankExportFrame(function (doc) {
+      var clone = doc.importNode(sourceEl.cloneNode(true), true);
+      doc.body.style.background = bg;
+      doc.body.appendChild(clone);
+      paintExportClone(sourceEl, clone, {
+        width: cssW,
+        height: cssH,
+        panelBg: panelBg,
+        textColor: textColor,
+        borderColor: borderColor,
+      });
+      return global
+        .html2canvas(clone, {
+          backgroundColor: bg,
+          scale: 2,
+          width: cssW,
+          height: cssH,
+          windowWidth: cssW,
+          windowHeight: cssH,
+          scrollX: 0,
+          scrollY: 0,
+          useCORS: true,
+          logging: false,
+          foreignObjectRendering: false,
+        })
+        .then(function (canvas) {
+          return {
+            dataUrl: canvas.toDataURL("image/png"),
+            cssW: cssW,
+            cssH: cssH,
+            canvas: canvas,
+          };
+        });
     });
   }
 
@@ -311,165 +562,146 @@
     return base;
   }
 
-  function tooltipOpts() {
-    return {
+  function tooltipOpts(extra) {
+    var base = {
       backgroundColor: "rgba(24,24,27,0.92)",
       titleColor: "#fafafa",
       bodyColor: "#e4e4e7",
       cornerRadius: 10,
       padding: 10,
     };
+    if (!extra) return base;
+    Object.keys(extra).forEach(function (k) {
+      if (k === "callbacks" && extra.callbacks && base.callbacks) {
+        base.callbacks = Object.assign({}, base.callbacks, extra.callbacks);
+      } else if (k === "callbacks") {
+        base.callbacks = extra.callbacks;
+      } else {
+        base[k] = extra[k];
+      }
+    });
+    return base;
   }
 
-  function destroyChart(key) {
-    if (state[key]) {
-      state[key].destroy();
-      state[key] = null;
-    }
+  function destroyWidgetChart(id) {
+    if (!id || !state.widgetCharts[id]) return;
+    try {
+      state.widgetCharts[id].destroy();
+    } catch (e) {}
+    delete state.widgetCharts[id];
+  }
+
+  function destroyDashboardCharts() {
+    Object.keys(state.widgetCharts).forEach(function (id) {
+      destroyWidgetChart(id);
+    });
+  }
+
+  function eachCanvas(type, fn) {
+    document.querySelectorAll('canvas[data-ch-canvas="' + type + '"]').forEach(function (canvas) {
+      var wid = canvas.getAttribute("data-widget-id") || type;
+      fn(canvas, wid);
+    });
   }
 
   function renderGrowth(series) {
-    var canvas = el("ch-growth-chart");
-    if (!canvas || !global.Chart) return;
+    if (series) state.chartCache.growth = series || [];
+    if (!global.Chart) return;
     var theme = chartTheme();
-    destroyChart("growthChart");
-    state.growthChart = new global.Chart(canvas, {
-      type: "line",
-      data: {
-        labels: (series || []).map(function (p) { return String(p.date).slice(5); }),
-        datasets: [
-          {
-            label: tr("channel_hub.joins"),
-            data: (series || []).map(function (p) { return p.joins; }),
-            borderColor: theme.join,
-            backgroundColor: function (ctx) {
-              return makeAreaGradient(ctx.chart, "rgba(34,197,94,0.35)", "rgba(34,197,94,0.02)");
+    var rows = state.chartCache.growth || [];
+    eachCanvas("growth", function (canvas, wid) {
+      destroyWidgetChart(wid);
+      state.widgetCharts[wid] = new global.Chart(canvas, {
+        type: "line",
+        data: {
+          labels: rows.map(function (p) { return String(p.date).slice(5); }),
+          datasets: [
+            {
+              label: tr("channel_hub.joins"),
+              data: rows.map(function (p) { return p.joins; }),
+              borderColor: theme.join,
+              backgroundColor: function (ctx) {
+                return makeAreaGradient(ctx.chart, "rgba(34,197,94,0.35)", "rgba(34,197,94,0.02)");
+              },
+              fill: true,
+              tension: 0.35,
+              pointRadius: 0,
+              borderWidth: 2,
             },
-            fill: true,
-            tension: 0.35,
-            pointRadius: 0,
-            borderWidth: 2,
-          },
-          {
-            label: tr("channel_hub.leaves"),
-            data: (series || []).map(function (p) { return p.leaves; }),
-            borderColor: theme.leave,
-            backgroundColor: function (ctx) {
-              return makeAreaGradient(ctx.chart, "rgba(239,68,68,0.28)", "rgba(239,68,68,0.02)");
+            {
+              label: tr("channel_hub.leaves"),
+              data: rows.map(function (p) { return p.leaves; }),
+              borderColor: theme.leave,
+              backgroundColor: function (ctx) {
+                return makeAreaGradient(ctx.chart, "rgba(239,68,68,0.28)", "rgba(239,68,68,0.02)");
+              },
+              fill: true,
+              tension: 0.35,
+              pointRadius: 0,
+              borderWidth: 2,
             },
-            fill: true,
-            tension: 0.35,
-            pointRadius: 0,
-            borderWidth: 2,
-          },
-        ],
-      },
-      options: chartCommonOptions({
-        interaction: { mode: "index", intersect: false },
-        plugins: { legend: { labels: { color: theme.text, usePointStyle: true } }, tooltip: tooltipOpts() },
-        scales: {
-          x: { ticks: { color: theme.text }, grid: { color: theme.grid } },
-          y: { beginAtZero: true, ticks: { color: theme.text }, grid: { color: theme.grid } },
+          ],
         },
-      }),
+        options: chartCommonOptions({
+          interaction: { mode: "index", intersect: false },
+          plugins: { legend: { labels: { color: theme.text, usePointStyle: true } }, tooltip: tooltipOpts() },
+          scales: {
+            x: { ticks: { color: theme.text }, grid: { color: theme.grid } },
+            y: { beginAtZero: true, ticks: { color: theme.text }, grid: { color: theme.grid } },
+          },
+        }),
+      });
     });
   }
 
   function renderHours(hours) {
-    state.chartCache.hours = hours || [];
-    var canvas = el("ch-hours-chart");
-    if (!canvas || !global.Chart) return;
+    if (hours) state.chartCache.hours = hours || [];
+    if (!global.Chart) return;
     var theme = chartTheme();
     var view = state.views.activity;
-    destroyChart("hoursChart");
-    var labels = state.chartCache.hours.map(function (h) { return String(h.hour).padStart(2, "0"); });
-    var values = state.chartCache.hours.map(function (h) { return h.count; });
-    if (view === "pie") {
-      state.hoursChart = new global.Chart(canvas, {
-        type: "doughnut",
+    var labels = (state.chartCache.hours || []).map(function (h) { return String(h.hour).padStart(2, "0"); });
+    var values = (state.chartCache.hours || []).map(function (h) { return h.count; });
+    eachCanvas("hours", function (canvas, wid) {
+      destroyWidgetChart(wid);
+      if (view === "pie") {
+        state.widgetCharts[wid] = new global.Chart(canvas, {
+          type: "doughnut",
+          data: {
+            labels: labels,
+            datasets: [{
+              data: values,
+              backgroundColor: labels.map(function (_, i) { return PIE_COLORS[i % PIE_COLORS.length]; }),
+              borderWidth: 0,
+            }],
+          },
+          options: chartCommonOptions({
+            plugins: { legend: { display: false }, tooltip: tooltipOpts() },
+          }),
+        });
+        return;
+      }
+      state.widgetCharts[wid] = new global.Chart(canvas, {
+        type: "bar",
         data: {
           labels: labels,
-          datasets: [{ data: values, backgroundColor: labels.map(function (_, i) { return PIE_COLORS[i % PIE_COLORS.length]; }), borderWidth: 0 }],
+          datasets: [{
+            label: tr("channel_hub.comments"),
+            data: values,
+            backgroundColor: function (ctx) {
+              return makeAreaGradient(ctx.chart, "rgba(37,99,235,0.55)", "rgba(37,99,235,0.12)");
+            },
+            borderRadius: 8,
+            borderSkipped: false,
+          }],
         },
         options: chartCommonOptions({
           plugins: { legend: { display: false }, tooltip: tooltipOpts() },
+          scales: {
+            x: { ticks: { color: theme.text }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { color: theme.text }, grid: { color: theme.grid } },
+          },
         }),
       });
-      return;
-    }
-    state.hoursChart = new global.Chart(canvas, {
-      type: "bar",
-      data: {
-        labels: labels,
-        datasets: [{
-          label: tr("channel_hub.comments"),
-          data: values,
-          backgroundColor: function (ctx) {
-            return makeAreaGradient(ctx.chart, "rgba(37,99,235,0.55)", "rgba(37,99,235,0.12)");
-          },
-          borderRadius: 8,
-          borderSkipped: false,
-        }],
-      },
-      options: chartCommonOptions({
-        plugins: { legend: { display: false }, tooltip: tooltipOpts() },
-        scales: {
-          x: { ticks: { color: theme.text }, grid: { display: false } },
-          y: { beginAtZero: true, ticks: { color: theme.text }, grid: { color: theme.grid } },
-        },
-      }),
-    });
-  }
-
-  function renderTopPostsChart(posts) {
-    state.chartCache.topPosts = (posts || []).slice(0, 5);
-    var canvas = el("ch-top-posts-chart");
-    if (!canvas || !global.Chart) return;
-    var theme = chartTheme();
-    destroyChart("topPostsChart");
-    var rows = state.chartCache.topPosts;
-    state.topPostsChart = new global.Chart(canvas, {
-      type: "bar",
-      data: {
-        labels: rows.map(function (p) {
-          return "#" + (p.message_id || p.telegram_message_id || p.id || "—");
-        }),
-        datasets: [{
-          label: tr("channel_hub.col_engagement"),
-          data: rows.map(function (p) { return p.engagement; }),
-          backgroundColor: "#60a5fa",
-          borderRadius: 8,
-        }],
-      },
-      options: chartCommonOptions({
-        indexAxis: "y",
-        plugins: {
-          legend: { display: false },
-          tooltip: Object.assign({}, tooltipOpts(), {
-            callbacks: {
-              title: function (items) {
-                var i = items[0] && items[0].dataIndex;
-                var p = rows[i];
-                if (!p) return "";
-                return "#" + (p.message_id || p.telegram_message_id || p.id || "—");
-              },
-              afterTitle: function (items) {
-                var i = items[0] && items[0].dataIndex;
-                var p = rows[i];
-                if (!p) return "";
-                return [
-                  tr("channel_hub.col_views") + ": " + fmt(p.views_count),
-                  tr("channel_hub.col_comments") + ": " + fmt(p.comments_count),
-                ];
-              },
-            },
-          }),
-        },
-        scales: {
-          x: { beginAtZero: true, ticks: { color: theme.text }, grid: { color: theme.grid } },
-          y: { ticks: { color: theme.text }, grid: { display: false } },
-        },
-      }),
     });
   }
 
@@ -483,63 +715,106 @@
     return map[key] || key;
   }
 
-  function renderPieOrBar(chartKey, canvasId, slices, viewKey, labelFn) {
-    var canvas = el(canvasId);
-    if (!canvas || !global.Chart) return;
+  function renderPieOrBarCanvases(canvasType, slices, viewKey, labelFn, tooltipExtraFn) {
+    if (!global.Chart) return;
     var theme = chartTheme();
     var view = state.views[viewKey];
-    destroyChart(chartKey);
-    var labels = (slices || []).map(function (s) { return labelFn ? labelFn(s.label) : s.label; });
-    var values = (slices || []).map(function (s) { return s.count; });
-    var colors = labels.map(function (_, i) { return PIE_COLORS[i % PIE_COLORS.length]; });
-    if (view === "bar") {
-      state[chartKey] = new global.Chart(canvas, {
-        type: "bar",
-        data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 8 }] },
-        options: chartCommonOptions({
-          plugins: { legend: { display: false }, tooltip: tooltipOpts() },
-          scales: {
-            x: { ticks: { color: theme.text }, grid: { display: false } },
-            y: { beginAtZero: true, ticks: { color: theme.text }, grid: { color: theme.grid } },
+    var list = slices || [];
+    var labels = list.map(function (s) { return labelFn ? labelFn(s.label) : s.label; });
+    var values = list.map(function (s) { return s.count; });
+    var colors = list.map(function (s, i) {
+      if (s && s.color && TAG_CHART_COLORS[s.color]) return TAG_CHART_COLORS[s.color];
+      return PIE_COLORS[i % PIE_COLORS.length];
+    });
+    var tip = tooltipOpts();
+    if (typeof tooltipExtraFn === "function") {
+      tip = tooltipOpts({
+        callbacks: {
+          afterBody: function (items) {
+            var i = items[0] && items[0].dataIndex;
+            return tooltipExtraFn(list[i]) || [];
           },
+        },
+      });
+    }
+    eachCanvas(canvasType, function (canvas, wid) {
+      destroyWidgetChart(wid);
+      if (view === "bar") {
+        state.widgetCharts[wid] = new global.Chart(canvas, {
+          type: "bar",
+          data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 8 }] },
+          options: chartCommonOptions({
+            plugins: { legend: { display: false }, tooltip: tip },
+            scales: {
+              x: { ticks: { color: theme.text }, grid: { display: false } },
+              y: { beginAtZero: true, ticks: { color: theme.text }, grid: { color: theme.grid } },
+            },
+          }),
+        });
+        return;
+      }
+      state.widgetCharts[wid] = new global.Chart(canvas, {
+        type: "doughnut",
+        data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
+        options: chartCommonOptions({
+          cutout: viewKey === "moderation" ? "62%" : "50%",
+          plugins: { legend: { position: "bottom", labels: { color: theme.text } }, tooltip: tip },
         }),
       });
-      return;
-    }
-    state[chartKey] = new global.Chart(canvas, {
-      type: "doughnut",
-      data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
-      options: chartCommonOptions({
-        cutout: viewKey === "moderation" ? "62%" : "50%",
-        plugins: { legend: { position: "bottom", labels: { color: theme.text } }, tooltip: tooltipOpts() },
-      }),
     });
   }
 
-  function renderReactions(slices) {
-    state.chartCache.reactions = slices || [];
-    renderPieOrBar("reactionsChart", "ch-reactions-chart", state.chartCache.reactions, "reactions");
+  function renderTags(slices) {
+    if (slices) state.chartCache.tags = slices || [];
+    renderPieOrBarCanvases(
+      "tags",
+      state.chartCache.tags,
+      "tags",
+      null,
+      function (slice) {
+        if (!slice || slice.label === "—") return [];
+        return [
+          tr("channel_hub.tags_tooltip_posts").replace("{n}", fmt(slice.posts || 0)),
+          tr("channel_hub.tags_tooltip_views").replace("{n}", fmt(slice.views || 0)),
+        ];
+      }
+    );
   }
 
   function renderModeration(slices) {
-    state.chartCache.moderation = slices || [];
-    renderPieOrBar("modChart", "ch-mod-chart", state.chartCache.moderation, "moderation", modLabel);
+    if (slices) state.chartCache.moderation = slices || [];
+    renderPieOrBarCanvases("moderation", state.chartCache.moderation, "moderation", modLabel);
   }
 
   function filteredSortedPosts() {
-    var q = (state.postsSearch || "").trim().toLowerCase();
+    var raw = (state.postsSearch || "").trim().toLowerCase();
     var rows = (state.postsAll || []).slice();
-    if (q) {
+    if (raw) {
+      var idOnly = raw.charAt(0) === "#";
+      var qId = raw.replace(/^#+/, "").trim();
       rows = rows.filter(function (p) {
+        var mid = String(p.message_id || p.telegram_message_id || "");
+        var pid = String(p.id || "");
+        var idHit =
+          !!qId &&
+          (mid === qId ||
+            pid === qId ||
+            ("#" + mid).toLowerCase() === raw ||
+            ("#" + pid).toLowerCase() === raw);
+        if (idOnly) return idHit;
+        if (idHit) return true;
         var hay = [
-          p.message_id,
-          p.telegram_message_id,
-          p.id,
+          mid,
+          "#" + mid,
+          pid,
+          "#" + pid,
           p.post_url,
           p.text,
           p.full_text,
-        ].join(" ").toLowerCase();
-        return hay.indexOf(q) >= 0;
+        ]
+          .join(" ")
+          .toLowerCase();
+        return hay.indexOf(raw) >= 0 || (qId && hay.indexOf(qId) >= 0);
       });
     }
     var key = state.postsSort.key || "engagement";
@@ -570,35 +845,62 @@
 
   function renderPosts(posts) {
     if (posts) state.postsAll = posts.slice();
-    var tbody = el("ch-posts-table") && el("ch-posts-table").querySelector("tbody");
-    if (!tbody) return;
+    var tables = document.querySelectorAll(".ch-dash-posts-table");
+    if (!tables.length) return;
     state.postsIndex = {};
     var rows = filteredSortedPosts();
     updateSortButtons();
+    var html;
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="5">' + escapeHtml(tr("channel_hub.empty")) + "</td></tr>";
-      return;
+      html = '<tr><td colspan="5">' + escapeHtml(tr("channel_hub.empty")) + "</td></tr>";
+    } else {
+      html = rows.map(function (p) {
+        state.postsIndex[String(p.id)] = p;
+        var mid = p.message_id || p.telegram_message_id || p.id;
+        var url = p.post_url || "#";
+        var short = url.replace(/^https?:\/\//, "");
+        if (short.length > 28) short = short.slice(0, 26) + "…";
+        return '<tr data-post-id="' + p.id + '">' +
+          "<td>#" + escapeHtml(mid) + "</td>" +
+          '<td><a class="ch-post-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" data-stop="1">' +
+          escapeHtml(short) + "</a></td>" +
+          "<td>" + fmt(p.views_count) + "</td>" +
+          "<td>" + fmt(p.comments_count) + "</td>" +
+          "<td>" + fmt(p.engagement) + "</td></tr>";
+      }).join("");
     }
-    tbody.innerHTML = rows.map(function (p) {
-      state.postsIndex[String(p.id)] = p;
-      var mid = p.message_id || p.telegram_message_id || p.id;
-      var url = p.post_url || "#";
-      var short = url.replace(/^https?:\/\//, "");
-      if (short.length > 28) short = short.slice(0, 26) + "…";
-      return '<tr data-post-id="' + p.id + '">' +
-        "<td>#" + escapeHtml(mid) + "</td>" +
-        '<td><a class="ch-post-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" data-stop="1">' +
-        escapeHtml(short) + "</a></td>" +
-        "<td>" + fmt(p.views_count) + "</td>" +
-        "<td>" + fmt(p.comments_count) + "</td>" +
-        "<td>" + fmt(p.engagement) + "</td></tr>";
-    }).join("");
-    tbody.querySelectorAll("tr[data-post-id]").forEach(function (row) {
-      row.onclick = function (e) {
-        if (e.target && (e.target.getAttribute("data-stop") || e.target.closest("a"))) return;
-        var post = state.postsIndex[row.getAttribute("data-post-id")];
-        if (post) openPostModal(post);
-      };
+    tables.forEach(function (table) {
+      var tbody = table.querySelector("tbody");
+      if (!tbody) return;
+      tbody.innerHTML = html;
+      tbody.querySelectorAll("tr[data-post-id]").forEach(function (row) {
+        row.onclick = function (e) {
+          if (e.target && (e.target.getAttribute("data-stop") || e.target.closest("a"))) return;
+          var post = state.postsIndex[row.getAttribute("data-post-id")];
+          if (post) openPostModal(post);
+        };
+      });
+    });
+  }
+
+  function renderWarnings() {
+    var nodes = document.querySelectorAll("[data-ch-warnings]");
+    if (!nodes.length) return;
+    var rows = state.restricted || [];
+    var html;
+    if (!rows.length) {
+      html = '<div class="ch-inspector-empty">' + escapeHtml(tr("channel_hub.empty")) + "</div>";
+    } else {
+      html = rows.slice(0, 40).map(function (u) {
+        return '<div class="ch-dash-warn-row">' +
+          "<div><strong>" + escapeHtml(u.username || u.user_id || "—") + "</strong>" +
+          '<div class="an-panel-sub">' + escapeHtml(u.status || u.restriction || "restricted") + "</div></div>" +
+          '<span class="ch-warn-badge">' + escapeHtml(String(u.warnings != null ? u.warnings : u.warn_count != null ? u.warn_count : "—")) + "</span>" +
+          "</div>";
+      }).join("");
+    }
+    nodes.forEach(function (node) {
+      node.innerHTML = html;
     });
   }
 
@@ -729,16 +1031,13 @@
       });
   }
 
-  function renderFeed() {
-    var list = el("ch-feed-list");
-    if (!list) return;
+  function feedListHtml() {
     var rows = filteredFeed();
     var rmap = restrictedMap();
     if (!rows.length) {
-      list.innerHTML = '<div class="ch-inspector-empty">' + escapeHtml(tr("channel_hub.empty")) + "</div>";
-      return;
+      return '<div class="ch-inspector-empty">' + escapeHtml(tr("channel_hub.empty")) + "</div>";
     }
-    list.innerHTML = rows.map(function (c) {
+    return rows.map(function (c) {
       var st = commentStatus(c, rmap);
       var selected = state.selected && state.selected.id === c.id ? " is-selected" : "";
       var gone = c.is_deleted ? " is-deleted" : "";
@@ -750,6 +1049,10 @@
         '<button type="button" class="db-btn-danger ch-btn-sm" data-del="' + c.id + '">' + escapeHtml(tr("channel_hub.delete_comment")) + "</button>" +
         "</div></article>";
     }).join("");
+  }
+
+  function bindFeedList(list) {
+    if (!list) return;
     list.querySelectorAll(".ch-feed-item").forEach(function (node) {
       node.onclick = function (e) {
         if (e.target && e.target.getAttribute("data-del")) return;
@@ -759,6 +1062,7 @@
         state.selected = item;
         renderFeed();
         loadInspector(item);
+        switchTab("moderation");
       };
     });
     list.querySelectorAll("[data-del]").forEach(function (btn) {
@@ -768,6 +1072,19 @@
         var item = (state.comments || []).find(function (c) { return c.id === id; });
         if (item) deleteComment(item, e);
       };
+    });
+  }
+
+  function renderFeed() {
+    var html = feedListHtml();
+    var lists = [];
+    if (el("ch-feed-list")) lists.push(el("ch-feed-list"));
+    document.querySelectorAll("[data-ch-feed]").forEach(function (node) {
+      lists.push(node);
+    });
+    lists.forEach(function (list) {
+      list.innerHTML = html;
+      bindFeedList(list);
     });
   }
 
@@ -834,32 +1151,72 @@
       });
   }
 
+  function updateKpis(ov) {
+    ov = ov || {};
+    var map = {
+      subscribers: fmt(ov.subscribers),
+      joins: fmt(ov.joins_today),
+      leaves: fmt(ov.leaves_today),
+      err: fmt(ov.engagement_score != null ? ov.engagement_score : ov.engagement_rate),
+      moderated: fmt(ov.comments_moderated),
+    };
+    Object.keys(map).forEach(function (key) {
+      document.querySelectorAll('[data-kpi="' + key + '"]').forEach(function (node) {
+        node.textContent = map[key];
+      });
+    });
+  }
+
   function applyCharts(snap) {
     if (!snap) return;
+    state.lastSnap = snap;
     renderGrowth((snap.growth && snap.growth.series) || []);
     renderHours((snap.activity_hours && snap.activity_hours.hours) || []);
     renderPosts((snap.posts && snap.posts.posts) || []);
     var charts = snap.charts || {};
-    renderTopPostsChart((charts.top_posts_chart && charts.top_posts_chart.posts) || []);
-    renderReactions((charts.reactions && charts.reactions.slices) || []);
+    if (charts.top_posts_chart && charts.top_posts_chart.posts) {
+      state.chartCache.topPosts = charts.top_posts_chart.posts.slice(0, 5);
+    }
+    renderTags((charts.tags && charts.tags.slices) || (charts.reactions && charts.reactions.slices) || []);
     renderModeration((charts.moderation && charts.moderation.slices) || []);
+    renderWarnings();
+    updateKpis(snap.overview || {});
     state.chartsReady = true;
     state.lastChartsAt = Date.now();
     state.revision = snap.revision || state.revision;
   }
 
+  function repaintDashboard() {
+    var snap = state.lastSnap || state.pendingCharts;
+    if (!snap) {
+      renderFeed();
+      renderWarnings();
+      renderPosts();
+      return;
+    }
+    ensureChartJs()
+      .then(function () {
+        applyCharts(snap);
+        renderFeed();
+      })
+      .catch(function () {
+        renderFeed();
+        renderWarnings();
+        renderPosts();
+        updateKpis(snap.overview || {});
+      });
+  }
+
   function applySnapshot(snap, forceCharts) {
     if (!snap) return;
+    state.lastSnap = snap;
     var ov = snap.overview || {};
-    if (el("kpi-subscribers")) el("kpi-subscribers").textContent = fmt(ov.subscribers);
-    if (el("kpi-joins")) el("kpi-joins").textContent = fmt(ov.joins_today);
-    if (el("kpi-leaves")) el("kpi-leaves").textContent = fmt(ov.leaves_today);
-    if (el("kpi-err")) el("kpi-err").textContent = fmt(ov.engagement_score != null ? ov.engagement_score : ov.engagement_rate);
-    if (el("kpi-moderated")) el("kpi-moderated").textContent = fmt(ov.comments_moderated);
+    updateKpis(ov);
     // Live feed always updates immediately (decoupled from charts).
     state.comments = (snap.comments && snap.comments.comments) || [];
     state.restricted = (snap.restricted && snap.restricted.users) || [];
     renderFeed();
+    renderWarnings();
     state.feedRevision = snap.revision || "";
 
     var now = Date.now();
@@ -1073,32 +1430,81 @@
       });
   }
 
+  function collectExportRows() {
+    var grid = el("ch-dash-grid");
+    var widgets = Array.prototype.slice.call(
+      (grid && !grid.hidden ? grid : document).querySelectorAll("#ch-dash-grid .ch-dash-widget")
+    );
+    if (!widgets.length) return { rows: [], gridWidth: 800, originLeft: 0 };
+
+    var gridRect = grid.getBoundingClientRect();
+    var rows = [];
+    widgets.forEach(function (w) {
+      var r = w.getBoundingClientRect();
+      var top = r.top - gridRect.top;
+      var left = r.left - gridRect.left;
+      var item = {
+        el: w,
+        top: top,
+        left: left,
+        width: Math.max(1, w.offsetWidth),
+        height: Math.max(1, w.offsetHeight),
+      };
+      var row = null;
+      for (var i = 0; i < rows.length; i++) {
+        if (Math.abs(rows[i].top - top) < 20) {
+          row = rows[i];
+          break;
+        }
+      }
+      if (!row) {
+        row = { top: top, height: item.height, items: [] };
+        rows.push(row);
+      }
+      row.items.push(item);
+      row.top = Math.min(row.top, top);
+      row.height = Math.max(row.height, item.height);
+    });
+    rows.sort(function (a, b) {
+      return a.top - b.top;
+    });
+    rows.forEach(function (row) {
+      row.items.sort(function (a, b) {
+        return a.left - b.left;
+      });
+    });
+    return {
+      rows: rows,
+      gridWidth: Math.max(1, grid.clientWidth || gridRect.width || 800),
+      originLeft: 0,
+    };
+  }
+
   function exportPdf() {
     var root = el("ch-dashboard-root");
     if (!root) return;
     setStatus(tr("channel_hub.exporting"));
     var prevTab = state.tab;
+    var wasEditing =
+      global.ChannelDashLayout && typeof global.ChannelDashLayout.isEditMode === "function"
+        ? global.ChannelDashLayout.isEditMode()
+        : false;
     switchTab("analytics");
     closePostModal();
+    if (wasEditing && global.ChannelDashLayout && typeof global.ChannelDashLayout.setEditMode === "function") {
+      global.ChannelDashLayout.setEditMode(false);
+    }
     document.body.classList.add("pdf-rendering");
 
     function cleanup() {
       document.body.classList.remove("pdf-rendering");
+      if (wasEditing && global.ChannelDashLayout && typeof global.ChannelDashLayout.setEditMode === "function") {
+        global.ChannelDashLayout.setEditMode(true);
+      }
       switchTab(prevTab);
     }
 
-    function runElectronPdf() {
-      return global.electronAPI.exportPdf({ defaultName: "channel-hub-report.pdf" }).then(function (res) {
-        cleanup();
-        if (res && res.canceled) {
-          setStatus("");
-          return;
-        }
-        setStatus(tr("channel_hub.export_done"));
-      });
-    }
-
-    function runHtml2CanvasPdf() {
+    function runWidgetPdf() {
       return ensurePdfLibs().then(function () {
         var jsPDF = global.jspdf && global.jspdf.jsPDF;
         if (!global.html2canvas || !jsPDF) {
@@ -1106,54 +1512,104 @@
           setStatus(tr("channel_hub.export_unavailable"), "error");
           return;
         }
-        return global.html2canvas(root, {
-          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--bg-main").trim() || "#ffffff",
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          foreignObjectRendering: false,
-          onclone: function (clonedDoc) {
-            clonedDoc.body.classList.add("pdf-rendering");
-            var clonedRoot = clonedDoc.getElementById("ch-dashboard-root");
-            inlineCloneStyles(root, clonedRoot);
-            Array.prototype.forEach.call(clonedDoc.querySelectorAll("style"), function (s) {
-              if (s.textContent && (s.textContent.indexOf("color-mix") >= 0 || s.textContent.indexOf("color(") >= 0)) {
-                s.textContent = "";
-              }
+
+        var packed = collectExportRows();
+        if (!packed.rows.length) {
+          cleanup();
+          setStatus(tr("channel_hub.dash_empty_title"), "error");
+          return;
+        }
+
+        var bg = resolveExportBg();
+        var PX_TO_PT = 0.75;
+        var margin = 28;
+        var headerH = 58;
+        var gapPt = 12;
+        var gridWpt = packed.gridWidth * PX_TO_PT;
+        var pageW = gridWpt + margin * 2;
+        var preferredContentH = Math.max(640, Math.min(900, pageW * 0.75));
+
+        // Capture widgets one-by-one (whole card each time — never mid-slice).
+        var chain = Promise.resolve();
+        packed.rows.forEach(function (row) {
+          row.items.forEach(function (item) {
+            chain = chain.then(function () {
+              return captureElementPng(item.el, bg).then(function (shot) {
+                item.shot = shot;
+              });
             });
-          },
-        }).then(function (canvas) {
-          var pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-          var pageWidth = pdf.internal.pageSize.getWidth();
-          var pageHeight = pdf.internal.pageSize.getHeight();
-          var margin = 28;
-          pdf.setFontSize(16);
-          pdf.text(tr("channel_hub.pdf_title"), margin, 36);
-          pdf.setFontSize(10);
-          pdf.setTextColor(120);
-          pdf.text(new Date().toLocaleString() + " · " + state.range, margin, 52);
-          var imgWidth = pageWidth - margin * 2;
-          var imgHeight = (canvas.height * imgWidth) / canvas.width;
-          var y = 64;
-          var remaining = imgHeight;
-          var srcY = 0;
-          var sliceHeight = ((pageHeight - y - margin) * canvas.width) / imgWidth;
-          while (remaining > 0) {
-            var pageCanvas = document.createElement("canvas");
-            pageCanvas.width = canvas.width;
-            pageCanvas.height = Math.min(sliceHeight, canvas.height - srcY);
-            var ctx = pageCanvas.getContext("2d");
-            ctx.drawImage(canvas, 0, srcY, canvas.width, pageCanvas.height, 0, 0, canvas.width, pageCanvas.height);
-            var pageData = pageCanvas.toDataURL("image/png");
-            var drawH = (pageCanvas.height * imgWidth) / canvas.width;
-            pdf.addImage(pageData, "PNG", margin, y, imgWidth, drawH);
-            remaining -= drawH;
-            srcY += pageCanvas.height;
-            if (remaining > 4) {
-              pdf.addPage();
-              y = margin;
-            }
+          });
+        });
+
+        return chain.then(function () {
+          // Pack rows onto pages: if a full row does not fit, move it to the next page.
+          var pages = [];
+          var cur = { rows: [], height: 0 };
+          function flush() {
+            if (!cur.rows.length) return;
+            pages.push(cur);
+            cur = { rows: [], height: 0 };
           }
+
+          packed.rows.forEach(function (row) {
+            var rowHpt = row.height * PX_TO_PT;
+            if (cur.rows.length && cur.height + gapPt + rowHpt > preferredContentH) {
+              flush();
+            }
+            if (cur.rows.length) cur.height += gapPt;
+            cur.rows.push(row);
+            cur.height += rowHpt;
+          });
+          flush();
+
+          function fillPageBg(pdfDoc, w, h) {
+            var m = String(bg).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+            if (m) pdfDoc.setFillColor(Number(m[1]), Number(m[2]), Number(m[3]));
+            else pdfDoc.setFillColor(255, 255, 255);
+            pdfDoc.rect(0, 0, w, h, "F");
+          }
+
+          var pdf = null;
+          pages.forEach(function (page, pageIdx) {
+            var contentH = page.height;
+            var pageH = (pageIdx === 0 ? headerH : margin) + contentH + margin;
+            if (!pdf) {
+              pdf = new jsPDF({
+                orientation: pageW >= pageH ? "landscape" : "portrait",
+                unit: "pt",
+                format: [pageW, pageH],
+                compress: true,
+              });
+            } else {
+              pdf.addPage([pageW, pageH], pageW >= pageH ? "landscape" : "portrait");
+            }
+
+            fillPageBg(pdf, pageW, pageH);
+
+            var y = margin;
+            if (pageIdx === 0) {
+              pdf.setFontSize(16);
+              pdf.setTextColor(30, 30, 30);
+              pdf.text(tr("channel_hub.pdf_title"), margin, margin + 14);
+              pdf.setFontSize(10);
+              pdf.setTextColor(120, 120, 120);
+              pdf.text(new Date().toLocaleString() + " · " + state.range, margin, margin + 32);
+              y = headerH;
+            }
+
+            page.rows.forEach(function (row, rIdx) {
+              if (rIdx > 0) y += gapPt;
+              row.items.forEach(function (item) {
+                if (!item.shot) return;
+                var x = margin + item.left * PX_TO_PT;
+                var w = item.width * PX_TO_PT;
+                var h = item.height * PX_TO_PT;
+                pdf.addImage(item.shot.dataUrl, "PNG", x, y, w, h, undefined, "FAST");
+              });
+              y += row.height * PX_TO_PT;
+            });
+          });
+
           pdf.save("channel-hub-report.pdf");
           cleanup();
           setStatus(tr("channel_hub.export_done"));
@@ -1162,15 +1618,11 @@
     }
 
     setTimeout(function () {
-      var p =
-        global.electronAPI && typeof global.electronAPI.exportPdf === "function"
-          ? runElectronPdf()
-          : runHtml2CanvasPdf();
-      Promise.resolve(p).catch(function (err) {
+      Promise.resolve(runWidgetPdf()).catch(function (err) {
         cleanup();
         setStatus(String(err.message || err), "error");
       });
-    }, 220);
+    }, 320);
   }
 
   function switchTab(tab) {
@@ -1215,20 +1667,6 @@
         refresh(true);
       };
     });
-    document.querySelectorAll(".ch-view-switch").forEach(function (group) {
-      var key = group.getAttribute("data-switch");
-      group.querySelectorAll(".ch-view-btn").forEach(function (btn) {
-        btn.onclick = function () {
-          state.views[key] = btn.getAttribute("data-view") || "bar";
-          group.querySelectorAll(".ch-view-btn").forEach(function (b) {
-            b.classList.toggle("ch-view-active", b === btn);
-          });
-          if (key === "activity") renderHours(state.chartCache.hours);
-          if (key === "reactions") renderReactions(state.chartCache.reactions);
-          if (key === "moderation") renderModeration(state.chartCache.moderation);
-        };
-      });
-    });
     document.querySelectorAll(".ch-filter-btn").forEach(function (btn) {
       btn.onclick = function () {
         state.feedFilter = btn.getAttribute("data-filter") || "all";
@@ -1245,29 +1683,13 @@
         renderFeed();
       };
     }
-    var postsSearch = el("ch-posts-search");
-    if (postsSearch) {
-      postsSearch.oninput = function () {
-        state.postsSearch = postsSearch.value || "";
-        renderPosts();
+    var sel = el("bot-select");
+    if (sel) {
+      sel.onchange = function () {
+        if (global.ChannelDashLayout) global.ChannelDashLayout.setBotId(botId());
+        refresh(true);
       };
     }
-    document.querySelectorAll(".ch-sort-btn").forEach(function (btn) {
-      btn.onclick = function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var key = btn.getAttribute("data-sort") || "engagement";
-        if (state.postsSort.key === key) {
-          state.postsSort.dir = state.postsSort.dir === "desc" ? "asc" : "desc";
-        } else {
-          state.postsSort.key = key;
-          state.postsSort.dir = key === "message_id" ? "asc" : "desc";
-        }
-        renderPosts();
-      };
-    });
-    var sel = el("bot-select");
-    if (sel) sel.onchange = function () { refresh(true); };
     var connectBtn = el("mod-connect");
     if (connectBtn) connectBtn.onclick = connectModerator;
     var addBtn = el("rule-add-keyword");
@@ -1291,6 +1713,41 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closePostModal();
     });
+    document.addEventListener("click", function (e) {
+      var viewBtn = e.target.closest(".ch-dash-widget .ch-view-btn");
+      if (viewBtn) {
+        var group = viewBtn.closest(".ch-view-switch");
+        if (!group) return;
+        var key = group.getAttribute("data-switch");
+        state.views[key] = viewBtn.getAttribute("data-view") || "bar";
+        group.querySelectorAll(".ch-view-btn").forEach(function (b) {
+          b.classList.toggle("ch-view-active", b === viewBtn);
+        });
+        if (key === "activity") renderHours(state.chartCache.hours);
+        if (key === "tags") renderTags(state.chartCache.tags);
+        if (key === "moderation") renderModeration(state.chartCache.moderation);
+        return;
+      }
+      var sortBtn = e.target.closest(".ch-dash-posts-table .ch-sort-btn");
+      if (sortBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        var sortKey = sortBtn.getAttribute("data-sort") || "engagement";
+        if (state.postsSort.key === sortKey) {
+          state.postsSort.dir = state.postsSort.dir === "desc" ? "asc" : "desc";
+        } else {
+          state.postsSort.key = sortKey;
+          state.postsSort.dir = sortKey === "message_id" ? "asc" : "desc";
+        }
+        renderPosts();
+      }
+    });
+    document.addEventListener("input", function (e) {
+      if (e.target && e.target.getAttribute("data-ch-posts-search") != null) {
+        state.postsSearch = e.target.value || "";
+        renderPosts();
+      }
+    });
     document.querySelectorAll("[data-insp-act]").forEach(function (btn) {
       btn.onclick = function () {
         var insp = state.inspector || state.selected;
@@ -1309,12 +1766,30 @@
     });
   }
 
+  function bindDashboardWidgets(root) {
+    // Posts search fields inside newly mounted widgets inherit document-level input handler.
+    if (root && typeof global.applyI18n === "function") {
+      try { global.applyI18n(root); } catch (e) {}
+    }
+  }
+
   function init() {
     bind();
     switchTab("analytics");
+    if (global.ChannelDashLayout) {
+      global.ChannelDashLayout.init({
+        botId: "",
+        onChange: function () {
+          repaintDashboard();
+        },
+      });
+    }
     // Shell is interactive immediately; data + charts fill in without blocking navigation.
     loadBots()
-      .then(function () { return refresh(true); })
+      .then(function () {
+        if (global.ChannelDashLayout) global.ChannelDashLayout.setBotId(botId());
+        return refresh(true);
+      })
       .then(function () {
         startPolling();
         setTimeout(function () {
@@ -1328,5 +1803,12 @@
     global.addEventListener("beforeunload", stopPolling);
   }
 
-  global.ChannelHubView = { init: init, refresh: refresh };
+  global.ChannelHubView = {
+    init: init,
+    refresh: refresh,
+    repaintDashboard: repaintDashboard,
+    destroyWidgetChart: destroyWidgetChart,
+    destroyDashboardCharts: destroyDashboardCharts,
+    bindDashboardWidgets: bindDashboardWidgets,
+  };
 })(window);

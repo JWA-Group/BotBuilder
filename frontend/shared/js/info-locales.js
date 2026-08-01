@@ -13,12 +13,12 @@
       "info.nav.quickstart": "Quick start",
       "info.nav.monitor": "Monitoring",
       "info.nav.channel_manager": "Channel Manager",
-      "info.nav.post_editor": "Post Editor",
-      "info.nav.bots": "Chat bots",
+      "info.nav.post_editor": "Channel Post Editor",
+      "info.nav.bots": "Chat Bots",
       "info.nav.scenario": "Scenario editor",
       "info.nav.plugins": "Plugins & blocks",
       "info.nav.templates": "Templates",
-      "info.nav.mailing": "Broadcasts",
+      "info.nav.mailing": "Bots Post Editor",
       "info.nav.analytics": "Bot Analytics & data",
       "info.nav.deploy": "Deploy",
       "info.nav.tips": "Tips",
@@ -32,15 +32,15 @@
       "info.modules.monitor.desc": "CPU/RAM, bot processes, streaming API and LLM logs.",
       "info.modules.channel_manager.title_html": '<a href="/channel-hub/">Channel Manager</a>',
       "info.modules.channel_manager.desc": "Connect channels and moderator bots, stats, feed, comment moderation.",
-      "info.modules.post_editor.title_html": '<a href="/post-studio/">Post Editor</a>',
+      "info.modules.post_editor.title_html": '<a href="/post-studio/">Channel Post Editor</a>',
       "info.modules.post_editor.desc": "Compose, schedule and publish posts to Telegram channels.",
-      "info.modules.bots.title_html": '<a href="/bots/">Chat bots</a>',
+      "info.modules.bots.title_html": '<a href="/bots/">Chat Bots</a>',
       "info.modules.bots.desc": "Bot list, tokens, start/stop, open the scenario builder.",
       "info.modules.scenario.title_html": '<a href="/editor/scenario/">Scenario editor</a>',
       "info.modules.scenario.desc": "Canvas with blocks and connections — dialog logic, menus, conditions, messages.",
       "info.modules.templates.title_html": '<a href="/templates/">Template library</a>',
       "info.modules.templates.desc": "Ready scenarios, import/export <code>.bbpack.json</code>, install on a bot.",
-      "info.modules.mailing.title_html": '<a href="/mailing/">Broadcasts</a>',
+      "info.modules.mailing.title_html": '<a href="/mailing/">Bots Post Editor</a>',
       "info.modules.mailing.desc": "HTML messages with media, filter subscribers by roles and tags.",
       "info.modules.analytics.title_html": '<a href="/analytics/">Bot Analytics</a>',
       "info.modules.analytics.desc": "Activity charts, event calendar, overview for the selected chat bot.",
@@ -57,9 +57,9 @@
       "info.quickstart.step1_html":
         '<strong>Create a bot in the messenger.</strong> Telegram: <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> → command <code>/newbot</code> → copy the API token. VK: create a community and get the group access key with messaging permissions.',
       "info.quickstart.step2_html":
-        'Open <a href="/bots/">Chat bots</a> → add a bot: name, platform (Telegram or VK), paste the token. For channels: create a <strong>moderator bot</strong> in <a href="/channel-hub/">Channel Manager</a> and add it as a channel admin.',
+        'Open <a href="/bots/">Chat Bots</a> → add a bot: name, platform (Telegram or VK), paste the token. For channels: create a <strong>moderator bot</strong> in <a href="/channel-hub/">Channel Manager</a> and add it as a channel admin.',
       "info.quickstart.step3_html":
-        'Chat flow: open <strong>Scenario builder</strong> on the bot card and build a chain (start → messages / menu → conditions). Channel posts: open <a href="/post-studio/">Post Editor</a>, pick a connected channel and compose the post.',
+        'Chat flow: open <strong>Scenario builder</strong> on the bot card and build a chain (start → messages / menu → conditions). Channel posts: open <a href="/post-studio/">Channel Post Editor</a>, pick a connected channel and compose the post.',
       "info.quickstart.step4_html":
         "Save the scenario (save button in the editor) or publish/schedule the post. If needed, return to the bot list and <strong>start</strong> the chat bot; keep the moderator bot running for channels.",
       "info.quickstart.step5_html":
@@ -67,9 +67,9 @@
       "info.quickstart.tip_html":
         "<strong>Tip.</strong> For VK you can apply a default scenario (greeting and menu) directly from the bot card — a handy starting point. Channel stats and comments live in Channel Manager, not in Bot Analytics.",
 
-      "info.bots.title": "Chat bots",
+      "info.bots.title": "Chat Bots",
       "info.bots.intro_html":
-        'The <a href="/bots/">Chat bots</a> section is the hub for dialog projects. Each chat bot stores its scenario, files, and user database in the project folder. <strong>Moderator bots</strong> (for channels only, no scenario) are created and managed in <a href="/channel-hub/">Channel Manager</a>.',
+        'The <a href="/bots/">Chat Bots</a> section is the hub for dialog projects. Each chat bot stores its scenario, files, and user database in the project folder. <strong>Moderator bots</strong> (for channels only, no scenario) are created and managed in <a href="/channel-hub/">Channel Manager</a>.',
       "info.bots.actions_title": "What you can do",
       "info.bots.action1": "Add and remove chat bots (Telegram / VK).",
       "info.bots.action2": "Start and stop the bot process.",
@@ -90,12 +90,12 @@
       "info.channel_manager.features_title": "What you get",
       "info.channel_manager.feat1": "List of connected channels and quick switch between them.",
       "info.channel_manager.feat2": "Views, reactions and engagement charts; PDF export when needed.",
-      "info.channel_manager.feat3": "Post feed with refresh; open Post Editor to create or update a post.",
+      "info.channel_manager.feat3": "Post feed with refresh; open Channel Post Editor to create or update a post.",
       "info.channel_manager.feat4": "Comment moderation where discussion is enabled.",
       "info.channel_manager.note":
         "Channel Manager talks to Telegram through the moderator bot. Keep that bot running while you publish or moderate.",
 
-      "info.post_editor.title": "Post Editor",
+      "info.post_editor.title": "Channel Post Editor",
       "info.post_editor.intro_html":
         '<a href="/post-studio/">Post Editor</a> builds channel posts: visual layout or HTML, media, inline buttons, schedule and publish.',
       "info.post_editor.how_title": "How to publish a post",
@@ -166,9 +166,9 @@
       "info.database.desc_html":
         '<a href="/database/">Database</a> opens the project <code>user_data.db</code>: tables, fields, import from another <code>.db</code> or JSON. Handy for editing roles, tags and test records manually.',
 
-      "info.mailing.title": "Broadcasts",
+      "info.mailing.title": "Bots Post Editor",
       "info.mailing.desc_html":
-        'In <a href="/mailing/">Broadcasts</a> you can send an HTML message with media to bot subscribers. Filter the audience by roles and tags from the user database, preview and run the broadcast.',
+        'In <a href="/mailing/">Bots Post Editor</a> you can send an HTML message with media to bot subscribers. Filter the audience by roles and tags from the user database, preview and run the broadcast.',
       "info.mailing.note":
         "The bot must be available (valid token). For large lists, watch messenger limits and logs in monitoring.",
 
@@ -204,35 +204,35 @@
       "info.nav.modules": "Разделы меню",
       "info.nav.quickstart": "Быстрый старт",
       "info.nav.monitor": "Мониторинг",
-      "info.nav.channel_manager": "Менеджер каналов",
-      "info.nav.post_editor": "Редактор постов",
-      "info.nav.bots": "Чат-боты",
+      "info.nav.channel_manager": "Менеджер Каналов",
+      "info.nav.post_editor": "Редактор Постов Канала",
+      "info.nav.bots": "Чат-Боты",
       "info.nav.scenario": "Редактор сценариев",
       "info.nav.plugins": "Плагины и блоки",
       "info.nav.templates": "Шаблоны",
-      "info.nav.mailing": "Рассылки",
+      "info.nav.mailing": "Редактор Постов Ботов",
       "info.nav.analytics": "Аналитика ботов и данные",
       "info.nav.deploy": "Деплой",
       "info.nav.tips": "Полезные советы",
 
       "info.hero.desc":
-        "Настольное приложение для создания Telegram- и VK-ботов без ручной сборки проекта: визуальный сценарий, свои блоки (плагины), Менеджер каналов, Редактор постов, шаблоны, аналитика ботов, рассылки и выгрузка на сервер.",
+        "Настольное приложение для создания Telegram- и VK-ботов без ручной сборки проекта: визуальный сценарий, свои блоки (плагины), Менеджер Каналов, Редактор Постов Канала, шаблоны, аналитика ботов, рассылки и выгрузка на сервер.",
 
       "info.modules.title": "Разделы главного меню",
       "info.modules.intro": "Каждый раздел — отдельный модуль. Порядок как на главном экране. Кратко, за что он отвечает:",
       "info.modules.monitor.title_html": '<a href="/monitor/">Мониторинг</a>',
       "info.modules.monitor.desc": "CPU/RAM, процессы ботов, потоковые логи API и LLM.",
-      "info.modules.channel_manager.title_html": '<a href="/channel-hub/">Менеджер каналов</a>',
+      "info.modules.channel_manager.title_html": '<a href="/channel-hub/">Менеджер Каналов</a>',
       "info.modules.channel_manager.desc": "Подключение каналов и ботов-модераторов, статистика, лента, модерация комментариев.",
-      "info.modules.post_editor.title_html": '<a href="/post-studio/">Редактор постов</a>',
+      "info.modules.post_editor.title_html": '<a href="/post-studio/">Редактор Постов Канала</a>',
       "info.modules.post_editor.desc": "Создание, планирование и публикация постов в Telegram-каналы.",
-      "info.modules.bots.title_html": '<a href="/bots/">Чат-боты</a>',
+      "info.modules.bots.title_html": '<a href="/bots/">Чат-Боты</a>',
       "info.modules.bots.desc": "Список ботов, токены, запуск/остановка, переход в конструктор сценариев.",
       "info.modules.scenario.title_html": '<a href="/editor/scenario/">Редактор сценариев</a>',
       "info.modules.scenario.desc": "Холст с блоками и связями — логика диалога, меню, условия, сообщения.",
       "info.modules.templates.title_html": '<a href="/templates/">Библиотека шаблонов</a>',
       "info.modules.templates.desc": "Готовые сценарии, импорт/экспорт <code>.bbpack.json</code>, установка на бота.",
-      "info.modules.mailing.title_html": '<a href="/mailing/">Рассылки</a>',
+      "info.modules.mailing.title_html": '<a href="/mailing/">Редактор Постов Ботов</a>',
       "info.modules.mailing.desc": "HTML-сообщения с медиа, фильтр подписчиков по ролям и тегам.",
       "info.modules.analytics.title_html": '<a href="/analytics/">Аналитика ботов</a>',
       "info.modules.analytics.desc": "Графики активности, календарь событий, обзор по выбранному чат-боту.",
@@ -249,19 +249,19 @@
       "info.quickstart.step1_html":
         '<strong>Создайте бота в мессенджере.</strong> Telegram: <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> → команда <code>/newbot</code> → скопируйте API-токен. VK: создайте сообщество и получите ключ доступа группы с правами сообщений.',
       "info.quickstart.step2_html":
-        'Откройте <a href="/bots/">Чат-боты</a> → добавьте бота: название, платформа (Telegram или VK), вставьте токен. Для каналов: создайте <strong>бота-модератора</strong> в <a href="/channel-hub/">Менеджере каналов</a> и сделайте его администратором канала.',
+        'Откройте <a href="/bots/">Чат-Боты</a> → добавьте бота: название, платформа (Telegram или VK), вставьте токен. Для каналов: создайте <strong>бота-модератора</strong> в <a href="/channel-hub/">Менеджере Каналов</a> и сделайте его администратором канала.',
       "info.quickstart.step3_html":
-        'Диалог: нажмите <strong>Конструктор сценариев</strong> у карточки бота и соберите цепочку (старт → сообщения / меню → условия). Посты в канал: откройте <a href="/post-studio/">Редактор постов</a>, выберите подключённый канал и составьте пост.',
+        'Диалог: нажмите <strong>Конструктор сценариев</strong> у карточки бота и соберите цепочку (старт → сообщения / меню → условия). Посты в канал: откройте <a href="/post-studio/">Редактор Постов Канала</a>, выберите подключённый канал и составьте пост.',
       "info.quickstart.step4_html":
         "Сохраните сценарий (кнопка сохранения в редакторе) или опубликуйте/запланируйте пост. При необходимости вернитесь к списку ботов и <strong>запустите</strong> чат-бота; для каналов держите бота-модератора запущенным.",
       "info.quickstart.step5_html":
         'Проверьте диалог в Telegram или VK либо сам канал. Смотрите логи в <a href="/monitor/">Мониторинге</a>, если что-то не отвечает.',
       "info.quickstart.tip_html":
-        "<strong>Совет.</strong> Для VK можно подставить стандартный сценарий (приветствие и меню) прямо из карточки бота — удобно как точка старта. Статистика постов и комментарии — в Менеджере каналов, а не в Аналитике ботов.",
+        "<strong>Совет.</strong> Для VK можно подставить стандартный сценарий (приветствие и меню) прямо из карточки бота — удобно как точка старта. Статистика постов и комментарии — в Менеджере Каналов, а не в Аналитике ботов.",
 
-      "info.bots.title": "Чат-боты",
+      "info.bots.title": "Чат-Боты",
       "info.bots.intro_html":
-        'Раздел <a href="/bots/">Чат-боты</a> — центр управления диалоговыми проектами. Каждый чат-бот хранит сценарий, файлы и базу пользователей в папке проекта. <strong>Боты-модераторы</strong> (только для каналов, без сценария) создаются и ведутся в <a href="/channel-hub/">Менеджере каналов</a>.',
+        'Раздел <a href="/bots/">Чат-Боты</a> — центр управления диалоговыми проектами. Каждый чат-бот хранит сценарий, файлы и базу пользователей в папке проекта. <strong>Боты-модераторы</strong> (только для каналов, без сценария) создаются и ведутся в <a href="/channel-hub/">Менеджере Каналов</a>.',
       "info.bots.actions_title": "Что можно делать",
       "info.bots.action1": "Добавлять и удалять чат-ботов (Telegram / VK).",
       "info.bots.action2": "Запускать и останавливать процесс бота.",
@@ -270,28 +270,28 @@
       "info.bots.note_html":
         "<strong>Важно.</strong> После смены сценария обычно нужно <em>перезапустить</em> бота, чтобы подтянуть новый код. Бот-модератор должен быть администратором канала, чтобы публиковать посты и модерировать комментарии.",
 
-      "info.channel_manager.title": "Менеджер каналов",
+      "info.channel_manager.title": "Менеджер Каналов",
       "info.channel_manager.intro_html":
-        '<a href="/channel-hub/">Менеджер каналов</a> связывает Telegram-каналы с BotBuilder: боты-модераторы, KPI, лента постов, графики и модерация комментариев.',
+        '<a href="/channel-hub/">Менеджер Каналов</a> связывает Telegram-каналы с BotBuilder: боты-модераторы, KPI, лента постов, графики и модерация комментариев.',
       "info.channel_manager.how_title": "Как подключить канал",
       "info.channel_manager.how1": "Создайте или выберите бота-модератора (токен от @BotFather). У этого типа нет сценария — он обслуживает только каналы.",
       "info.channel_manager.how2": "Добавьте бота администратором Telegram-канала (как минимум с правом публикации).",
       "info.channel_manager.how3_html":
-        "В Менеджере каналов добавьте канал (публичный <code>@username</code> или invite-ссылка) и привяжите к боту-модератору.",
+        "В Менеджере Каналов добавьте канал (публичный <code>@username</code> или invite-ссылка) и привяжите к боту-модератору.",
       "info.channel_manager.how4": "Откройте карточку канала: обзор, графики, недавние посты и действия (правка / удаление / комментарии).",
       "info.channel_manager.features_title": "Что даёт раздел",
       "info.channel_manager.feat1": "Список подключённых каналов и быстрое переключение между ними.",
       "info.channel_manager.feat2": "Просмотры, реакции и вовлечённость; при необходимости — экспорт PDF.",
-      "info.channel_manager.feat3": "Лента постов с обновлением; переход в Редактор постов для создания или правки.",
+      "info.channel_manager.feat3": "Лента постов с обновлением; переход в Редактор Постов Канала для создания или правки.",
       "info.channel_manager.feat4": "Модерация комментариев, если у поста включено обсуждение.",
       "info.channel_manager.note":
-        "Менеджер каналов работает через бота-модератора. Держите его запущенным, пока публикуете или модерируете.",
+        "Менеджер Каналов работает через бота-модератора. Держите его запущенным, пока публикуете или модерируете.",
 
-      "info.post_editor.title": "Редактор постов",
+      "info.post_editor.title": "Редактор Постов Канала",
       "info.post_editor.intro_html":
-        '<a href="/post-studio/">Редактор постов</a> собирает посты для канала: визуальная вёрстка или HTML, медиа, inline-кнопки, расписание и публикация.',
+        '<a href="/post-studio/">Редактор Постов Канала</a> собирает посты для канала: визуальная вёрстка или HTML, медиа, inline-кнопки, расписание и публикация.',
       "info.post_editor.how_title": "Как опубликовать пост",
-      "info.post_editor.how1": "Выберите целевой канал (он уже должен быть подключён в Менеджере каналов).",
+      "info.post_editor.how1": "Выберите целевой канал (он уже должен быть подключён в Менеджере Каналов).",
       "info.post_editor.how2": "Составьте пост: добавьте ряды (текст, медиа, кнопки) или переключитесь в режим HTML.",
       "info.post_editor.how3": "Сохраните черновик, опубликуйте сразу или выберите дату/время для отложенной публикации.",
       "info.post_editor.how4": "Кнопка «Обновить» — для уже опубликованного поста; «Новый пост» очищает форму после успешной публикации.",
@@ -301,7 +301,7 @@
       "info.post_editor.feat3": "История черновиков и опубликованных постов выбранного канала.",
       "info.post_editor.feat4": "После публикации или планирования — новый пост одним кликом.",
       "info.post_editor.note":
-        "Для публикации нужен запущенный бот-модератор с правами в канале. Если публикация не удалась — проверьте Менеджер каналов и логи Мониторинга.",
+        "Для публикации нужен запущенный бот-модератор с правами в канале. Если публикация не удалась — проверьте Менеджер Каналов и логи Мониторинга.",
 
       "info.scenario.title": "Редактор сценариев",
       "info.scenario.intro_html":
@@ -353,12 +353,12 @@
       "info.analytics.title": "Аналитика ботов и база данных",
       "info.analytics.section_title": "Аналитика ботов",
       "info.analytics.desc_html":
-        '<a href="/analytics/">Аналитика ботов</a> показывает активность выбранного чат-бота: периоды «сегодня / 7 / 30 дней», графики и календарь. Это визуализация — данные берутся из работы бота и хранилища пользователей. Статистика постов канала — в <a href="/channel-hub/">Менеджере каналов</a>.',
+        '<a href="/analytics/">Аналитика ботов</a> показывает активность выбранного чат-бота: периоды «сегодня / 7 / 30 дней», графики и календарь. Это визуализация — данные берутся из работы бота и хранилища пользователей. Статистика постов канала — в <a href="/channel-hub/">Менеджере Каналов</a>.',
       "info.database.section_title": "База данных",
       "info.database.desc_html":
         '<a href="/database/">База данных</a> открывает <code>user_data.db</code> проекта: таблицы, поля, импорт из другого <code>.db</code> или JSON. Удобно править роли, теги и тестовые записи вручную.',
 
-      "info.mailing.title": "Рассылки",
+      "info.mailing.title": "Редактор Постов Ботов",
       "info.mailing.desc_html":
         'В <a href="/mailing/">Рассылках</a> можно отправить HTML-сообщение с медиа подписчикам бота. Фильтруйте аудиторию по ролям и тегам из базы пользователей, проверьте превью и запустите рассылку.',
       "info.mailing.note":
@@ -381,11 +381,11 @@
       "info.tips.item2_html":
         'Тема: <strong>Вид → Светлая / Тёмная</strong> или <span class="info-kbd">Ctrl</span>+<span class="info-kbd">Shift</span>+<span class="info-kbd">L</span>.',
       "info.tips.item3_html":
-        "Несколько окон: <strong>Вид → Новое окно</strong> — удобно держать редактор, Менеджер каналов и мониторинг рядом.",
+        "Несколько окон: <strong>Вид → Новое окно</strong> — удобно держать редактор, Менеджер Каналов и мониторинг рядом.",
       "info.tips.item4":
         "Если страница «пустая» или API не отвечает — перезапустите приложение и проверьте пункт «Настройки» (порт API в меню).",
       "info.tips.item5":
-        "После обновления BotBuilder пересоберите/перезапустите ботов (включая ботов-модераторов в Менеджере каналов), чтобы подтянуть новый runtime и плагины.",
+        "После обновления BotBuilder пересоберите/перезапустите ботов (включая ботов-модераторов в Менеджере Каналов), чтобы подтянуть новый runtime и плагины.",
       "info.tips.footer_html":
         'Открыть эту справку можно в любой момент: меню <strong>Справка → Инфо</strong> или горячая клавиша <span class="info-kbd">F1</span>.',
     },
@@ -396,35 +396,35 @@
       "info.nav.modules": "Secciones del menú",
       "info.nav.quickstart": "Inicio rápido",
       "info.nav.monitor": "Monitorización",
-      "info.nav.channel_manager": "Gestor de canales",
-      "info.nav.post_editor": "Editor de posts",
-      "info.nav.bots": "Chat bots",
+      "info.nav.channel_manager": "Gestor De Canales",
+      "info.nav.post_editor": "Editor De Posts Del Canal",
+      "info.nav.bots": "Chat Bots",
       "info.nav.scenario": "Editor de escenarios",
       "info.nav.plugins": "Plugins y bloques",
       "info.nav.templates": "Plantillas",
-      "info.nav.mailing": "Difusiones",
+      "info.nav.mailing": "Editor De Posts De Bots",
       "info.nav.analytics": "Analítica de bots y datos",
       "info.nav.deploy": "Despliegue",
       "info.nav.tips": "Consejos útiles",
 
       "info.hero.desc":
-        "Aplicación de escritorio para crear bots de Telegram y VK sin montar el proyecto a mano: escenario visual, bloques propios (plugins), Gestor de canales, Editor de posts, plantillas, Analítica de bots, difusiones y despliegue en servidor.",
+        "Aplicación de escritorio para crear bots de Telegram y VK sin montar el proyecto a mano: escenario visual, bloques propios (plugins), Gestor De Canales, Editor De Posts Del Canal, plantillas, Analítica de bots, difusiones y despliegue en servidor.",
 
       "info.modules.title": "Secciones del menú principal",
       "info.modules.intro": "Cada sección es un módulo aparte. El orden coincide con la pantalla de inicio. Brevemente, para qué sirve:",
       "info.modules.monitor.title_html": '<a href="/monitor/">Monitorización</a>',
       "info.modules.monitor.desc": "CPU/RAM, procesos de bots, logs en streaming de API e IA.",
-      "info.modules.channel_manager.title_html": '<a href="/channel-hub/">Gestor de canales</a>',
+      "info.modules.channel_manager.title_html": '<a href="/channel-hub/">Gestor De Canales</a>',
       "info.modules.channel_manager.desc": "Conectar canales y bots moderadores, estadísticas, feed y moderación de comentarios.",
-      "info.modules.post_editor.title_html": '<a href="/post-studio/">Editor de posts</a>',
+      "info.modules.post_editor.title_html": '<a href="/post-studio/">Editor De Posts Del Canal</a>',
       "info.modules.post_editor.desc": "Crear, programar y publicar posts en canales de Telegram.",
-      "info.modules.bots.title_html": '<a href="/bots/">Chat bots</a>',
+      "info.modules.bots.title_html": '<a href="/bots/">Chat Bots</a>',
       "info.modules.bots.desc": "Lista de bots, tokens, iniciar/detener, abrir el constructor de escenarios.",
       "info.modules.scenario.title_html": '<a href="/editor/scenario/">Editor de escenarios</a>',
       "info.modules.scenario.desc": "Lienzo con bloques y conexiones — lógica del diálogo, menús, condiciones, mensajes.",
       "info.modules.templates.title_html": '<a href="/templates/">Biblioteca de plantillas</a>',
       "info.modules.templates.desc": "Escenarios listos, importar/exportar <code>.bbpack.json</code>, instalar en un bot.",
-      "info.modules.mailing.title_html": '<a href="/mailing/">Difusiones</a>',
+      "info.modules.mailing.title_html": '<a href="/mailing/">Editor De Posts De Bots</a>',
       "info.modules.mailing.desc": "Mensajes HTML con medios, filtrar suscriptores por roles y etiquetas.",
       "info.modules.analytics.title_html": '<a href="/analytics/">Analítica de bots</a>',
       "info.modules.analytics.desc": "Gráficos de actividad, calendario de eventos, resumen del chat bot seleccionado.",
@@ -441,19 +441,19 @@
       "info.quickstart.step1_html":
         '<strong>Cree un bot en el mensajero.</strong> Telegram: <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> → comando <code>/newbot</code> → copie el token API. VK: cree una comunidad y obtenga la clave de acceso del grupo con permisos de mensajes.',
       "info.quickstart.step2_html":
-        'Abra <a href="/bots/">Chat bots</a> → añada un bot: nombre, plataforma (Telegram o VK), pegue el token. Para canales: cree un <strong>bot moderador</strong> en el <a href="/channel-hub/">Gestor de canales</a> y añádalo como admin del canal.',
+        'Abra <a href="/bots/">Chat Bots</a> → añada un bot: nombre, plataforma (Telegram o VK), pegue el token. Para canales: cree un <strong>bot moderador</strong> en el <a href="/channel-hub/">Gestor De Canales</a> y añádalo como admin del canal.',
       "info.quickstart.step3_html":
-        'Diálogo: pulse <strong>Constructor de escenarios</strong> en la tarjeta del bot y arme la cadena (inicio → mensajes / menú → condiciones). Posts al canal: abra el <a href="/post-studio/">Editor de posts</a>, elija un canal conectado y redacte el post.',
+        'Diálogo: pulse <strong>Constructor de escenarios</strong> en la tarjeta del bot y arme la cadena (inicio → mensajes / menú → condiciones). Posts al canal: abra el <a href="/post-studio/">Editor De Posts Del Canal</a>, elija un canal conectado y redacte el post.',
       "info.quickstart.step4_html":
         "Guarde el escenario (botón guardar en el editor) o publique/programe el post. Si hace falta, vuelva a la lista e <strong>inicie</strong> el chat bot; para canales mantenga el bot moderador en marcha.",
       "info.quickstart.step5_html":
         'Pruebe el diálogo en Telegram o VK, o revise el canal. Use los logs en <a href="/monitor/">Monitorización</a> si no responde.',
       "info.quickstart.tip_html":
-        "<strong>Consejo.</strong> Para VK puede aplicar un escenario predeterminado (saludo y menú) desde la tarjeta del bot — un buen punto de partida. Las estadísticas de posts y comentarios están en el Gestor de canales, no en Analítica de bots.",
+        "<strong>Consejo.</strong> Para VK puede aplicar un escenario predeterminado (saludo y menú) desde la tarjeta del bot — un buen punto de partida. Las estadísticas de posts y comentarios están en el Gestor De Canales, no en Analítica de bots.",
 
-      "info.bots.title": "Chat bots",
+      "info.bots.title": "Chat Bots",
       "info.bots.intro_html":
-        'La sección <a href="/bots/">Chat bots</a> es el centro de proyectos de diálogo. Cada chat bot guarda su escenario, archivos y base de usuarios en la carpeta del proyecto. Los <strong>bots moderadores</strong> (solo canales, sin escenario) se crean y gestionan en el <a href="/channel-hub/">Gestor de canales</a>.',
+        'La sección <a href="/bots/">Chat Bots</a> es el centro de proyectos de diálogo. Cada chat bot guarda su escenario, archivos y base de usuarios en la carpeta del proyecto. Los <strong>bots moderadores</strong> (solo canales, sin escenario) se crean y gestionan en el <a href="/channel-hub/">Gestor De Canales</a>.',
       "info.bots.actions_title": "Qué puede hacer",
       "info.bots.action1": "Añadir y eliminar chat bots (Telegram / VK).",
       "info.bots.action2": "Iniciar y detener el proceso del bot.",
@@ -462,28 +462,28 @@
       "info.bots.note_html":
         "<strong>Importante.</strong> Tras cambiar el escenario suele hacer falta <em>reiniciar</em> el bot para cargar el código nuevo. El bot moderador debe ser administrador del canal para publicar posts y moderar comentarios.",
 
-      "info.channel_manager.title": "Gestor de canales",
+      "info.channel_manager.title": "Gestor De Canales",
       "info.channel_manager.intro_html":
-        'El <a href="/channel-hub/">Gestor de canales</a> conecta canales de Telegram con BotBuilder: bots moderadores, KPI, feed de posts, gráficos y moderación de comentarios.',
+        'El <a href="/channel-hub/">Gestor De Canales</a> conecta canales de Telegram con BotBuilder: bots moderadores, KPI, feed de posts, gráficos y moderación de comentarios.',
       "info.channel_manager.how_title": "Cómo conectar un canal",
       "info.channel_manager.how1": "Cree o elija un bot moderador (token de @BotFather). Este tipo no tiene escenario: solo sirve a canales.",
       "info.channel_manager.how2": "Añada el bot como administrador de su canal de Telegram (al menos con permiso de publicación).",
       "info.channel_manager.how3_html":
-        "En el Gestor de canales, añada el canal (<code>@username</code> público o enlace de invitación) y vincúlelo al bot moderador.",
+        "En el Gestor De Canales, añada el canal (<code>@username</code> público o enlace de invitación) y vincúlelo al bot moderador.",
       "info.channel_manager.how4": "Abra la ficha del canal: resumen, gráficos, posts recientes y acciones (editar / eliminar / comentarios).",
       "info.channel_manager.features_title": "Qué incluye",
       "info.channel_manager.feat1": "Lista de canales conectados y cambio rápido entre ellos.",
       "info.channel_manager.feat2": "Vistas, reacciones y engagement; exportación PDF si hace falta.",
-      "info.channel_manager.feat3": "Feed de posts con actualización; abrir el Editor de posts para crear o editar.",
+      "info.channel_manager.feat3": "Feed de posts con actualización; abrir el Editor De Posts Del Canal para crear o editar.",
       "info.channel_manager.feat4": "Moderación de comentarios cuando la discusión está activada.",
       "info.channel_manager.note":
-        "El Gestor de canales habla con Telegram a través del bot moderador. Manténgalo en marcha mientras publica o modera.",
+        "El Gestor De Canales habla con Telegram a través del bot moderador. Manténgalo en marcha mientras publica o modera.",
 
-      "info.post_editor.title": "Editor de posts",
+      "info.post_editor.title": "Editor De Posts Del Canal",
       "info.post_editor.intro_html":
-        'El <a href="/post-studio/">Editor de posts</a> crea posts de canal: diseño visual o HTML, medios, botones inline, programación y publicación.',
+        'El <a href="/post-studio/">Editor De Posts Del Canal</a> crea posts de canal: diseño visual o HTML, medios, botones inline, programación y publicación.',
       "info.post_editor.how_title": "Cómo publicar un post",
-      "info.post_editor.how1": "Seleccione el canal de destino (debe estar ya conectado en el Gestor de canales).",
+      "info.post_editor.how1": "Seleccione el canal de destino (debe estar ya conectado en el Gestor De Canales).",
       "info.post_editor.how2": "Redacte el post: añada filas (texto, medios, botones) o cambie al modo HTML.",
       "info.post_editor.how3": "Guarde un borrador, publique ahora o elija fecha/hora para programar.",
       "info.post_editor.how4": "Use Actualizar al editar un post ya publicado; Nuevo post limpia el formulario tras una publicación correcta.",
@@ -493,7 +493,7 @@
       "info.post_editor.feat3": "Historial de borradores y posts publicados del canal seleccionado.",
       "info.post_editor.feat4": "Tras publicar o programar, inicie un post nuevo con un clic.",
       "info.post_editor.note":
-        "Para publicar hace falta un bot moderador en marcha con permisos en el canal. Si falla, revise el Gestor de canales y los logs de Monitorización.",
+        "Para publicar hace falta un bot moderador en marcha con permisos en el canal. Si falla, revise el Gestor De Canales y los logs de Monitorización.",
 
       "info.scenario.title": "Editor de escenarios",
       "info.scenario.intro_html":
@@ -545,14 +545,14 @@
       "info.analytics.title": "Analítica de bots y base de datos",
       "info.analytics.section_title": "Analítica de bots",
       "info.analytics.desc_html":
-        '<a href="/analytics/">Analítica de bots</a> muestra la actividad del chat bot seleccionado: «hoy / 7 / 30 días», gráficos y calendario. Solo visualización — los datos vienen de la actividad del bot y del almacén de usuarios. Las estadísticas de posts del canal están en el <a href="/channel-hub/">Gestor de canales</a>.',
+        '<a href="/analytics/">Analítica de bots</a> muestra la actividad del chat bot seleccionado: «hoy / 7 / 30 días», gráficos y calendario. Solo visualización — los datos vienen de la actividad del bot y del almacén de usuarios. Las estadísticas de posts del canal están en el <a href="/channel-hub/">Gestor De Canales</a>.',
       "info.database.section_title": "Base de datos",
       "info.database.desc_html":
         '<a href="/database/">Base de datos</a> abre el <code>user_data.db</code> del proyecto: tablas, campos, importar desde otro <code>.db</code> o JSON. Útil para editar roles, etiquetas y registros de prueba.',
 
-      "info.mailing.title": "Difusiones",
+      "info.mailing.title": "Editor De Posts De Bots",
       "info.mailing.desc_html":
-        'En <a href="/mailing/">Difusiones</a> puede enviar un mensaje HTML con medios a los suscriptores del bot. Filtre la audiencia por roles y etiquetas, previsualice y lance la difusión.',
+        'En <a href="/mailing/">Editor De Posts De Bots</a> puede enviar un mensaje HTML con medios a los suscriptores del bot. Filtre la audiencia por roles y etiquetas, previsualice y lance la difusión.',
       "info.mailing.note":
         "El bot debe estar disponible (token válido). Para listas grandes, vigile los límites del mensajero y los logs en monitorización.",
 
@@ -573,11 +573,11 @@
       "info.tips.item2_html":
         'Tema: <strong>Ver → Claro / Oscuro</strong> o <span class="info-kbd">Ctrl</span>+<span class="info-kbd">Shift</span>+<span class="info-kbd">L</span>.',
       "info.tips.item3_html":
-        "Varias ventanas: <strong>Ver → Nueva ventana</strong> — útil para tener el editor, el Gestor de canales y la monitorización a la vez.",
+        "Varias ventanas: <strong>Ver → Nueva ventana</strong> — útil para tener el editor, el Gestor De Canales y la monitorización a la vez.",
       "info.tips.item4":
         "Si la página está en blanco o la API no responde — reinicie la aplicación y revise «Ajustes» (puerto API en el menú).",
       "info.tips.item5":
-        "Tras actualizar BotBuilder, recompile/reinicie los bots (incluidos los moderadores en el Gestor de canales) para cargar el nuevo runtime y plugins.",
+        "Tras actualizar BotBuilder, recompile/reinicie los bots (incluidos los moderadores en el Gestor De Canales) para cargar el nuevo runtime y plugins.",
       "info.tips.footer_html":
         'Abra esta ayuda en cualquier momento: menú <strong>Ayuda → Info</strong> o tecla <span class="info-kbd">F1</span>.',
     },

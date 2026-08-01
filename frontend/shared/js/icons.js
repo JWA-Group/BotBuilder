@@ -40,6 +40,24 @@ const ICON_PATHS = {
 
   deploy:
     '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
+
+  // Channel Hub analytics widgets
+  growth:
+    '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+  hours:
+    '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  tags:
+    '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+  feed:
+    '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+  metrics:
+    '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+  warnings:
+    '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  posts:
+    '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
+  moderation:
+    '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/>',
 };
 
 /**
@@ -67,6 +85,14 @@ export const CARD_ICON_THEMES = {
   plugins: "menu-icon-theme-pink",
   database: "menu-icon-theme-slate",
   deploy: "menu-icon-theme-rose",
+  growth: "menu-icon-theme-emerald",
+  hours: "menu-icon-theme-blue",
+  tags: "menu-icon-theme-pink",
+  feed: "menu-icon-theme-violet",
+  metrics: "menu-icon-theme-amber",
+  warnings: "menu-icon-theme-orange",
+  posts: "menu-icon-theme-slate",
+  moderation: "menu-icon-theme-cyan",
 };
 
 /**

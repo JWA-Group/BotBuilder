@@ -4,10 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <title data-i18n="mailing.title">Broadcasts</title>
-    
-        <link rel="stylesheet" href="/shared/css/app-shell.css" />
+    <title data-i18n="mailing.title">Bots Post Editor</title>
+    <link rel="stylesheet" href="/shared/css/app-shell.css" />
     <script>
       (function () {
         try {
@@ -21,114 +19,271 @@
     <script src="/shared/js/theme.js"></script>
     <script src="/shared/js/locales.js"></script>
     <script src="/shared/js/i18n.js"></script>
-
     <link rel="stylesheet" href="/shared/css/page-shell.css" />
-    <link rel="stylesheet" href="mailing.css?v=4" />
+    <link rel="stylesheet" href="/database/database.css?v=1" />
+    <link rel="stylesheet" href="/post-studio/post-studio.css?v=26" />
+    <link rel="stylesheet" href="mailing.css?v=6" />
   </head>
   <body>
     <div class="dashboard">
       <header class="dashboard-header">
         <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
-        <h1 class="page-title" data-i18n="mailing.title">Broadcasts</h1>
+        <h1 class="page-title" data-i18n="mailing.title">Bots Post Editor</h1>
       </header>
 
-      <main class="dashboard-content bc-page">
-        <div class="bc-toolbar">
-          <div class="bc-toolbar-left">
-            <label for="bc-bot-select" data-i18n="common.bot">Bot</label>
-            <select id="bc-bot-select">
-              <option value="" data-i18n="common.select_bot">— select a bot —</option>
-            </select>
-            <label for="bc-role-select" data-i18n="mailing.audience">Audience</label>
-            <select id="bc-role-select" disabled>
-              <option value="all" data-i18n="mailing.all_subscribers">All subscribers</option>
-            </select>
-            <span id="bc-filter-meta" class="bc-filter-meta"></span>
+      <main class="dashboard-content ps-page">
+        <div class="ps-toolbar ps-glass">
+          <div class="ps-toolbar-left">
+            <label class="ps-label" for="ps-bot-select" data-i18n="common.bot">Bot</label>
+            <select id="ps-bot-select" class="db-input"></select>
+            <label class="ps-label" for="ps-audience-select" data-i18n="mailing.audience">Audience</label>
+            <select id="ps-audience-select" class="db-input"></select>
+            <span id="ps-filter-meta" class="ps-hint"></span>
           </div>
-          <div class="bc-toolbar-right">
-            <button type="button" id="bc-refresh-btn" class="bc-btn-secondary" data-i18n="mailing.refresh">Refresh</button>
-            <button type="button" id="bc-send-btn" class="bc-btn-success" disabled>
-              <span id="bc-send-spinner" class="bc-spinner" hidden></span>
-              <span data-i18n="mailing.send">Send broadcast</span>
-            </button>
+          <div class="ps-toolbar-right ps-seg" role="tablist">
+            <button type="button" class="ps-seg-btn ps-tab-btn ps-tab-active" data-tab="studio" data-i18n="publisher.tab_studio">Studio</button>
+            <button type="button" class="ps-seg-btn ps-tab-btn" data-tab="history" data-i18n="publisher.tab_history">History</button>
           </div>
         </div>
 
-        <div id="bc-status" class="bc-status" hidden></div>
+        <p id="ps-edit-banner-text" class="ps-edit-hint" hidden></p>
 
-        <div class="bc-layout">
-          <section class="bc-composer">
-            <div class="bc-editor-toolbar" id="bc-editor-toolbar">
-              <button type="button" class="bc-tool-btn" data-cmd="bold" data-i18n-title="mailing.tool_bold" title="Bold"><b>B</b></button>
-              <button type="button" class="bc-tool-btn" data-cmd="italic" data-i18n-title="mailing.tool_italic" title="Italic"><i>I</i></button>
-              <button type="button" class="bc-tool-btn" data-cmd="underline" data-i18n-title="mailing.tool_underline" title="Underline"><u>U</u></button>
-              <button type="button" class="bc-tool-btn" data-cmd="strike" data-i18n-title="mailing.tool_strike" title="Strikethrough"><s>S</s></button>
-              <button type="button" class="bc-tool-btn" data-cmd="code" data-i18n-title="mailing.tool_code" title="Code">Code</button>
-              <button type="button" class="bc-tool-btn" data-cmd="link" data-i18n-title="mailing.tool_link" title="Link">🔗</button>
-              <span class="bc-toolbar-sep"></span>
-              <button type="button" class="bc-tool-btn" id="bc-import-html-btn" data-i18n-title="mailing.tool_html" title="HTML">HTML</button>
-              <button type="button" class="bc-tool-btn" id="bc-insert-image-btn" data-i18n-title="mailing.tool_image" title="Add image">🖼</button>
-              <input type="file" id="bc-image-input" accept="image/*" hidden />
-            </div>
-            <div id="bc-html-panel" class="bc-html-panel" hidden>
-              <div class="bc-html-panel-head">
-                <strong data-i18n="mailing.html_title">HTML for Telegram</strong>
-                <span class="bc-html-panel-hint" data-i18n="mailing.html_hint">Synced with the editor. «Apply» updates the text from HTML.</span>
-                <button type="button" class="bc-html-panel-close" id="bc-html-panel-close" data-i18n-title="mailing.html_hide" title="Hide panel">×</button>
-              </div>
-              <textarea id="bc-html-modal-input" class="bc-html-modal-input" spellcheck="false" data-i18n-placeholder="mailing.html_paste_field" placeholder="&lt;b&gt;Text&lt;/b&gt; or &lt;div&gt;...&lt;/div&gt;"></textarea>
-              <div class="bc-html-panel-actions">
-                <button type="button" class="bc-btn-success" id="bc-html-modal-apply" data-i18n="mailing.html_apply">Apply to editor</button>
-              </div>
-            </div>
-            <div id="bc-editor" class="bc-editor" contenteditable="true" spellcheck="true"></div>
-            <div class="bc-attachments">
-              <div class="bc-attachments-head">
-                <h3 data-i18n="mailing.media_files">Media and files</h3>
-                <label class="bc-position-label">
-                  <span data-i18n="mailing.image_position">Images relative to text</span>
-                  <select id="bc-image-position">
-                    <option value="before" data-i18n="mailing.image_before">Above text (photo caption)</option>
-                    <option value="after" data-i18n="mailing.image_after">Below text (separate messages)</option>
-                  </select>
-                </label>
-              </div>
-              <div id="bc-dropzone" class="bc-dropzone">
-                <span data-i18n="mailing.dropzone">Drag images or documents here, or click to choose</span>
-                <input type="file" id="bc-file-input" multiple accept="image/*,.pdf,.doc,.docx,.zip" hidden />
-              </div>
-              <div id="bc-attachment-list" class="bc-attachment-list"></div>
-            </div>
-          </section>
+        <section id="ps-tab-studio" class="ps-tab-panel">
+          <div class="ps-layout">
+            <div class="ps-editor-col">
+              <!-- Block 1: Header & mode -->
+              <section class="ps-card ps-glass">
+                <div class="ps-card-head">
+                  <div>
+                    <h2 class="ps-card-title" data-i18n="mailing.title">Bots Post Editor</h2>
+                    <p class="ps-card-sub" data-i18n="mailing.composer_sub">Compose posts and send them to Telegram Chat Bot subscribers</p>
+                  </div>
+                  <div class="ps-card-head-actions">
+                    <div class="ps-seg" role="group" aria-label="Editor mode">
+                      <button type="button" class="ps-seg-btn ps-mode-btn ps-mode-active" data-mode="visual" data-i18n="publisher.mode_visual">Visual</button>
+                      <button type="button" class="ps-seg-btn ps-mode-btn" data-mode="html" data-i18n="publisher.mode_html">HTML</button>
+                    </div>
+                    <button type="button" class="db-btn-primary" id="ps-new-post" data-i18n="publisher.new_post">New Post</button>
+                    <button type="button" class="db-btn-secondary" id="ps-clear-all" data-i18n="publisher.clear_all">Clear All</button>
+                  </div>
+                </div>
+              </section>
 
-          <aside class="bc-preview-pane">
-            <div class="bc-phone">
-              <div class="bc-phone-statusbar">
-                <span>17:08</span>
-                <span>LTE ▮▮▮</span>
-              </div>
-              <div class="bc-phone-topbar">
-                <span class="bc-phone-back">‹</span>
-                <div class="bc-phone-chat-info">
-                  <strong id="bc-preview-bot-name" data-i18n="mailing.your_bot">Your bot</strong>
-                  <span>bot</span>
+              <!-- Block 2: Text editor -->
+              <section class="ps-card ps-glass">
+                <div id="ps-visual-wrap">
+                  <div class="ps-fmt-bar" id="ps-editor-toolbar">
+                    <div class="ps-tool-group">
+                      <button type="button" class="ps-tool" data-cmd="bold" title="Bold"><b>B</b></button>
+                      <button type="button" class="ps-tool" data-cmd="italic" title="Italic"><i>I</i></button>
+                      <button type="button" class="ps-tool" data-cmd="underline" title="Underline"><u>U</u></button>
+                      <button type="button" class="ps-tool" data-cmd="strike" title="Strike"><s>S</s></button>
+                    </div>
+                    <span class="ps-tool-sep" aria-hidden="true"></span>
+                    <div class="ps-tool-group">
+                      <button type="button" class="ps-tool" data-cmd="code" title="Code">&lt;/&gt;</button>
+                      <button type="button" class="ps-tool" data-cmd="blockquote" title="Quote">❝</button>
+                      <button type="button" class="ps-tool" data-cmd="spoiler" data-i18n-title="publisher.tool_spoiler" title="Spoiler">▮</button>
+                    </div>
+                    <span class="ps-tool-sep" aria-hidden="true"></span>
+                    <div class="ps-tool-group">
+                      <button type="button" class="ps-tool" data-cmd="link" title="Link">🔗</button>
+                    </div>
+                  </div>
+                  <div id="ps-editor" class="ps-editor" contenteditable="true" spellcheck="true"></div>
+                </div>
+                <div id="ps-html-wrap" hidden>
+                  <textarea id="ps-html-input" class="ps-html-input" spellcheck="false" data-i18n-placeholder="publisher.html_placeholder" placeholder="<b>Hello</b>"></textarea>
+                </div>
+              </section>
+
+              <!-- Block 3: Media + Keyboard -->
+              <section class="ps-card ps-glass ps-section" data-section="media">
+                <button type="button" class="ps-section-toggle" data-collapse="ps-media-body" aria-expanded="true">
+                  <span data-i18n="publisher.media_title">Media Attachments</span>
+                  <span class="ps-chevron">▾</span>
+                </button>
+                <div id="ps-media-body" class="ps-section-body">
+                  <div class="ps-section-actions">
+                    <button type="button" class="db-btn-secondary" id="ps-add-media" data-i18n="publisher.add_media">Add Photos/Videos</button>
+                    <button type="button" class="db-btn-secondary" id="ps-reorder-hint" data-i18n="publisher.reorder_album" disabled>Reorder Album</button>
+                  </div>
+                  <div id="ps-dropzone" class="ps-dropzone">
+                    <span data-i18n="publisher.dropzone">Drag photos, videos or documents here (max 10)</span>
+                    <input type="file" id="ps-file-input" multiple accept="image/*,video/*,.pdf,.zip,.doc,.docx" hidden />
+                  </div>
+                  <div id="ps-media-list" class="ps-media-list"></div>
+                  <label class="ps-schedule-label" for="ps-image-position">
+                    <span data-i18n="mailing.image_position">Images relative to text</span>
+                    <select id="ps-image-position" class="db-input">
+                      <option value="before" data-i18n="mailing.image_before">Above text (photo caption)</option>
+                      <option value="after" data-i18n="mailing.image_after">Below text (separate messages)</option>
+                    </select>
+                  </label>
+                  <p id="ps-media-mode" class="ps-hint"></p>
+                </div>
+              </section>
+
+              <section class="ps-card ps-glass ps-section" data-section="keyboard">
+                <button type="button" class="ps-section-toggle" data-collapse="ps-keyboard-body" aria-expanded="true">
+                  <span data-i18n="publisher.keyboard_title">Inline Keyboard Grid</span>
+                  <span class="ps-chevron">▾</span>
+                </button>
+                <div id="ps-keyboard-body" class="ps-section-body">
+                  <div class="ps-section-actions">
+                    <button type="button" class="ps-btn-dashed" id="ps-add-row" data-i18n="publisher.add_row">+ Add Row</button>
+                  </div>
+                  <div id="ps-keyboard" class="ps-keyboard"></div>
+                </div>
+              </section>
+
+              <section class="ps-card ps-glass ps-section" data-section="tags">
+                <button type="button" class="ps-section-toggle" data-collapse="ps-tags-body" aria-expanded="true">
+                  <span data-i18n="publisher.tags_title">Internal tags</span>
+                  <span class="ps-chevron">▾</span>
+                </button>
+                <div id="ps-tags-body" class="ps-section-body">
+                  <div class="ps-tag-create">
+                    <input type="text" id="ps-tag-input" class="db-input" maxlength="48" data-i18n-placeholder="publisher.tags_placeholder" placeholder="Tag name" />
+                    <div id="ps-tag-colors" class="ps-tag-colors" role="radiogroup" aria-label="Tag color"></div>
+                    <button type="button" class="db-btn-secondary" id="ps-tag-add" data-i18n="publisher.tags_add">Add tag</button>
+                  </div>
+                  <div id="ps-tag-list" class="ps-tag-list"></div>
+                </div>
+              </section>
+
+              <section class="ps-card ps-glass ps-section" data-section="autodelete">
+                <button type="button" class="ps-section-toggle" data-collapse="ps-autodelete-body" aria-expanded="true">
+                  <span data-i18n="publisher.autodelete_title">Auto-deletion</span>
+                  <span class="ps-chevron">▾</span>
+                </button>
+                <div id="ps-autodelete-body" class="ps-section-body">
+                  <label class="ps-switch-row" for="ps-autodelete-enabled">
+                    <input type="checkbox" id="ps-autodelete-enabled" />
+                    <span data-i18n="publisher.autodelete_enable">Enable Auto-Delete</span>
+                  </label>
+                  <div id="ps-autodelete-fields" class="ps-autodelete-fields" hidden>
+                    <input type="datetime-local" id="ps-autodelete-at" class="db-input ps-datetime" />
+                    <div id="ps-autodelete-chip" class="ps-autodelete-chip" hidden></div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Block 4: Action footer -->
+              <footer class="ps-card ps-glass ps-action-footer" id="ps-action-footer">
+                <div class="ps-footer-actions" id="ps-footer-actions">
+                  <div class="ps-footer-row ps-footer-primary">
+                    <button type="button" class="db-btn-secondary" id="ps-save-draft" data-i18n="publisher.save_draft">Save Draft</button>
+                    <button type="button" class="db-btn-secondary" id="ps-update-tg" data-i18n="mailing.save_update" disabled>Update Post</button>
+                    <button type="button" class="db-btn-primary ps-cta-primary" id="ps-send" data-i18n="mailing.send">Send To Bots</button>
+                  </div>
+                  <div class="ps-footer-row ps-footer-schedule" id="ps-footer-schedule">
+                    <button type="button" class="db-btn-secondary" id="ps-schedule" data-i18n="publisher.schedule">Schedule</button>
+                    <input type="datetime-local" id="ps-schedule-at" class="db-input ps-datetime" aria-label="Schedule at" />
+                  </div>
+                </div>
+              </footer>
+            </div>
+
+            <!-- Telegram Live Preview — structure preserved -->
+            <aside class="ps-preview-panel">
+              <div class="ps-preview-shell ps-glass">
+                <div class="ps-tg-frame">
+                  <div class="ps-tg-header">
+                    <div class="ps-tg-avatar" id="ps-preview-avatar">TG</div>
+                    <div>
+                      <div class="ps-tg-name" id="ps-preview-name" data-i18n="mailing.your_bot">Your bot</div>
+                      <div class="ps-tg-badge" data-i18n="mailing.preview_badge">bot</div>
+                    </div>
+                  </div>
+                  <div class="ps-tg-bubble">
+                    <div id="ps-preview-media" class="ps-tg-media" hidden></div>
+                    <div id="ps-preview-text" class="ps-tg-text"></div>
+                    <div id="ps-preview-buttons" class="ps-tg-buttons"></div>
+                    <div class="ps-tg-meta">
+                      <span id="ps-preview-time">12:00</span>
+                      <span class="ps-tg-views">👁 1</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="bc-phone-screen">
-                <div id="bc-preview-messages" class="bc-tg-messages"></div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="ps-tab-history" class="ps-tab-panel" hidden>
+          <div class="ps-history-controls ps-glass">
+            <div class="ps-history-toolbar">
+              <div class="ps-history-search-wrap">
+                <span class="ps-history-search-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="M20 20l-3.5-3.5"></path>
+                  </svg>
+                </span>
+                <input type="text" id="ps-history-search" class="db-input ps-history-search" data-i18n-placeholder="publisher.history_search" placeholder="Search posts by keywords or tags..." autocomplete="off" />
+                <button type="button" class="ps-history-search-clear" id="ps-history-search-clear" hidden data-i18n-aria="publisher.history_clear" aria-label="Clear">
+                  <span aria-hidden="true">✕</span>
+                  <span class="ps-history-clear-label" data-i18n="publisher.history_clear">Clear</span>
+                </button>
               </div>
+              <button type="button" class="db-btn-secondary" id="ps-refresh-history" data-i18n="publisher.refresh">Refresh</button>
             </div>
-            <p class="bc-preview-caption" data-i18n="mailing.preview_caption">Preview of the bot's outgoing messages</p>
-          </aside>
-        </div>
+            <div id="ps-history-tag-cloud" class="ps-history-tag-cloud"></div>
+          </div>
+          <div id="ps-history-list" class="ps-history-list"></div>
+        </section>
       </main>
     </div>
 
-    <script src="/shared/js/api-config.js"></script>
-    <script src="BroadcastView.js?v=9"></script>
+    <div id="ps-confirm-modal" class="ps-modal" hidden>
+      <div class="ps-modal-backdrop" data-close="1"></div>
+      <div class="ps-modal-card ps-glass">
+        <h2 id="ps-confirm-title" data-i18n="publisher.delete_title">Delete post?</h2>
+        <p id="ps-confirm-text" data-i18n="publisher.delete_text">This will remove the post from Telegram if it was published.</p>
+        <div class="ps-modal-actions">
+          <button type="button" class="db-btn-secondary" id="ps-confirm-cancel" data-i18n="common.cancel">Cancel</button>
+          <button type="button" class="db-btn-danger" id="ps-confirm-ok" data-i18n="publisher.delete">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ps-link-modal" class="ps-modal" hidden>
+      <div class="ps-modal-backdrop" data-close="1"></div>
+      <div class="ps-modal-card ps-glass">
+        <h2 data-i18n="publisher.link_prompt">Link URL</h2>
+        <p class="ps-hint" data-i18n="publisher.link_hint">Select text in the editor, then paste https://… or tg://…</p>
+        <label class="ps-schedule-label" for="ps-link-url">
+          <span data-i18n="publisher.link_prompt">Link URL</span>
+          <input type="url" id="ps-link-url" class="db-input" placeholder="https://" autocomplete="off" />
+        </label>
+        <div class="ps-modal-actions">
+          <button type="button" class="db-btn-secondary" id="ps-link-cancel" data-i18n="common.cancel">Cancel</button>
+          <button type="button" class="db-btn-primary" id="ps-link-apply" data-i18n="publisher.link_apply">Insert link</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ps-autodelete-modal" class="ps-modal" hidden>
+      <div class="ps-modal-backdrop" data-close="1"></div>
+      <div class="ps-modal-card ps-glass">
+        <h2 data-i18n="publisher.autodelete_update_title">Update Auto-Delete Time</h2>
+        <p class="ps-hint" data-i18n="publisher.autodelete_update_hint">Leave empty to disable auto-deletion.</p>
+        <label class="ps-schedule-label" for="ps-autodelete-modal-at">
+          <span data-i18n="publisher.autodelete_title">Auto-deletion</span>
+          <input type="datetime-local" id="ps-autodelete-modal-at" class="db-input ps-datetime" />
+        </label>
+        <div class="ps-modal-actions">
+          <button type="button" class="db-btn-secondary" id="ps-autodelete-modal-cancel" data-i18n="common.cancel">Cancel</button>
+          <button type="button" class="db-btn-primary" id="ps-autodelete-modal-save" data-i18n="publisher.autodelete_save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="BroadcastStudioView.js?v=3"></script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
-        if (window.BroadcastView) window.BroadcastView.init();
+        if (window.BroadcastStudioView) window.BroadcastStudioView.init();
       });
     </script>
   </body>
