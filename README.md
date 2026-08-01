@@ -1,8 +1,8 @@
-![Python](https://img.shields.io/badge/Python-3.10+-blue.svg?logo=python)
-![aiogram](https://img.shields.io/badge/aiogram-v3.4+-blue?logo=telegram)
-![Electron](https://img.shields.io/badge/Electron-33-47848F?logo=electron)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi)
-![License](https://img.shields.io/badge/license-Elastic%20v2-orange)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg?logo=python)](https://www.python.org/)
+[![aiogram](https://img.shields.io/badge/aiogram-v3.4+-blue?logo=telegram)](https://docs.aiogram.dev/)
+[![Electron](https://img.shields.io/badge/Electron-33-47848F?logo=electron)](https://www.electronjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![License](https://img.shields.io/badge/license-Elastic%20v2-orange)](https://www.elastic.co/licensing/elastic-license)
 # BotBuilder
 
 | Field | Value |
