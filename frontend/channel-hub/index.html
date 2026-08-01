@@ -21,7 +21,8 @@
     <link rel="stylesheet" href="/shared/css/page-shell.css" />
     <link rel="stylesheet" href="/analytics/analytics.css?v=1" />
     <link rel="stylesheet" href="/database/database.css?v=1" />
-    <link rel="stylesheet" href="channel-hub.css?v=6" />
+    <link rel="stylesheet" href="channel-hub.css?v=12" />
+    <script type="module" src="dash-icons-bridge.js?v=1"></script>
     <!-- Chart.js / PDF libs load lazily — sync CDN in <head> froze the app for seconds -->
   </head>
   <body>
@@ -77,133 +78,60 @@
         </div>
 
         <section id="tab-analytics" class="ch-tab-panel" data-pdf-section="analytics">
-          <section class="an-kpi-grid" aria-label="KPI">
-            <article class="an-kpi ch-glass-card">
-              <p class="an-kpi-label" data-i18n="channel_hub.kpi_subscribers">Subscribers</p>
-              <div class="an-kpi-value" id="kpi-subscribers">—</div>
-            </article>
-            <article class="an-kpi ch-glass-card">
-              <p class="an-kpi-label" data-i18n="channel_hub.kpi_joins">Joins today</p>
-              <div class="an-kpi-value" id="kpi-joins">—</div>
-            </article>
-            <article class="an-kpi ch-glass-card">
-              <p class="an-kpi-label" data-i18n="channel_hub.kpi_leaves">Leaves today</p>
-              <div class="an-kpi-value" id="kpi-leaves">—</div>
-            </article>
-            <article class="an-kpi ch-glass-card">
-              <p class="an-kpi-label" data-i18n="channel_hub.kpi_err">Engagement index</p>
-              <div class="an-kpi-value" id="kpi-err">—</div>
-            </article>
-            <article class="an-kpi ch-glass-card">
-              <p class="an-kpi-label" data-i18n="channel_hub.kpi_moderated">Comments moderated</p>
-              <div class="an-kpi-value" id="kpi-moderated">—</div>
-            </article>
-          </section>
-
-          <section class="ch-chart-grid">
-            <div class="an-panel ch-glass-card ch-chart-span-2">
-              <div class="an-panel-head">
-                <div>
-                  <h2 data-i18n="channel_hub.growth_title">Subscriber growth</h2>
-                  <p class="an-panel-sub" data-i18n="channel_hub.growth_sub">Joins vs leaves</p>
-                </div>
+          <div id="ch-dash-workspace" class="ch-dash-workspace">
+            <div class="ch-dash-toolbar ch-glass-card">
+              <div class="ch-dash-toolbar-left">
+                <h2 class="ch-dash-toolbar-title" data-i18n="channel_hub.dash_title">Analytics workspace</h2>
+                <p class="an-panel-sub" data-i18n="channel_hub.dash_sub">Add widgets, resize, and rearrange your dashboard</p>
               </div>
-              <div class="an-chart-wrap ch-chart-tall">
-                <canvas id="ch-growth-chart"></canvas>
+              <div class="ch-dash-toolbar-actions">
+                <button type="button" id="ch-dash-add" class="db-btn-primary" data-i18n="channel_hub.dash_add">+ Add Widget</button>
+                <button type="button" id="ch-dash-edit-toggle" class="db-btn-secondary" aria-pressed="false" data-i18n="channel_hub.dash_edit">Edit Layout</button>
+                <button type="button" id="ch-dash-reset" class="db-btn-secondary" data-i18n="channel_hub.dash_reset">Reset Layout</button>
               </div>
             </div>
 
-            <div class="an-panel ch-glass-card">
-              <div class="an-panel-head ch-panel-head-row">
-                <div>
-                  <h2 data-i18n="channel_hub.hours_title">Peak commenting hours</h2>
-                  <p class="an-panel-sub" data-i18n="channel_hub.hours_sub">Comments by hour (UTC)</p>
-                </div>
-                <div class="ch-view-switch" data-switch="activity" role="group">
-                  <button type="button" class="ch-view-btn ch-view-active" data-view="bar" data-i18n="channel_hub.view_bar">Bar</button>
-                  <button type="button" class="ch-view-btn" data-view="pie" data-i18n="channel_hub.view_pie">Pie</button>
-                </div>
-              </div>
-              <div class="an-chart-wrap ch-chart-tall">
-                <canvas id="ch-hours-chart"></canvas>
-              </div>
+            <div id="ch-dash-empty" class="ch-dash-empty ch-glass-card" hidden>
+              <div class="ch-dash-empty-icon" id="ch-dash-empty-icon" aria-hidden="true"></div>
+              <h3 data-i18n="channel_hub.dash_empty_title">No charts added yet</h3>
+              <p data-i18n="channel_hub.dash_empty_text">Click “+ Add Widget” to build your workspace.</p>
+              <button type="button" class="db-btn-primary" id="ch-dash-empty-add" data-i18n="channel_hub.dash_add">+ Add Widget</button>
             </div>
 
-            <div class="an-panel ch-glass-card">
-              <div class="an-panel-head">
-                <div>
-                  <h2 data-i18n="channel_hub.top_posts_chart_title">Top 5 posts</h2>
-                  <p class="an-panel-sub" data-i18n="channel_hub.top_posts_chart_sub">By engagement index</p>
-                </div>
-              </div>
-              <div class="an-chart-wrap ch-chart-tall">
-                <canvas id="ch-top-posts-chart"></canvas>
-              </div>
-            </div>
-
-            <div class="an-panel ch-glass-card">
-              <div class="an-panel-head ch-panel-head-row">
-                <div>
-                  <h2 data-i18n="channel_hub.reactions_title">Reactions</h2>
-                  <p class="an-panel-sub" data-i18n="channel_hub.reactions_sub">Emoji distribution</p>
-                </div>
-                <div class="ch-view-switch" data-switch="reactions" role="group">
-                  <button type="button" class="ch-view-btn ch-view-active" data-view="pie" data-i18n="channel_hub.view_pie">Pie</button>
-                  <button type="button" class="ch-view-btn" data-view="bar" data-i18n="channel_hub.view_bar">Bar</button>
-                </div>
-              </div>
-              <div class="an-chart-wrap ch-chart-tall">
-                <canvas id="ch-reactions-chart"></canvas>
-              </div>
-            </div>
-
-            <div class="an-panel ch-glass-card">
-              <div class="an-panel-head ch-panel-head-row">
-                <div>
-                  <h2 data-i18n="channel_hub.mod_actions_title">Moderation actions</h2>
-                  <p class="an-panel-sub" data-i18n="channel_hub.mod_actions_sub">Clean / warn / mute / ban</p>
-                </div>
-                <div class="ch-view-switch" data-switch="moderation" role="group">
-                  <button type="button" class="ch-view-btn ch-view-active" data-view="pie" data-i18n="channel_hub.view_donut">Donut</button>
-                  <button type="button" class="ch-view-btn" data-view="bar" data-i18n="channel_hub.view_bar">Bar</button>
-                </div>
-              </div>
-              <div class="an-chart-wrap ch-chart-tall">
-                <canvas id="ch-mod-chart"></canvas>
-              </div>
-            </div>
-          </section>
-
-          <section class="an-panel ch-table-panel ch-glass-card">
-            <div class="an-panel-head ch-panel-head-row">
-              <div>
-                <h2 data-i18n="channel_hub.posts_title">Top posts</h2>
-                <p class="an-panel-sub" data-i18n="channel_hub.posts_sub_compact">Click a row to open post details</p>
-              </div>
-              <input
-                type="search"
-                id="ch-posts-search"
-                class="db-input ch-posts-search"
-                data-i18n-placeholder="channel_hub.posts_search"
-                placeholder="Search posts…"
-              />
-            </div>
-            <div class="ch-table-wrap">
-              <table class="ch-table ch-posts-compact" id="ch-posts-table">
-                <thead>
-                  <tr>
-                    <th><button type="button" class="ch-sort-btn" data-sort="message_id" data-i18n="channel_hub.col_post_id">Post ID</button></th>
-                    <th data-i18n="channel_hub.col_link">Link</th>
-                    <th><button type="button" class="ch-sort-btn" data-sort="views_count" data-i18n="channel_hub.col_views">Views</button></th>
-                    <th><button type="button" class="ch-sort-btn" data-sort="comments_count" data-i18n="channel_hub.col_comments">Comments</button></th>
-                    <th><button type="button" class="ch-sort-btn ch-sort-active" data-sort="engagement" data-i18n="channel_hub.col_engagement">Engagement</button></th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </section>
+            <div id="ch-dash-grid" class="ch-dash-grid" hidden></div>
+          </div>
         </section>
+
+        <div id="ch-dash-catalog" class="ch-modal" hidden>
+          <div class="ch-modal-backdrop" data-close-catalog="1"></div>
+          <div class="ch-modal-card ch-glass-card ch-dash-catalog-card" role="dialog" aria-modal="true">
+            <div class="ch-modal-head">
+              <h2 data-i18n="channel_hub.dash_catalog_title">Add Widget</h2>
+              <button type="button" class="db-btn-secondary ch-btn-sm" data-close-catalog="1" data-i18n="common.close">Close</button>
+            </div>
+            <div id="ch-dash-catalog-list" class="ch-dash-catalog-list"></div>
+            <div id="ch-dash-size-picker" class="ch-dash-size-picker"></div>
+            <div class="ch-dash-catalog-footer">
+              <button type="button" class="db-btn-secondary" data-close-catalog="1" data-i18n="common.cancel">Cancel</button>
+              <button type="button" id="ch-dash-add-confirm" class="db-btn-primary" disabled data-i18n="channel_hub.dash_add_confirm">Add to Dashboard</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="ch-dash-reset-modal" class="ch-modal" hidden>
+          <div class="ch-modal-backdrop" data-close-reset="1"></div>
+          <div class="ch-modal-card ch-glass-card" role="dialog" aria-modal="true">
+            <div class="ch-modal-head">
+              <h2 data-i18n="channel_hub.dash_reset_title">Reset layout?</h2>
+              <button type="button" class="db-btn-secondary ch-btn-sm" data-close-reset="1" data-i18n="common.close">Close</button>
+            </div>
+            <p class="an-panel-sub" data-i18n="channel_hub.dash_reset_text">This removes all widgets from your analytics workspace. You can add them again anytime.</p>
+            <div class="ch-dash-catalog-footer">
+              <button type="button" class="db-btn-secondary" data-close-reset="1" data-i18n="common.cancel">Cancel</button>
+              <button type="button" id="ch-dash-reset-confirm" class="db-btn-danger" data-i18n="channel_hub.dash_reset_confirm">Reset</button>
+            </div>
+          </div>
+        </div>
 
         <div id="ch-post-modal" class="ch-modal" hidden>
           <div class="ch-modal-backdrop" data-close-modal="1"></div>
@@ -226,14 +154,67 @@
 
         <section id="tab-rules" class="ch-tab-panel" hidden>
           <div class="an-panel ch-rules-panel ch-glass-card">
-            <div class="ch-toggle-grid">
-              <label class="ch-toggle"><input type="checkbox" id="rule-block-links" checked /> <span data-i18n="channel_hub.block_links">Block links</span></label>
-              <label class="ch-toggle"><input type="checkbox" id="rule-block-stickers" /> <span data-i18n="channel_hub.block_stickers">Block stickers</span></label>
-              <label class="ch-toggle"><input type="checkbox" id="rule-block-media" /> <span data-i18n="channel_hub.block_media">Block media</span></label>
-              <label class="ch-toggle"><input type="checkbox" id="rule-anti-flood" /> <span data-i18n="channel_hub.anti_flood">Anti-flood</span></label>
-              <label class="ch-toggle"><input type="checkbox" id="rule-mute-permanent" /> <span data-i18n="channel_hub.mute_permanent">Permanent ban at max warnings</span></label>
-              <label class="ch-toggle"><input type="checkbox" id="rule-instant-mute" /> <span data-i18n="channel_hub.instant_mute_on_warn">Instant mute on warn</span></label>
-              <label class="ch-toggle"><input type="checkbox" id="rule-enabled" checked /> <span data-i18n="channel_hub.rules_enabled">Rules enabled</span></label>
+            <div class="ch-toggle-groups">
+              <div class="ch-toggle-group ch-toggle-group-master">
+                <h3 class="ch-toggle-group-title" data-i18n="channel_hub.rules_group_master">Master switch</h3>
+                <div class="ch-toggle-grid">
+                  <label class="ch-toggle ch-toggle-card">
+                    <input type="checkbox" id="rule-enabled" checked />
+                    <span class="ch-toggle-text">
+                      <span class="ch-toggle-label" data-i18n="channel_hub.rules_enabled">Rules enabled</span>
+                      <span class="ch-toggle-hint" data-i18n="channel_hub.rules_enabled_hint">Turn all moderation rules on or off</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="ch-toggle-group">
+                <h3 class="ch-toggle-group-title" data-i18n="channel_hub.rules_group_content">Content filters</h3>
+                <div class="ch-toggle-grid">
+                  <label class="ch-toggle ch-toggle-card">
+                    <input type="checkbox" id="rule-block-links" checked />
+                    <span class="ch-toggle-text">
+                      <span class="ch-toggle-label" data-i18n="channel_hub.block_links">Block links</span>
+                    </span>
+                  </label>
+                  <label class="ch-toggle ch-toggle-card">
+                    <input type="checkbox" id="rule-block-stickers" />
+                    <span class="ch-toggle-text">
+                      <span class="ch-toggle-label" data-i18n="channel_hub.block_stickers">Block stickers</span>
+                    </span>
+                  </label>
+                  <label class="ch-toggle ch-toggle-card">
+                    <input type="checkbox" id="rule-block-media" />
+                    <span class="ch-toggle-text">
+                      <span class="ch-toggle-label" data-i18n="channel_hub.block_media">Block media</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="ch-toggle-group">
+                <h3 class="ch-toggle-group-title" data-i18n="channel_hub.rules_group_penalties">Flood & penalties</h3>
+                <div class="ch-toggle-grid">
+                  <label class="ch-toggle ch-toggle-card">
+                    <input type="checkbox" id="rule-anti-flood" />
+                    <span class="ch-toggle-text">
+                      <span class="ch-toggle-label" data-i18n="channel_hub.anti_flood">Anti-flood</span>
+                    </span>
+                  </label>
+                  <label class="ch-toggle ch-toggle-card">
+                    <input type="checkbox" id="rule-instant-mute" />
+                    <span class="ch-toggle-text">
+                      <span class="ch-toggle-label" data-i18n="channel_hub.instant_mute_on_warn">Instant mute on warn</span>
+                    </span>
+                  </label>
+                  <label class="ch-toggle ch-toggle-card">
+                    <input type="checkbox" id="rule-mute-permanent" />
+                    <span class="ch-toggle-text">
+                      <span class="ch-toggle-label" data-i18n="channel_hub.mute_permanent">Permanent ban at max warnings</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <h3 class="ch-rules-section" data-i18n="channel_hub.flood_section">Anti-flood fine-tuning</h3>
@@ -362,7 +343,8 @@
     </div>
 
     <script src="/shared/js/api-config.js"></script>
-    <script src="ChannelHubView.js?v=8"></script>
+    <script src="ChannelDashLayout.js?v=3"></script>
+    <script src="ChannelHubView.js?v=15"></script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         if (window.ChannelHubView) window.ChannelHubView.init();

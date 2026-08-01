@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <title data-i18n="publisher.title">Post Studio</title>
+    <title data-i18n="publisher.title">Channel Post Editor</title>
     <link rel="stylesheet" href="/shared/css/app-shell.css" />
     <script>
       (function () {
@@ -21,13 +21,13 @@
     <script src="/shared/js/i18n.js"></script>
     <link rel="stylesheet" href="/shared/css/page-shell.css" />
     <link rel="stylesheet" href="/database/database.css?v=1" />
-    <link rel="stylesheet" href="post-studio.css?v=16" />
+    <link rel="stylesheet" href="post-studio.css?v=25" />
   </head>
   <body>
     <div class="dashboard">
       <header class="dashboard-header">
         <a href="/dashboard/index.html" class="header-back" data-i18n-aria="nav.back_home" aria-label="Main menu">←</a>
-        <h1 class="page-title" data-i18n="publisher.title">Post Studio</h1>
+        <h1 class="page-title" data-i18n="publisher.title">Channel Post Editor</h1>
       </header>
 
       <main class="dashboard-content ps-page">
@@ -53,7 +53,7 @@
               <section class="ps-card ps-glass">
                 <div class="ps-card-head">
                   <div>
-                    <h2 class="ps-card-title" data-i18n="publisher.title">Post Studio</h2>
+                    <h2 class="ps-card-title" data-i18n="publisher.title">Channel Post Editor</h2>
                     <p class="ps-card-sub" data-i18n="publisher.composer_sub">Compose, schedule and publish to your channel</p>
                   </div>
                   <div class="ps-card-head-actions">
@@ -128,6 +128,38 @@
                 </div>
               </section>
 
+              <section class="ps-card ps-glass ps-section" data-section="tags">
+                <button type="button" class="ps-section-toggle" data-collapse="ps-tags-body" aria-expanded="true">
+                  <span data-i18n="publisher.tags_title">Internal tags</span>
+                  <span class="ps-chevron">▾</span>
+                </button>
+                <div id="ps-tags-body" class="ps-section-body">
+                  <div class="ps-tag-create">
+                    <input type="text" id="ps-tag-input" class="db-input" maxlength="48" data-i18n-placeholder="publisher.tags_placeholder" placeholder="Tag name" />
+                    <div id="ps-tag-colors" class="ps-tag-colors" role="radiogroup" aria-label="Tag color"></div>
+                    <button type="button" class="db-btn-secondary" id="ps-tag-add" data-i18n="publisher.tags_add">Add tag</button>
+                  </div>
+                  <div id="ps-tag-list" class="ps-tag-list"></div>
+                </div>
+              </section>
+
+              <section class="ps-card ps-glass ps-section" data-section="autodelete">
+                <button type="button" class="ps-section-toggle" data-collapse="ps-autodelete-body" aria-expanded="true">
+                  <span data-i18n="publisher.autodelete_title">Auto-deletion</span>
+                  <span class="ps-chevron">▾</span>
+                </button>
+                <div id="ps-autodelete-body" class="ps-section-body">
+                  <label class="ps-switch-row" for="ps-autodelete-enabled">
+                    <input type="checkbox" id="ps-autodelete-enabled" />
+                    <span data-i18n="publisher.autodelete_enable">Enable Auto-Delete</span>
+                  </label>
+                  <div id="ps-autodelete-fields" class="ps-autodelete-fields" hidden>
+                    <input type="datetime-local" id="ps-autodelete-at" class="db-input ps-datetime" />
+                    <div id="ps-autodelete-chip" class="ps-autodelete-chip" hidden></div>
+                  </div>
+                </div>
+              </section>
+
               <!-- Block 4: Action footer -->
               <footer class="ps-card ps-glass ps-action-footer" id="ps-action-footer">
                 <div class="ps-footer-actions" id="ps-footer-actions">
@@ -171,8 +203,24 @@
         </section>
 
         <section id="ps-tab-history" class="ps-tab-panel" hidden>
-          <div class="ps-history-toolbar">
-            <button type="button" class="db-btn-secondary" id="ps-refresh-history" data-i18n="publisher.refresh">Refresh</button>
+          <div class="ps-history-controls ps-glass">
+            <div class="ps-history-toolbar">
+              <div class="ps-history-search-wrap">
+                <span class="ps-history-search-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="M20 20l-3.5-3.5"></path>
+                  </svg>
+                </span>
+                <input type="text" id="ps-history-search" class="db-input ps-history-search" data-i18n-placeholder="publisher.history_search" placeholder="Search posts by keywords or tags..." autocomplete="off" />
+                <button type="button" class="ps-history-search-clear" id="ps-history-search-clear" hidden data-i18n-aria="publisher.history_clear" aria-label="Clear">
+                  <span aria-hidden="true">✕</span>
+                  <span class="ps-history-clear-label" data-i18n="publisher.history_clear">Clear</span>
+                </button>
+              </div>
+              <button type="button" class="db-btn-secondary" id="ps-refresh-history" data-i18n="publisher.refresh">Refresh</button>
+            </div>
+            <div id="ps-history-tag-cloud" class="ps-history-tag-cloud"></div>
           </div>
           <div id="ps-history-list" class="ps-history-list"></div>
         </section>
@@ -207,7 +255,23 @@
       </div>
     </div>
 
-    <script src="PostStudioView.js?v=13"></script>
+    <div id="ps-autodelete-modal" class="ps-modal" hidden>
+      <div class="ps-modal-backdrop" data-close="1"></div>
+      <div class="ps-modal-card ps-glass">
+        <h2 data-i18n="publisher.autodelete_update_title">Update Auto-Delete Time</h2>
+        <p class="ps-hint" data-i18n="publisher.autodelete_update_hint">Leave empty to disable auto-deletion.</p>
+        <label class="ps-schedule-label" for="ps-autodelete-modal-at">
+          <span data-i18n="publisher.autodelete_title">Auto-deletion</span>
+          <input type="datetime-local" id="ps-autodelete-modal-at" class="db-input ps-datetime" />
+        </label>
+        <div class="ps-modal-actions">
+          <button type="button" class="db-btn-secondary" id="ps-autodelete-modal-cancel" data-i18n="common.cancel">Cancel</button>
+          <button type="button" class="db-btn-primary" id="ps-autodelete-modal-save" data-i18n="publisher.autodelete_save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="PostStudioView.js?v=23"></script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         if (window.PostStudioView) window.PostStudioView.init();

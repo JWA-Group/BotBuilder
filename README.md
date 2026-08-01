@@ -22,6 +22,9 @@ BotBuilder is a hybrid desktop application: an Electron shell hosts the user int
 | Capability | Description |
 |------------|-------------|
 | **Node Editor** | Visual scenario editor with drag-and-drop blocks, connection routing, undo history, and live property editing in a dedicated sidebar. |
+| **Post Studio** | Telegram post publisher featuring dual-mode (Visual & Raw HTML) editor, inline keyboard builder, media album management, post scheduling, live Telegram preview, and real-time post editing/deletion. |
+| **Channel Manager & Moderation** | Telegram administration engine with comprehensive channel analytics, anti-flood limits, entity-level link shield, automated warning decay, and live comment moderation. |
+| **Dashboard & SVG Engine** | Lightweight zero-dependency Vanilla JS SVG icon architecture integrated into a dark glassmorphism dashboard layout. |
 | **Ecosystem Sync** | Bundled plugin catalog, user-authored custom blocks, template library, and cloud marketplace packs share a unified import and deployment workflow. |
 | **Data Privacy** | User projects, databases, plugins, and settings are stored under `%AppData%\botbuilder-desktop\` and are never written into the installation directory. |
 | **Localization Engine** | Full UI localization (English, Russian, Spanish) with runtime language switching, cross-window IPC synchronization, and plugin metadata translation. |
@@ -29,6 +32,28 @@ BotBuilder is a hybrid desktop application: an Electron shell hosts the user int
 ---
 
 ## Visual Demonstration
+
+<p align="center">
+  <img src="docs/assets/Dashboard_New.png" alt="Redesigned Dashboard" width="85%">
+  <br><sub>Redesigned Dashboard with native Vanilla JS SVG icons</sub>
+</p>
+
+<br>
+
+<table width="100%">
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/assets/Post_Editor.png" alt="Post Studio & Live Preview" width="100%">
+      <br><sub>Telegram Post Studio & Live Preview</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/assets/Channel_Manager.png" alt="Channel Manager & Moderation" width="100%">
+      <br><sub>Channel Manager & Moderation</sub>
+    </td>
+  </tr>
+</table>
+
+<br>
 
 <table width="100%">
   <tr>
@@ -65,6 +90,8 @@ BotBuilder is a hybrid desktop application: an Electron shell hosts the user int
   </tr>
 </table>
 
+---
+
 ## For Users
 
 ### Quick Start
@@ -74,7 +101,7 @@ BotBuilder is a hybrid desktop application: an Electron shell hosts the user int
 3. Choose an installation directory (default: `C:\Program Files\BotBuilder`).
 4. Launch BotBuilder from the desktop shortcut or Start Menu.
 5. On first run, select your interface language and appearance theme, then click **Continue**.
-6. Open **Bots**, create a bot, and launch the **Scenario Editor** to begin building a workflow.
+6. Open **Bots**, create a bot, and launch the **Scenario Editor** or **Post Studio** to begin building your workflow.
 
 For detailed installation steps, interface reference, and marketplace usage, see [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
 
@@ -109,6 +136,7 @@ Output: `dist-electron/BotBuilder-Setup-{version}.exe`
 We are actively expanding BotBuilder to become the ultimate multi-channel visual automation hub. 
 
 - [x] **Phase 1:** Core Node Engine & Runtime compiler (Telegram Support)
+- [x] **Phase 1.1: Post Studio, Channel Analytics & Auto-Moderation Engine
 - [ ] **Phase 2:** Linux & macOS cross-platform support (AppImage / DMG builds)
 - [ ] **Phase 3:** **WhatsApp Business API** integration layer
 - [ ] **Phase 4:** **Instagram Graph API** direct messaging nodes

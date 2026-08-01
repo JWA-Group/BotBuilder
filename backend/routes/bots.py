@@ -9,7 +9,7 @@ from ..schemas.bot import BotCreate, BotOut
 from ..services.bot_service import create_bot_project
 from ..core.auth_deps import get_current_user_id_required, DEFAULT_USER_ID
 from ..core.bot_access import is_desktop_app, require_bot_access
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 import os
 import json
 from backend.utils.generate_main import generate_main_py, generate_main_from_scenario, get_bot_platform
@@ -253,6 +253,18 @@ async def upload_media(
         f.write(content)
     rel = f"media/{os.path.basename(path)}"
     return {"path": rel, "filename": os.path.basename(path)}
+
+
+@router.get("/media/{bot_id}/{filename:path}")
+async def serve_bot_media(bot_id: int, filename: str):
+    """Serve a file from projects/bot_{id}/media/ for editor/history previews."""
+    safe = os.path.basename((filename or "").replace("\\", "/"))
+    if not safe or safe in (".", ".."):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    path = os.path.join(PROJECTS_DIR, f"bot_{bot_id}", "media", safe)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path)
 
 
 @router.get("/fsm/{bot_id}")

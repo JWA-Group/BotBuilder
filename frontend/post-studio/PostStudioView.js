@@ -2,6 +2,21 @@
 (function (global) {
   "use strict";
 
+  var TAG_COLORS = [
+    "indigo", "emerald", "amber", "rose", "sky", "purple", "teal", "orange",
+  ];
+
+  var TAG_THEME = {
+    indigo: "ps-tag-indigo",
+    emerald: "ps-tag-emerald",
+    amber: "ps-tag-amber",
+    rose: "ps-tag-rose",
+    sky: "ps-tag-sky",
+    purple: "ps-tag-purple",
+    teal: "ps-tag-teal",
+    orange: "ps-tag-orange",
+  };
+
   var state = {
     apiOrigin: "",
     botId: null,
@@ -10,10 +25,18 @@
     mode: "visual",
     media: [],
     keyboard: [],
+    tags: [],
+    tagColor: "indigo",
+    autoDeleteEnabled: false,
     editId: null,
     editStatus: null,
     posts: [],
+    historyQuery: "",
+    historyTagFilter: "",
+    expandedPosts: {},
     deleteTarget: null,
+    deletePurge: false,
+    autoDeleteTarget: null,
     syncingHtml: false,
     savedRange: null,
   };
@@ -147,6 +170,47 @@
     return s;
   }
 
+  function uid(prefix) {
+    return (prefix || "t") + "_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7);
+  }
+
+  function autoDeleteUnix() {
+    if (!state.autoDeleteEnabled) return null;
+    var input = el("ps-autodelete-at");
+    if (!input || !input.value) return null;
+    var ms = new Date(input.value).getTime();
+    if (!ms || isNaN(ms)) return null;
+    return Math.floor(ms / 1000);
+  }
+
+  function toDatetimeLocalValue(unix) {
+    if (!unix) return "";
+    var d = new Date(Number(unix) * 1000);
+    if (isNaN(d.getTime())) return "";
+    var pad = function (n) { return String(n).padStart(2, "0"); };
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+      "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+
+  function formatDateTime(unix) {
+    if (!unix) return "";
+    var d = new Date(Number(unix) * 1000);
+    if (isNaN(d.getTime())) return "";
+    var pad = function (n) { return String(n).padStart(2, "0"); };
+    return pad(d.getDate()) + "." + pad(d.getMonth() + 1) + "." + d.getFullYear() +
+      " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+
+  function statusLabel(status) {
+    var key = "publisher.status_" + String(status || "");
+    var label = tr(key);
+    return label === key ? String(status || "") : label;
+  }
+
+  function plainText(html) {
+    return String(html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  }
+
   function currentPayload() {
     return {
       bot_id: Number(state.botId),
@@ -157,8 +221,100 @@
         return { path: m.path, name: m.name };
       }),
       inline_keyboard: state.keyboard,
+      // App-only metadata — backend stores them but never sends to Telegram API.
+      tags: state.tags.map(function (tag) {
+        return { id: tag.id, name: tag.name, color: tag.color };
+      }),
+      auto_delete_at: autoDeleteUnix(),
       post_id: state.editId || null,
     };
+  }
+
+  function renderTagColors() {
+    var root = el("ps-tag-colors");
+    if (!root) return;
+    root.innerHTML = "";
+    TAG_COLORS.forEach(function (color) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "ps-color-dot " + (TAG_THEME[color] || "") + (state.tagColor === color ? " is-active" : "");
+      btn.setAttribute("data-color", color);
+      btn.setAttribute("aria-label", color);
+      btn.title = color;
+      btn.onclick = function () {
+        state.tagColor = color;
+        renderTagColors();
+      };
+      root.appendChild(btn);
+    });
+  }
+
+  function renderTagList() {
+    var root = el("ps-tag-list");
+    if (!root) return;
+    root.innerHTML = "";
+    state.tags.forEach(function (tag, idx) {
+      var pill = document.createElement("span");
+      pill.className = "ps-tag-pill " + (TAG_THEME[tag.color] || TAG_THEME.indigo);
+      pill.innerHTML = '<span class="ps-tag-pill-name"></span><button type="button" class="ps-tag-pill-x" aria-label="Remove">✕</button>';
+      pill.querySelector(".ps-tag-pill-name").textContent = tag.name;
+      pill.querySelector(".ps-tag-pill-x").onclick = function () {
+        state.tags.splice(idx, 1);
+        renderTagList();
+      };
+      root.appendChild(pill);
+    });
+  }
+
+  function addTagFromInput() {
+    var input = el("ps-tag-input");
+    var name = ((input && input.value) || "").trim();
+    if (!name) return;
+    var exists = state.tags.some(function (t) {
+      return t.name.toLowerCase() === name.toLowerCase();
+    });
+    if (exists) {
+      if (input) input.value = "";
+      return;
+    }
+    state.tags.push({
+      id: uid("tag"),
+      name: name.slice(0, 48),
+      color: state.tagColor || "indigo",
+    });
+    if (input) input.value = "";
+    renderTagList();
+  }
+
+  function syncAutoDeleteUi() {
+    var enabled = el("ps-autodelete-enabled");
+    var fields = el("ps-autodelete-fields");
+    var chip = el("ps-autodelete-chip");
+    var at = el("ps-autodelete-at");
+    state.autoDeleteEnabled = !!(enabled && enabled.checked);
+    if (fields) fields.hidden = !state.autoDeleteEnabled;
+    if (!chip) return;
+    var unix = autoDeleteUnix();
+    if (state.autoDeleteEnabled && unix) {
+      chip.hidden = false;
+      chip.textContent = tr("publisher.autodelete_chip").replace("{when}", formatDateTime(unix));
+    } else {
+      chip.hidden = true;
+      chip.textContent = "";
+    }
+    if (at && state.autoDeleteEnabled && !at.value) {
+      // keep empty until user picks
+    }
+  }
+
+  function setAutoDeleteFromPost(post) {
+    var unix = post && post.auto_delete_at ? Number(post.auto_delete_at) : null;
+    var enabled = el("ps-autodelete-enabled");
+    var at = el("ps-autodelete-at");
+    state.autoDeleteEnabled = !!(unix && unix > 0);
+    if (enabled) enabled.checked = state.autoDeleteEnabled;
+    if (at) at.value = state.autoDeleteEnabled ? toDatetimeLocalValue(unix) : "";
+    syncAutoDeleteUi();
   }
 
   function setMode(mode) {
@@ -526,12 +682,15 @@
     setEditorHtml("");
     state.media = [];
     state.keyboard = [];
+    state.tags = [];
     state.editId = null;
     state.editStatus = null;
     if (el("ps-schedule-at")) el("ps-schedule-at").value = "";
+    setAutoDeleteFromPost(null);
     setEditMode(null);
     renderMedia();
     renderKeyboard();
+    renderTagList();
     updatePreview();
     if (opts.toast !== false) {
       toast(tr(opts.toastKey || "publisher.new_post_ok"), "ok");
@@ -567,22 +726,39 @@
   }
 
   function loadPostIntoEditor(post) {
+    if (!post || post.status === "deleted") {
+      toast(tr("publisher.deleted_cannot_edit"), "err");
+      return;
+    }
     state.channelId = String(post.channel_id || state.channelId);
     state.channelTitle = post.channel_title || state.channelTitle;
     if (el("ps-channel-select")) el("ps-channel-select").value = state.channelId;
     setEditorHtml(post.text_html || "");
     state.media = (post.media_files || []).map(function (m) {
+      var path = m.path || m;
+      var name = m.name || String(path).split(/[\\/]/).pop();
       return {
-        path: m.path || m,
-        name: m.name || String(m.path || m).split("/").pop(),
-        previewUrl: "",
+        path: path,
+        name: name,
+        previewUrl: mediaFileUrl(path),
       };
     });
     state.keyboard = Array.isArray(post.inline_keyboard) ? JSON.parse(JSON.stringify(post.inline_keyboard)) : [];
     if (!state.keyboard.length) state.keyboard = [];
+    state.tags = Array.isArray(post.tags)
+      ? post.tags.map(function (tag) {
+          return {
+            id: tag.id || uid("tag"),
+            name: String(tag.name || "").trim(),
+            color: TAG_THEME[tag.color] ? tag.color : "indigo",
+          };
+        }).filter(function (tag) { return !!tag.name; })
+      : [];
+    setAutoDeleteFromPost(post);
     setEditMode(post);
     renderMedia();
     renderKeyboard();
+    renderTagList();
     updatePreview();
     switchTab("studio");
   }
@@ -604,71 +780,364 @@
     }).catch(function (err) { toast(err.message || String(err), "err"); });
   }
 
+  function collectHistoryTags() {
+    var map = {};
+    state.posts.forEach(function (post) {
+      (post.tags || []).forEach(function (tag) {
+        if (!tag || !tag.name) return;
+        var key = String(tag.name).toLowerCase();
+        if (!map[key]) {
+          map[key] = {
+            name: tag.name,
+            color: TAG_THEME[tag.color] ? tag.color : "indigo",
+          };
+        }
+      });
+    });
+    return Object.keys(map).sort().map(function (k) { return map[k]; });
+  }
+
+  function renderHistoryTagCloud() {
+    var root = el("ps-history-tag-cloud");
+    if (!root) return;
+    root.innerHTML = "";
+    var tags = collectHistoryTags();
+    if (!tags.length) {
+      root.hidden = true;
+      return;
+    }
+    root.hidden = false;
+    tags.forEach(function (tag) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "ps-tag-pill ps-tag-filter " + (TAG_THEME[tag.color] || TAG_THEME.indigo) +
+        (state.historyTagFilter.toLowerCase() === String(tag.name).toLowerCase() ? " is-active" : "");
+      btn.textContent = tag.name;
+      btn.onclick = function () {
+        if (state.historyTagFilter.toLowerCase() === tag.name.toLowerCase()) {
+          state.historyTagFilter = "";
+          if (el("ps-history-search") && state.historyQuery === tag.name) {
+            el("ps-history-search").value = "";
+            state.historyQuery = "";
+          }
+        } else {
+          state.historyTagFilter = tag.name;
+          state.historyQuery = tag.name;
+          if (el("ps-history-search")) el("ps-history-search").value = tag.name;
+        }
+        syncHistorySearchClear();
+        renderHistory();
+      };
+      root.appendChild(btn);
+    });
+  }
+
+  function syncHistorySearchClear() {
+    var clearBtn = el("ps-history-search-clear");
+    if (clearBtn) clearBtn.hidden = !(state.historyQuery || state.historyTagFilter);
+  }
+
+  function filteredPosts() {
+    var raw = String(state.historyQuery || "").trim().toLowerCase();
+    var tagFilter = String(state.historyTagFilter || "").trim().toLowerCase();
+    return state.posts.filter(function (post) {
+      var tags = post.tags || [];
+      var tagNames = tags.map(function (t) { return String(t.name || "").toLowerCase(); });
+      if (tagFilter && tagNames.indexOf(tagFilter) === -1) return false;
+      if (!raw) return true;
+      var idOnly = raw.charAt(0) === "#";
+      var qId = raw.replace(/^#+/, "").trim();
+      var studioId = String(post.id || "");
+      var tgId = String(post.telegram_message_id || "");
+      var idHit =
+        !!qId &&
+        (studioId === qId ||
+          tgId === qId ||
+          ("#" + studioId) === raw ||
+          ("#" + tgId) === raw);
+      if (idOnly) return idHit;
+      if (idHit) return true;
+      var hay = [
+        plainText(post.text_html),
+        String(post.channel_title || ""),
+        String(post.channel_id || ""),
+        String(post.status || ""),
+        studioId,
+        "#" + studioId,
+        tgId,
+        "#" + tgId,
+        tagNames.join(" "),
+      ].join(" ").toLowerCase();
+      return hay.indexOf(raw) !== -1 || (qId && hay.indexOf(qId) !== -1);
+    });
+  }
+
+  /** Public media URL for <img>/<video> — /api/bots/media does not need Authorization. */
+  function mediaFileUrl(relPath) {
+    if (!state.botId || !relPath) return "";
+    var name = String(relPath).replace(/\\/g, "/").split("/").filter(Boolean).pop();
+    if (!name || name === "." || name === "..") return "";
+    return (state.apiOrigin || "") +
+      "/api/bots/media/" + encodeURIComponent(state.botId) + "/" + encodeURIComponent(name);
+  }
+
+  function historyMediaPreviewHtml(mediaFiles) {
+    var media = mediaFiles || [];
+    if (!media.length) return "";
+    var albumClass = media.length > 1 ? " ps-album-" + Math.min(media.length, 4) : "";
+    var parts = media.map(function (m) {
+      var path = (m && (m.path || m)) || "";
+      var name = (m && m.name) || String(path).split(/[\\/]/).pop() || "file";
+      var lower = String(name || path).toLowerCase();
+      var url = mediaFileUrl(path);
+      if (/\.(jpg|jpeg|png|webp|gif)$/.test(lower) && url) {
+        return '<img class="ps-hist-media-img" alt="" src="' + escapeHtml(url) +
+          '" title="' + escapeHtml(name) + '" loading="lazy" />';
+      }
+      if (/\.(mp4|mov|webm|avi|mkv)$/.test(lower) && url) {
+        return '<video class="ps-hist-media-img" muted controls preload="metadata" src="' +
+          escapeHtml(url) + '" title="' + escapeHtml(name) + '"></video>';
+      }
+      return '<div class="ps-hist-media-thumb ps-hist-media-doc" title="' + escapeHtml(name) + '">DOC</div>';
+    });
+    return '<div class="ps-hist-media-grid' + albumClass + '">' + parts.join("") + "</div>";
+  }
+
+  function historyKeyboardPreviewHtml(keyboard) {
+    var rows = keyboard || [];
+    if (!rows.length) return "";
+    var html = '<div class="ps-tg-buttons ps-hist-buttons">';
+    rows.forEach(function (row) {
+      var cells = (row || []).filter(function (b) { return b && b.text; });
+      if (!cells.length) return;
+      html += '<div class="ps-tg-btn-row">';
+      cells.forEach(function (b) {
+        html += '<div class="ps-tg-btn">' + escapeHtml(b.text) + "</div>";
+      });
+      html += "</div>";
+    });
+    html += "</div>";
+    return html;
+  }
+
   function renderHistory() {
     var root = el("ps-history-list");
+    if (!root) return;
     root.innerHTML = "";
+    renderHistoryTagCloud();
+    syncHistorySearchClear();
     if (!state.posts.length) {
       root.innerHTML = '<p class="ps-hint">' + escapeHtml(tr("publisher.history_empty")) + "</p>";
       return;
     }
-    state.posts.forEach(function (post) {
+    var posts = filteredPosts();
+    if (!posts.length) {
+      root.innerHTML = '<p class="ps-hint">' + escapeHtml(tr("publisher.history_no_matches")) + "</p>";
+      return;
+    }
+    posts.forEach(function (post) {
+      var expanded = !!state.expandedPosts[post.id];
+      var isDeleted = post.status === "deleted";
       var card = document.createElement("article");
-      card.className = "ps-history-card";
-      var snippet = (post.text_html || "").replace(/<[^>]+>/g, " ").trim() || tr("publisher.no_text");
-      var when = post.scheduled_at || post.updated_at || post.created_at;
-      var whenLabel = when ? new Date(Number(when) * 1000).toLocaleString() : "";
+      card.className = "ps-history-card ps-glass" +
+        (expanded ? " is-expanded" : "") +
+        (isDeleted ? " is-deleted" : "");
+      card.setAttribute("data-post-id", String(post.id));
+
+      var fullSnippet = plainText(post.text_html) || tr("publisher.no_text");
+      var snippet = fullSnippet.length > 36 ? fullSnippet.slice(0, 36).trimEnd() + "…" : fullSnippet;
+      var postIdHtml =
+        '<span class="ps-history-post-id" title="ID ' + escapeHtml(String(post.id)) + '">#' +
+        escapeHtml(String(post.id)) + "</span>";
+      var tagsHtml = (post.tags || []).map(function (tag) {
+        var cls = TAG_THEME[tag.color] || TAG_THEME.indigo;
+        return '<span class="ps-tag-pill ' + cls + '"><span class="ps-tag-pill-name">' +
+          escapeHtml(tag.name) + "</span></span>";
+      }).join("");
+
+      var statusHtml = "";
+      var rightBadges = "";
+      if (isDeleted) {
+        statusHtml =
+          '<span class="ps-status ps-status-deleted">' + escapeHtml(tr("publisher.status_deleted")) + "</span>";
+        if (post.deleted_by === "auto" && post.deleted_at) {
+          rightBadges =
+            '<span class="ps-autodelete-badge ps-autodeleted-badge">' +
+            "⏳ " + escapeHtml(tr("publisher.autodeleted_badge").replace("{when}", formatDateTime(post.deleted_at))) +
+            "</span>";
+        } else if (post.deleted_at) {
+          rightBadges =
+            '<span class="ps-deleted-when">' +
+            escapeHtml(tr("publisher.deleted_at").replace("{when}", formatDateTime(post.deleted_at))) +
+            "</span>";
+        }
+      } else {
+        statusHtml =
+          '<span class="ps-status ps-status-' + escapeHtml(post.status) + '">' +
+          escapeHtml(statusLabel(post.status)) + "</span>";
+        if (post.auto_delete_at) {
+          rightBadges =
+            '<span class="ps-autodelete-badge" title="' + escapeHtml(tr("publisher.autodelete_title")) + '">' +
+            "⏳ " + escapeHtml(tr("publisher.autodelete_badge").replace("{when}", formatDateTime(post.auto_delete_at))) +
+            "</span>";
+        }
+      }
+
+      var actionsHtml = "";
+      if (isDeleted) {
+        actionsHtml =
+          '<button type="button" class="db-btn-secondary" data-act="purge">' +
+          escapeHtml(tr("publisher.remove_from_logs")) + "</button>";
+      } else {
+        actionsHtml =
+          '<button type="button" class="db-btn-secondary" data-act="edit">' + escapeHtml(tr("publisher.edit")) + "</button>" +
+          '<button type="button" class="db-btn-danger" data-act="delete">' + escapeHtml(tr("publisher.delete_now")) + "</button>" +
+          '<button type="button" class="db-btn-secondary" data-act="autodelete">' + escapeHtml(tr("publisher.autodelete_update")) + "</button>";
+      }
+
+      var bodyHtml = "";
+      if (expanded) {
+        bodyHtml =
+          '<div class="ps-history-body">' +
+            '<div class="ps-hist-tg-bubble">' +
+              historyMediaPreviewHtml(post.media_files) +
+              '<div class="ps-tg-text ps-hist-tg-text">' +
+                (previewHtml(post.text_html || "") ||
+                  '<span class="ps-hist-empty">' + escapeHtml(tr("publisher.no_text")) + "</span>") +
+              "</div>" +
+              historyKeyboardPreviewHtml(post.inline_keyboard) +
+            "</div>" +
+            '<div class="ps-history-meta-row">' +
+              '<span class="ps-hint">' + escapeHtml(post.channel_title || post.channel_id || "") + "</span>" +
+            "</div>" +
+            (post.error_message && !isDeleted
+              ? '<div class="ps-hint ps-history-error">' + escapeHtml(post.error_message) + "</div>"
+              : "") +
+            '<div class="ps-history-actions">' + actionsHtml + "</div>" +
+          "</div>";
+      }
+
       card.innerHTML =
-        '<div class="ps-history-main">' +
-        '<h3><span class="ps-status ps-status-' + escapeHtml(post.status) + '">' + escapeHtml(post.status) + "</span>#" +
-        post.id + (post.telegram_message_id ? " · tg:" + post.telegram_message_id : "") + "</h3>" +
-        '<div class="ps-history-snippet">' + escapeHtml(snippet) + "</div>" +
-        '<div class="ps-hint">' + escapeHtml(post.channel_title || post.channel_id) + " · " + escapeHtml(whenLabel) + "</div>" +
-        (post.error_message ? '<div class="ps-hint" style="color:#f87171">' + escapeHtml(post.error_message) + "</div>" : "") +
-        "</div>";
-      var actions = document.createElement("div");
-      actions.className = "ps-history-actions";
-      var edit = document.createElement("button");
-      edit.type = "button";
-      edit.className = "db-btn-secondary";
-      edit.textContent = tr("publisher.edit");
-      edit.onclick = function () { loadPostIntoEditor(post); };
-      var del = document.createElement("button");
-      del.type = "button";
-      del.className = "db-btn-danger";
-      del.textContent = tr("publisher.delete");
-      del.onclick = function () { openDeleteModal(post); };
-      actions.appendChild(edit);
-      actions.appendChild(del);
-      card.appendChild(actions);
+        '<div class="ps-history-head">' +
+          '<div class="ps-history-head-left">' +
+            statusHtml +
+            '<span class="ps-history-title" title="' + escapeHtml(fullSnippet) + '">' +
+              escapeHtml(snippet) + "</span>" +
+          "</div>" +
+          '<div class="ps-history-head-right">' +
+            (tagsHtml ? '<div class="ps-history-head-tags">' + tagsHtml + "</div>" : "") +
+            rightBadges +
+            postIdHtml +
+            '<button type="button" class="ps-history-chevron" data-act="toggle" aria-expanded="' +
+            (expanded ? "true" : "false") + '">' + (expanded ? "▲" : "▼") + "</button>" +
+          "</div>" +
+        "</div>" +
+        bodyHtml;
+
+      card.querySelectorAll("[data-act]").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var act = btn.getAttribute("data-act");
+          if (act === "toggle") {
+            state.expandedPosts[post.id] = !state.expandedPosts[post.id];
+            renderHistory();
+          } else if (act === "edit") {
+            if (post.status === "deleted") return;
+            loadPostIntoEditor(post);
+          } else if (act === "delete") {
+            openDeleteModal(post, false);
+          } else if (act === "purge") {
+            openDeleteModal(post, true);
+          } else if (act === "autodelete") {
+            if (post.status === "deleted") return;
+            openAutoDeleteModal(post);
+          }
+        });
+      });
+      card.querySelector(".ps-history-head").addEventListener("click", function (e) {
+        if (e.target.closest("[data-act]")) return;
+        state.expandedPosts[post.id] = !state.expandedPosts[post.id];
+        renderHistory();
+      });
+      if (expanded) {
+        card.querySelectorAll(".ps-hist-tg-text .tg-spoiler").forEach(function (sp) {
+          sp.onclick = function (e) {
+            e.stopPropagation();
+            sp.classList.toggle("ps-spoiler-open");
+          };
+        });
+      }
       root.appendChild(card);
     });
   }
 
-  function openDeleteModal(post) {
+  function openAutoDeleteModal(post) {
+    state.autoDeleteTarget = post;
+    var modal = el("ps-autodelete-modal");
+    var input = el("ps-autodelete-modal-at");
+    if (input) input.value = post.auto_delete_at ? toDatetimeLocalValue(post.auto_delete_at) : "";
+    if (modal) modal.hidden = false;
+  }
+
+  function closeAutoDeleteModal() {
+    state.autoDeleteTarget = null;
+    var modal = el("ps-autodelete-modal");
+    if (modal) modal.hidden = true;
+  }
+
+  function saveAutoDeleteModal() {
+    var post = state.autoDeleteTarget;
+    if (!post || !state.botId) return;
+    var input = el("ps-autodelete-modal-at");
+    var value = input && input.value ? Math.floor(new Date(input.value).getTime() / 1000) : null;
+    api("/api/publisher/posts/" + post.id + "/auto-delete", {
+      method: "PATCH",
+      body: JSON.stringify({ bot_id: Number(state.botId), auto_delete_at: value }),
+    })
+      .then(function () {
+        toast(tr("publisher.autodelete_saved"), "ok");
+        closeAutoDeleteModal();
+        refreshHistory();
+      })
+      .catch(function (err) { toast(err.message || String(err), "err"); });
+  }
+
+  function openDeleteModal(post, purge) {
     state.deleteTarget = post;
+    state.deletePurge = !!purge;
+    var title = el("ps-confirm-title");
+    var text = el("ps-confirm-text");
+    var ok = el("ps-confirm-ok");
+    if (state.deletePurge) {
+      if (title) title.textContent = tr("publisher.purge_title");
+      if (text) text.textContent = tr("publisher.purge_text");
+      if (ok) ok.textContent = tr("publisher.remove_from_logs");
+    } else {
+      if (title) title.textContent = tr("publisher.delete_title");
+      if (text) text.textContent = tr("publisher.delete_text");
+      if (ok) ok.textContent = tr("publisher.delete");
+    }
     el("ps-confirm-modal").hidden = false;
   }
 
   function closeDeleteModal() {
     state.deleteTarget = null;
+    state.deletePurge = false;
     el("ps-confirm-modal").hidden = true;
   }
 
   function confirmDelete() {
     var post = state.deleteTarget;
     if (!post || !state.botId) return;
-    api("/api/publisher/posts/" + post.id + "?bot_id=" + encodeURIComponent(state.botId), { method: "DELETE" })
+    var purge = !!state.deletePurge;
+    var url = "/api/publisher/posts/" + post.id + "?bot_id=" + encodeURIComponent(state.botId) +
+      (purge ? "&purge=true" : "");
+    api(url, { method: "DELETE" })
       .then(function () {
-        toast(tr("publisher.deleted_ok"), "ok");
+        toast(tr(purge ? "publisher.purged_ok" : "publisher.deleted_ok"), "ok");
         closeDeleteModal();
         if (state.editId === post.id) {
-          setEditMode(null);
-          setEditorHtml("");
-          state.media = [];
-          state.keyboard = [];
-          renderMedia();
-          renderKeyboard();
-          updatePreview();
+          startNewPost({ toast: false });
         }
         refreshHistory();
       })
@@ -873,12 +1342,61 @@
     el("ps-confirm-cancel").onclick = closeDeleteModal;
     el("ps-confirm-ok").onclick = confirmDelete;
     el("ps-confirm-modal").querySelector("[data-close]").onclick = closeDeleteModal;
+
+    if (el("ps-tag-add")) el("ps-tag-add").onclick = addTagFromInput;
+    if (el("ps-tag-input")) {
+      el("ps-tag-input").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          addTagFromInput();
+        }
+      });
+    }
+    if (el("ps-autodelete-enabled")) {
+      el("ps-autodelete-enabled").onchange = syncAutoDeleteUi;
+    }
+    if (el("ps-autodelete-at")) {
+      el("ps-autodelete-at").addEventListener("input", syncAutoDeleteUi);
+      el("ps-autodelete-at").addEventListener("change", syncAutoDeleteUi);
+    }
+
+    var search = el("ps-history-search");
+    if (search) {
+      search.addEventListener("input", function () {
+        state.historyQuery = search.value || "";
+        var q = state.historyQuery.trim().toLowerCase();
+        if (!q || q !== String(state.historyTagFilter || "").toLowerCase()) {
+          state.historyTagFilter = "";
+        }
+        renderHistory();
+      });
+    }
+    if (el("ps-history-search-clear")) {
+      el("ps-history-search-clear").onclick = function () {
+        state.historyQuery = "";
+        state.historyTagFilter = "";
+        if (search) search.value = "";
+        renderHistory();
+      };
+    }
+
+    if (el("ps-autodelete-modal-cancel")) el("ps-autodelete-modal-cancel").onclick = closeAutoDeleteModal;
+    if (el("ps-autodelete-modal-save")) el("ps-autodelete-modal-save").onclick = saveAutoDeleteModal;
+    var adModal = el("ps-autodelete-modal");
+    if (adModal) {
+      adModal.querySelectorAll("[data-close]").forEach(function (n) {
+        n.onclick = closeAutoDeleteModal;
+      });
+    }
   }
 
   function init() {
     state.apiOrigin = "";
     if (typeof applyI18n === "function") applyI18n(document);
     bind();
+    renderTagColors();
+    renderTagList();
+    syncAutoDeleteUi();
     renderMedia();
     renderKeyboard();
     updatePreview();

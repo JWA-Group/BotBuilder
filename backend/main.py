@@ -27,16 +27,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.middleware.sessions import SessionMiddleware
 
 from backend.db.database import init_db
-from backend.core.broadcast import normalize_telegram_html
 from backend.core.app_paths import ensure_data_dirs, get_frontend_dir, resolve_plugin_folder
 from backend.core.plugin_manager import get_plugin_manager
-from backend.routes import auth, bots, commands, bot_runner, scenario, templates, analytics, miniapps, config, plugins, projects, deployment, monitor, inventory, channel_hub, publisher
+from backend.routes import auth, bots, commands, bot_runner, scenario, templates, analytics, miniapps, config, plugins, projects, deployment, monitor, inventory, channel_hub, publisher, broadcast_studio
 from backend.core.monitor import start_monitor_services, stop_monitor_services, MonitorAPIMiddleware
 
 
@@ -129,16 +127,7 @@ app.include_router(inventory.router)
 app.include_router(channel_hub.router)
 app.include_router(channel_hub.telegram_router)
 app.include_router(publisher.router)
-
-
-class BroadcastNormalizeBody(BaseModel):
-    html_content: str = ""
-
-
-@app.post("/api/broadcast/normalize")
-async def normalize_broadcast_html_global(body: BroadcastNormalizeBody):
-    """Normalize HTML for Telegram preview/import (no bot required)."""
-    return {"normalized_html": normalize_telegram_html(body.html_content)}
+app.include_router(broadcast_studio.router)
 
 
 # Исходники плагинов (code.py.jinja2) — user plugins override bundled

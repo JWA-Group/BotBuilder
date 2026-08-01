@@ -178,10 +178,25 @@ def refresh_public_post_views(bot_id: int, *, force: bool = False, limit: int = 
                 "SELECT chat_id, username FROM channel_registry WHERE chat_type = 'channel'"
             ).fetchall()
         }
-        rows = conn.execute(
+        tables = {
+            str(r[0])
+            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
+        exclude_sql = ""
+        if "publisher_purged_keys" in tables:
+            exclude_sql += """
+              AND NOT EXISTS (
+                  SELECT 1 FROM publisher_purged_keys pk
+                  WHERE pk.channel_id = CAST(channel_posts.channel_id AS TEXT)
+                    AND pk.telegram_message_id = channel_posts.telegram_message_id
+              )
             """
+        rows = conn.execute(
+            f"""
             SELECT id, channel_id, telegram_message_id, views_count, post_url
             FROM channel_posts
+            WHERE 1=1
+            {exclude_sql}
             ORDER BY created_at DESC
             LIMIT ?
             """,
@@ -349,8 +364,30 @@ def overview(bot_id: int) -> dict[str, Any]:
         # Keep post.comments_count in sync with real discussion comments.
         _sync_post_comment_counts(conn)
 
+        tables = {
+            str(r[0])
+            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
+        exclude_sql = ""
+        if "publisher_purged_keys" in tables:
+            exclude_sql += """
+               AND NOT EXISTS (
+                   SELECT 1 FROM publisher_purged_keys pk
+                   WHERE pk.channel_id = CAST(p.channel_id AS TEXT)
+                     AND pk.telegram_message_id = p.telegram_message_id
+               )
+            """
+        if "publisher_posts" in tables:
+            exclude_sql += """
+               AND NOT EXISTS (
+                   SELECT 1 FROM publisher_posts pp
+                   WHERE COALESCE(pp.status, '') = 'deleted'
+                     AND CAST(pp.channel_id AS TEXT) = CAST(p.channel_id AS TEXT)
+                     AND pp.telegram_message_id = p.telegram_message_id
+               )
+            """
         posts = conn.execute(
-            """SELECT COALESCE(SUM(p.views_count),0), COALESCE(SUM(p.comments_count),0),
+            f"""SELECT COALESCE(SUM(p.views_count),0), COALESCE(SUM(p.comments_count),0),
                       COALESCE(SUM(p.reactions_count),0), COUNT(*)
                FROM channel_posts p
                WHERE p.channel_id IN (
@@ -358,6 +395,7 @@ def overview(bot_id: int) -> dict[str, Any]:
                    WHERE chat_type = 'channel'
                      AND (IFNULL(username, '') != '' OR members_count IS NOT NULL)
                )
+               {exclude_sql}
             """
         ).fetchone()
         views = int(posts[0] or 0)
@@ -496,6 +534,12 @@ def growth_series(bot_id: int, days: int = 30, range_key: str | None = None) -> 
 
 def snapshot(bot_id: int, *, range_key: str = "30d") -> dict[str, Any]:
     """Single payload for live dashboard sync (local DB only — no network)."""
+    try:
+        from backend.core.publisher import sync_channel_posts_with_publisher
+
+        sync_channel_posts_with_publisher(bot_id)
+    except Exception:
+        pass
     ov = overview(bot_id)
     growth = growth_series(bot_id, range_key=range_key)
     hours = activity_hours(bot_id, days=14 if range_key != "24h" else 1)
@@ -510,7 +554,7 @@ def snapshot(bot_id: int, *, range_key: str = "30d") -> dict[str, Any]:
     comments = list_comments(bot_id, limit=120)
     restricted = list_restricted(bot_id)
     charts = {
-        "reactions": reactions_breakdown(bot_id),
+        "tags": tags_breakdown(bot_id),
         "moderation": moderation_breakdown(bot_id),
         "top_posts_chart": top_posts(bot_id, limit=5),
     }
@@ -638,27 +682,105 @@ def user_inspector(bot_id: int, user_id: int, chat_id: int | None = None) -> dic
         conn.close()
 
 
-def reactions_breakdown(bot_id: int) -> dict[str, Any]:
-    conn = connect_bot_db(bot_id)
+def tags_breakdown(bot_id: int) -> dict[str, Any]:
+    """Aggregate Post Studio internal tags, weighted by linked channel views when available."""
+    from backend.core.publisher import _loads, _normalize_tags, connect_publisher_db
+
+    conn = connect_publisher_db(bot_id)
     try:
-        rows = conn.execute(
-            "SELECT reactions_json FROM channel_posts WHERE reactions_json IS NOT NULL AND reactions_json != ''"
-        ).fetchall()
-        totals: dict[str, int] = {}
-        for r in rows:
-            raw = r[0] if not isinstance(r, sqlite3.Row) else r["reactions_json"]
-            try:
-                data = json.loads(raw or "{}")
-            except (TypeError, ValueError):
+        views_map: dict[tuple[str, int], dict[str, int]] = {}
+        tables = {
+            str(r[0])
+            for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        if "channel_posts" in tables:
+            for v in conn.execute(
+                """
+                SELECT channel_id, telegram_message_id, views_count, comments_count, reactions_count
+                FROM channel_posts
+                """
+            ).fetchall():
+                try:
+                    key = (str(v["channel_id"]), int(v["telegram_message_id"]))
+                except (TypeError, ValueError):
+                    continue
+                views = int(v["views_count"] or 0)
+                comments = int(v["comments_count"] or 0)
+                reactions = int(v["reactions_count"] or 0)
+                views_map[key] = {
+                    "views": views,
+                    "engagement": views + comments * 5 + reactions * 2,
+                }
+
+        agg: dict[str, dict[str, Any]] = {}
+        for r in conn.execute(
+            """
+            SELECT channel_id, telegram_message_id, tags, status
+            FROM publisher_posts
+            WHERE COALESCE(status, '') != 'deleted'
+              AND tags IS NOT NULL AND tags != '' AND tags != '[]'
+            """
+        ).fetchall():
+            tags = _normalize_tags(_loads(r["tags"], []))
+            if not tags:
                 continue
-            if not isinstance(data, dict):
-                continue
-            for emoji, count in data.items():
-                totals[str(emoji)] = totals.get(str(emoji), 0) + int(count or 0)
-        slices = [{"label": k, "count": v} for k, v in sorted(totals.items(), key=lambda x: -x[1])]
+            mid = r["telegram_message_id"]
+            stats = {"views": 0, "engagement": 0}
+            if mid is not None:
+                try:
+                    stats = views_map.get(
+                        (str(r["channel_id"]), int(mid)),
+                        stats,
+                    )
+                except (TypeError, ValueError):
+                    pass
+            for tag in tags:
+                name = str(tag.get("name") or "").strip()
+                if not name:
+                    continue
+                bucket = agg.setdefault(
+                    name,
+                    {
+                        "posts": 0,
+                        "views": 0,
+                        "engagement": 0,
+                        "color": tag.get("color") or "indigo",
+                    },
+                )
+                bucket["posts"] += 1
+                bucket["views"] += int(stats["views"])
+                bucket["engagement"] += int(stats["engagement"])
+                if tag.get("color"):
+                    bucket["color"] = tag["color"]
+
+        use_views = any(int(b["views"] or 0) > 0 for b in agg.values())
+        slices: list[dict[str, Any]] = []
+        for name, b in sorted(
+            agg.items(),
+            key=lambda item: -(
+                int(item[1]["views"] or 0) if use_views else int(item[1]["posts"] or 0)
+            ),
+        ):
+            metric = int(b["views"] or 0) if use_views else int(b["posts"] or 0)
+            slices.append(
+                {
+                    "label": name,
+                    "count": metric,
+                    "posts": int(b["posts"] or 0),
+                    "views": int(b["views"] or 0),
+                    "engagement": int(b["engagement"] or 0),
+                    "color": b.get("color") or "indigo",
+                }
+            )
         if not slices:
-            slices = [{"label": "—", "count": 0}]
-        return {"slices": slices, "total": sum(s["count"] for s in slices)}
+            slices = [{"label": "—", "count": 0, "posts": 0, "views": 0, "engagement": 0}]
+        return {
+            "slices": slices,
+            "total": sum(int(s["count"] or 0) for s in slices),
+            "metric": "views" if use_views else "posts",
+        }
     finally:
         conn.close()
 
@@ -748,6 +870,13 @@ def top_posts(bot_id: int, limit: int = 50) -> dict[str, Any]:
     limit = max(1, min(int(limit), 200))
     from backend.core.channel_hub_store import build_post_url
 
+    try:
+        from backend.core.publisher import sync_channel_posts_with_publisher
+
+        sync_channel_posts_with_publisher(bot_id)
+    except Exception:
+        pass
+
     conn = connect_bot_db(bot_id)
     try:
         # Prefer username from registry for public links
@@ -758,8 +887,31 @@ def top_posts(bot_id: int, limit: int = 50) -> dict[str, Any]:
             ).fetchall()
         }
         _sync_post_comment_counts(conn)
-        rows = conn.execute(
+        tables = {
+            str(r[0])
+            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
+        purged_filter = ""
+        deleted_filter = ""
+        if "publisher_purged_keys" in tables:
+            purged_filter = """
+              AND NOT EXISTS (
+                  SELECT 1 FROM publisher_purged_keys pk
+                  WHERE pk.channel_id = CAST(channel_posts.channel_id AS TEXT)
+                    AND pk.telegram_message_id = channel_posts.telegram_message_id
+              )
             """
+        if "publisher_posts" in tables:
+            deleted_filter = """
+              AND NOT EXISTS (
+                  SELECT 1 FROM publisher_posts pp
+                  WHERE COALESCE(pp.status, '') = 'deleted'
+                    AND CAST(pp.channel_id AS TEXT) = CAST(channel_posts.channel_id AS TEXT)
+                    AND pp.telegram_message_id = channel_posts.telegram_message_id
+              )
+            """
+        rows = conn.execute(
+            f"""
             SELECT id, channel_id, telegram_message_id, text, full_text, post_url,
                    views_count, comments_count, reactions_count, created_at
             FROM channel_posts
@@ -768,6 +920,8 @@ def top_posts(bot_id: int, limit: int = 50) -> dict[str, Any]:
                 WHERE chat_type = 'channel'
                   AND (IFNULL(username, '') != '' OR members_count IS NOT NULL)
             )
+            {purged_filter}
+            {deleted_filter}
             ORDER BY (views_count + comments_count * 5 + reactions_count * 2) DESC,
                      views_count DESC, comments_count DESC, reactions_count DESC
             LIMIT ?

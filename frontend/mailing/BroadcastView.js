@@ -16,8 +16,8 @@
     savedRange: null,
     normalizedHtml: "",
     normalizeTimer: null,
-    htmlPanelOpen: false,
-    htmlPanelDirty: false,
+    mode: "visual",
+    htmlDirty: false,
   };
 
   function getApiOrigin() {
@@ -63,12 +63,12 @@
     if (!box) return;
     if (!message) {
       box.textContent = "";
-      box.className = "bc-status";
+      box.className = "bc-status ps-edit-hint";
       box.hidden = true;
       return;
     }
     box.textContent = message;
-    box.className = "bc-status" + (kind ? " bc-status-" + kind : "");
+    box.className = "bc-status ps-edit-hint" + (kind ? " bc-status-" + kind : "");
     box.hidden = false;
   }
 
@@ -303,20 +303,20 @@
     }, 300);
   }
 
-  function syncHtmlPanelFromEditor() {
+  function syncHtmlFromEditor() {
     var input = el("bc-html-modal-input");
-    if (!input || !state.htmlPanelOpen) return;
+    if (!input || state.mode !== "html") return;
     if (document.activeElement === input) return;
-    if (state.htmlPanelDirty) return;
+    if (state.htmlDirty) return;
     input.value = state.normalizedHtml || "";
   }
 
-  function markHtmlPanelDirty() {
-    state.htmlPanelDirty = true;
+  function markHtmlDirty() {
+    state.htmlDirty = true;
   }
 
-  function clearHtmlPanelDirty() {
-    state.htmlPanelDirty = false;
+  function clearHtmlDirty() {
+    state.htmlDirty = false;
   }
 
   function refreshNormalizedPreview() {
@@ -326,19 +326,19 @@
     if (!raw) {
       state.normalizedHtml = "";
       renderPreviewMessages("");
-      syncHtmlPanelFromEditor();
+      syncHtmlFromEditor();
       return Promise.resolve();
     }
     return fetchNormalizedHtml(raw)
       .then(function (normalized) {
         state.normalizedHtml = normalized || "";
         renderPreviewMessages(state.normalizedHtml);
-        syncHtmlPanelFromEditor();
+        syncHtmlFromEditor();
       })
       .catch(function (err) {
         setStatus(err.message || "Ошибка нормализации", "error");
         renderPreviewMessages(normalizePreviewHtml(raw));
-        syncHtmlPanelFromEditor();
+        syncHtmlFromEditor();
       });
   }
 
@@ -348,7 +348,7 @@
       var editor = el("bc-editor");
       if (editor) editor.innerHTML = normalizedToEditorHtml(normalized);
       renderPreviewMessages(state.normalizedHtml);
-      syncHtmlPanelFromEditor();
+      syncHtmlFromEditor();
     });
   }
 
@@ -625,27 +625,19 @@
     scheduleNormalize();
   }
 
-  function setHtmlPanelOpen(open) {
-    var panel = el("bc-html-panel");
-    var btn = el("bc-import-html-btn");
-    state.htmlPanelOpen = !!open;
-    if (panel) panel.hidden = !open;
-    if (btn) btn.classList.toggle("bc-tool-btn-active", !!open);
-  }
-
-  function openHtmlPanel() {
-    setHtmlPanelOpen(true);
-    clearHtmlPanelDirty();
-    refreshNormalizedPreview().then(syncHtmlPanelFromEditor);
-  }
-
-  function closeHtmlPanel() {
-    setHtmlPanelOpen(false);
-  }
-
-  function toggleHtmlPanel() {
-    if (state.htmlPanelOpen) closeHtmlPanel();
-    else openHtmlPanel();
+  function setMode(mode) {
+    state.mode = mode === "html" ? "html" : "visual";
+    document.querySelectorAll(".bc-mode-btn").forEach(function (btn) {
+      btn.classList.toggle("ps-mode-active", btn.getAttribute("data-mode") === state.mode);
+    });
+    var visualWrap = el("bc-visual-wrap");
+    var htmlWrap = el("bc-html-wrap");
+    if (visualWrap) visualWrap.hidden = state.mode !== "visual";
+    if (htmlWrap) htmlWrap.hidden = state.mode !== "html";
+    if (state.mode === "html") {
+      clearHtmlDirty();
+      refreshNormalizedPreview().then(syncHtmlFromEditor);
+    }
   }
 
   function applyHtmlFromModal() {
@@ -660,14 +652,11 @@
     }
     applyNormalizedToEditor(raw)
       .then(function () {
-        clearHtmlPanelDirty();
+        clearHtmlDirty();
         if (input) input.value = state.normalizedHtml || "";
+        setMode("visual");
       })
       .catch(function () {});
-  }
-
-  function importHtmlBlock() {
-    toggleHtmlPanel();
   }
 
   function handlePaste(e) {
@@ -748,17 +737,16 @@
         var upDisabled = row.index === 0 ? " disabled" : "";
         var downDisabled = row.index === listRef.length - 1 ? " disabled" : "";
         return (
-          '<div class="bc-attachment-item">' +
-          '<div class="bc-attachment-main">' +
+          '<div class="ps-media-item bc-attachment-item">' +
+          '<div class="ps-media-thumb">' +
           (row.kind === "image" && row.item.previewUrl
-            ? '<img class="bc-attachment-thumb" src="' + escapeHtml(row.item.previewUrl) + '" alt="" />'
-            : "") +
-          "<span>" +
-          icon +
-          " " +
+            ? '<img src="' + escapeHtml(row.item.previewUrl) + '" alt="" />'
+            : icon) +
+          "</div>" +
+          "<div><strong>" +
           escapeHtml(row.item.name || row.item.path) +
-          "</span></div>" +
-          '<div class="bc-attachment-actions">' +
+          "</strong></div>" +
+          '<div class="ps-media-actions bc-attachment-actions">' +
           '<button type="button" class="bc-move-btn" data-move-kind="' +
           row.kind +
           '" data-move-index="' +
@@ -954,7 +942,7 @@
 
     el("bc-send-btn") && el("bc-send-btn").addEventListener("click", sendBroadcast);
 
-    document.querySelectorAll("#bc-editor-toolbar .bc-tool-btn[data-cmd]").forEach(function (btn) {
+    document.querySelectorAll("#bc-editor-toolbar .ps-tool[data-cmd]").forEach(function (btn) {
       btn.addEventListener("mousedown", function (e) {
         e.preventDefault();
         saveSelection();
@@ -964,8 +952,11 @@
       });
     });
 
-    el("bc-import-html-btn") &&
-      el("bc-import-html-btn").addEventListener("click", importHtmlBlock);
+    document.querySelectorAll(".bc-mode-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setMode(btn.getAttribute("data-mode"));
+      });
+    });
 
     el("bc-html-modal-apply") &&
       el("bc-html-modal-apply").addEventListener("mousedown", function (e) {
@@ -973,13 +964,20 @@
       });
     el("bc-html-modal-apply") &&
       el("bc-html-modal-apply").addEventListener("click", applyHtmlFromModal);
-    el("bc-html-panel-close") &&
-      el("bc-html-panel-close").addEventListener("click", closeHtmlPanel);
-
     var htmlInput = el("bc-html-modal-input");
     if (htmlInput) {
-      htmlInput.addEventListener("input", markHtmlPanelDirty);
+      htmlInput.addEventListener("input", markHtmlDirty);
     }
+
+    document.querySelectorAll(".ps-section-toggle").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var section = btn.closest(".ps-section");
+        if (!section) return;
+        var open = !section.classList.contains("is-collapsed");
+        section.classList.toggle("is-collapsed", open);
+        btn.setAttribute("aria-expanded", open ? "false" : "true");
+      });
+    });
 
     el("bc-insert-image-btn") &&
       el("bc-insert-image-btn").addEventListener("click", function () {
@@ -1004,13 +1002,13 @@
       ["dragenter", "dragover"].forEach(function (ev) {
         dropzone.addEventListener(ev, function (e) {
           e.preventDefault();
-          dropzone.classList.add("bc-dropzone-drag");
+          dropzone.classList.add("ps-drop-active");
         });
       });
       ["dragleave", "drop"].forEach(function (ev) {
         dropzone.addEventListener(ev, function (e) {
           e.preventDefault();
-          dropzone.classList.remove("bc-dropzone-drag");
+          dropzone.classList.remove("ps-drop-active");
         });
       });
       dropzone.addEventListener("drop", function (e) {
