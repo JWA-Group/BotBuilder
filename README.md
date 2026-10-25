@@ -143,15 +143,22 @@ flowchart LR
 
 <br>
 
+<p align="center">
+  <img src="docs/assets/SE_s.png" alt="Redesigned Dashboard" width="85%">
+  <br><sub>Scenario Editor</sub>
+</p>
+
+<br>
+
 <table width="100%">
   <tr>
     <td align="center" width="50%">
-      <img src="docs/assets/demo-scenario-editor.png" alt="Scenario Editor" width="100%">
-      <br><sub>Scenario editor</sub>
+      <img src="docs/assets/SE_r.png" alt="Scenario Editor(Repo)" width="100%">
+      <br><sub>Scenario Editor(Repo)</sub>
     </td>
     <td align="center" width="50%">
-      <img src="docs/assets/BotBuilder_Library.png" alt="BotBuilder Library" width="100%">
-      <br><sub>Template library</sub>
+      <img src="docs/assets/SE_d.png" alt="Scenario Editor(DB)" width="100%">
+      <br><sub>Scenario Editor(DB)</sub>
     </td>
   </tr>
 </table>
