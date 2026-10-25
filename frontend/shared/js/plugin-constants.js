@@ -28,6 +28,8 @@
 
     "note_node",
 
+    "app_bridge",
+
   ];
 
 
@@ -51,6 +53,8 @@
     weather: "weather_node",
 
     note: "note_node",
+
+    app_bridge: "app_bridge",
 
   };
 

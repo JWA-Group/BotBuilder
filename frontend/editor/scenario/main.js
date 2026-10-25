@@ -36,15 +36,38 @@ function defaultTextForType(type, key, fallback) {
 const canvas = document.getElementById("canvas");
 const sidebar = document.getElementById("sidebar");
 const sidebarContent = document.getElementById("sidebar-content");
-const svg = document.querySelector("svg.connections");
+const svg =
+  document.getElementById("connections-layer") ||
+  document.querySelector("svg.connections") ||
+  document.getElementById("connections");
 
 const urlParams = new URLSearchParams(window.location.search);
 const bot_id = urlParams.get("bot_id") || "";
 const template_id = urlParams.get("template_id") || "";
+// Top-level const is not a window property; panels (AiPanel, studios) read window.bot_id.
+window.bot_id = bot_id;
+window.template_id = template_id;
 var user_id = typeof getUserId === "function" ? getUserId() : "1";
 
 var SCENARIO_SAVE_ICON = "💾";
 var SCENARIO_SAVE_LOADING_ICON = "⏳";
+
+function setSaveScenarioBusy(busy) {
+  var saveBtn = document.getElementById("save-scenario-btn");
+  if (!saveBtn) return;
+  saveBtn.disabled = !!busy;
+  saveBtn.classList.toggle("is-saving", !!busy);
+  var label = saveBtn.querySelector(".toolbar-save-label");
+  if (label) {
+    if (busy) {
+      if (!label.dataset.idleLabel) label.dataset.idleLabel = label.textContent || "";
+      label.textContent = "…";
+    } else if (label.dataset.idleLabel) {
+      label.textContent = label.dataset.idleLabel;
+      delete label.dataset.idleLabel;
+    }
+  }
+}
 
 function showScenarioToast(message, kind) {
   if (!message) return;
@@ -114,6 +137,9 @@ let panY = 0;
 
 const canvasWrapper = document.getElementById("canvas-wrapper");
 
+/* Native drawConnections() owns SVG wires + arrow markers (pre-ScenarioCanvas path). */
+
+
 function initSidebarResize() {
   var editor = document.getElementById("editor");
   var resizer = document.getElementById("sidebar-resizer");
@@ -169,6 +195,18 @@ function syncBlockSelectionStyles() {
     if (!b.el) return;
     if (selectedBlockIds.has(b.id)) b.el.classList.add("block-selected");
     else b.el.classList.remove("block-selected");
+  });
+  updateFocusPathTracing();
+}
+
+function updateFocusPathTracing() {
+  // Path dimming disabled — keep selection styles only, no global opacity fade.
+  if (document.body) {
+    document.body.classList.remove("canvas-path-tracing");
+  }
+  blocks.forEach(function (b) {
+    if (!b || !b.el) return;
+    b.el.classList.remove("block-path-dim", "block-path-focus", "block-path-related");
   });
 }
 
@@ -350,6 +388,7 @@ window.applyScenarioPayload = function (data) {
       tags: data.graph.tags || data.tags,
     });
   }
+  var wantAutoLayout = !!data._autoLayout;
   selectedBlockIds.clear();
   scenarioTags = data.tags || [];
   connections = (data.connections || []).slice();
@@ -372,6 +411,16 @@ window.applyScenarioPayload = function (data) {
   initSidebarResize();
   syncBlockSelectionStyles();
   clearUndoStack();
+  // Only when AI / explicit request sets _autoLayout (native "Выровнять")
+  if (wantAutoLayout && typeof runCanvasAutoLayout === "function") {
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        try {
+          runCanvasAutoLayout();
+        } catch (e) {}
+      });
+    });
+  }
 };
 
 function dismissAiScenarioOffer() {
@@ -497,7 +546,7 @@ function renderBlock(blockData) {
     var action = actionLabels[data.action] || tr("editor.data_configure");
     if (data.action === "issue") {
       var pid = (data.productId || tr("editor.data_product_id_default")).slice(0, 28);
-      html = '<div class="title">' + escapeHtml(blockTitleForType("data")) + '</div><div class="preview-text">' + escapeHtml(action) + ': ' + escapeHtml(pid || "...") + '</div><div class="condition-outputs"><div class="output condition-yes" data-index="0" title="' + escapeHtml(tr("editor.data_issue_ok")) + '"></div><div class="output condition-no" data-index="1" title="' + escapeHtml(tr("editor.data_issue_empty")) + '"></div></div>';
+      html = '<div class="title">' + escapeHtml(blockTitleForType("data")) + '</div><div class="preview-text">' + escapeHtml(action) + ': ' + escapeHtml(pid || "...") + '</div><div class="condition-outputs binary-ports"><div class="output condition-yes node-port port-success" data-index="0" data-port="ok" title="' + escapeHtml(tr("editor.data_issue_ok")) + '"></div><div class="output condition-no node-port port-fail" data-index="1" data-port="err" title="' + escapeHtml(tr("editor.data_issue_empty")) + '"></div></div>';
     } else {
       var field = (data.fieldName || tr("editor.data_field_default")).slice(0, 30);
       var typeLabel = data.fieldType === "number" ? tr("editor.data_number_suffix") : "";
@@ -505,7 +554,7 @@ function renderBlock(blockData) {
     }
   } else if (type === "condition") {
     const cond = (data.fieldName || tr("editor.preview_condition_if")).slice(0, 25);
-    html = '<div class="title">' + escapeHtml(blockTitleForType("condition")) + '</div><div class="preview-text">' + escapeHtml(cond || tr("editor.preview_condition_if")) + '</div><div class="condition-outputs"><div class="output condition-yes" data-index="0" title="' + escapeHtml(tr("editor.condition_yes")) + '"></div><div class="output condition-no" data-index="1" title="' + escapeHtml(tr("editor.condition_no")) + '"></div></div>';
+    html = '<div class="title">' + escapeHtml(blockTitleForType("condition")) + '</div><div class="preview-text">' + escapeHtml(cond || tr("editor.preview_condition_if")) + '</div><div class="condition-outputs binary-ports"><div class="output condition-yes node-port port-success" data-index="0" data-port="yes" title="' + escapeHtml(tr("editor.condition_yes")) + '"></div><div class="output condition-no node-port port-fail" data-index="1" data-port="no" title="' + escapeHtml(tr("editor.condition_no")) + '"></div></div>';
   } else if (type === "note") {
     const noteText = (data.text || "").slice(0, 60);
     html = '<div class="title">' + escapeHtml(blockTitleForType("note")) + '</div><div class="preview-text note-preview">' + escapeHtml(noteText || tr("editor.preview_note_default")) + '</div>';
@@ -551,14 +600,77 @@ function renderBlock(blockData) {
       html += '<div class="row-between-drop-zone row-end-drop-zone" data-dnd-mode="new-row" data-before-row="' + menuRowBreaks.length + '" data-insert-at="' + menuBtns.length + '"></div>';
       if (maxMenuRow >= 3) el.dataset.maxButtonsInRow = maxMenuRow; else delete el.dataset.maxButtonsInRow;
     }
+  } else if (type === "app_bridge") {
+    el.classList.add("block-app-bridge");
+    var appTitle = data.appName || blockTitleForType("app_bridge") || "App Bridge";
+    var appFolder = data.appFolder || "scripts/…";
+    var inputMap = data.inputMap && typeof data.inputMap === "object" ? data.inputMap : {};
+    var inputKeys = Object.keys(inputMap);
+    html =
+      '<div class="title">' +
+      escapeHtml(appTitle) +
+      '</div><div class="preview-text app-bridge-folder">' +
+      escapeHtml(String(appFolder).slice(0, 48)) +
+      "</div>";
+    if (inputKeys.length) {
+      html += '<ul class="app-bridge-inputs">';
+      inputKeys.slice(0, 6).forEach(function (k) {
+        html +=
+          "<li><span class=\"app-bridge-key\">" +
+          escapeHtml(k) +
+          '</span><span class="app-bridge-src">' +
+          escapeHtml(String(inputMap[k] || "").slice(0, 28)) +
+          "</span></li>";
+      });
+      if (inputKeys.length > 6) {
+        html += "<li class=\"app-bridge-more\">+" + (inputKeys.length - 6) + "</li>";
+      }
+      html += "</ul>";
+    } else {
+      html +=
+        '<div class="preview-text app-bridge-empty">' +
+        escapeHtml(data.description || "No mapped inputs") +
+        "</div>";
+    }
+    html +=
+      '<div class="condition-outputs app-bridge-ports binary-ports">' +
+      '<div class="output condition-yes node-port port-success" data-index="0" data-port-id="0" data-port="ok" title="Success"></div>' +
+      '<div class="output condition-no node-port port-fail" data-index="1" data-port-id="1" data-port="err" title="Error"></div>' +
+      "</div>";
   } else if (typeof CanvasView !== "undefined") {
     var pluginPreview = CanvasView.getPluginByType(type, registry);
     if (pluginPreview) {
-      var previewText = (data.text || data.inputPrompt || pluginPreview.description || "").slice(0, 60);
+      var previewText = (data.text || data.inputPrompt || data.item_title || pluginPreview.description || "").slice(0, 60);
+      var outCount = Number(pluginPreview.outputs);
+      if (!isFinite(outCount) || outCount < 0) outCount = 1;
+      var outLabels = Array.isArray(pluginPreview.outputLabels) ? pluginPreview.outputLabels : [];
       html =
-        '<div class="title">' + escapeHtml(pluginPreview.name || type) +
-        '</div><div class="preview-text">' + escapeHtml(previewText || pluginPreview.name || type) +
-        '</div><div class="output" data-index="0"></div>';
+        '<div class="title">' +
+        escapeHtml(pluginPreview.name || type) +
+        '</div><div class="preview-text">' +
+        escapeHtml(previewText || pluginPreview.name || type) +
+        "</div>";
+      if (outCount >= 2) {
+        html += '<div class="condition-outputs binary-ports">';
+        for (var oi = 0; oi < outCount; oi++) {
+          var ocls = oi === 0 ? "condition-yes node-port port-success" : "condition-no node-port port-fail";
+          var olab = outLabels[oi] != null ? String(outLabels[oi]) : String(oi);
+          var portKey = oi === 0 ? "ok" : "err";
+          html +=
+            '<div class="output ' +
+            ocls +
+            '" data-index="' +
+            oi +
+            '" data-port="' +
+            portKey +
+            '" title="' +
+            escapeHtml(olab) +
+            '"></div>';
+        }
+        html += "</div>";
+      } else if (outCount === 1) {
+        html += '<div class="output" data-index="0"></div>';
+      }
     }
   }
 
@@ -572,15 +684,34 @@ function renderBlock(blockData) {
 
   if (type !== "start") {
     const tb = document.createElement("div");
-    tb.className = "block-toolbar";
+    tb.className = "block-toolbar block-actions";
     const dup = document.createElement("button");
-    dup.textContent = "📄";
+    dup.type = "button";
+    dup.className = "block-action-btn block-action-copy";
     dup.title = tr("editor.duplicate_block");
-    dup.onclick = function (e) { e.stopPropagation(); duplicateBlock(blockData); };
+    dup.setAttribute("aria-label", tr("editor.duplicate_block"));
+    dup.innerHTML =
+      '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">' +
+      '<rect x="8" y="8" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.75"/>' +
+      '<path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M6 16V6a2 2 0 0 1 2-2h10"/>' +
+      "</svg>";
+    dup.onclick = function (e) {
+      e.stopPropagation();
+      duplicateBlock(blockData);
+    };
     const del = document.createElement("button");
-    del.textContent = "🗑";
+    del.type = "button";
+    del.className = "block-action-btn block-action-delete";
     del.title = tr("common.delete");
-    del.onclick = function (e) { e.stopPropagation(); deleteBlock(blockData); };
+    del.setAttribute("aria-label", tr("common.delete"));
+    del.innerHTML =
+      '<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">' +
+      '<path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/>' +
+      "</svg>";
+    del.onclick = function (e) {
+      e.stopPropagation();
+      deleteBlock(blockData);
+    };
     tb.appendChild(dup);
     tb.appendChild(del);
     el.appendChild(tb);
@@ -603,6 +734,11 @@ function renderBlock(blockData) {
       selectedBlockIds.clear();
       selectedBlockIds.add(blockData.id);
       syncBlockSelectionStyles();
+      try {
+        document.dispatchEvent(
+          new CustomEvent("bb:node-select", { detail: { id: blockData.id } })
+        );
+      } catch (errSel) {}
     }
     startDrag(e, el, blockData);
   };
@@ -621,18 +757,22 @@ function renderBlock(blockData) {
   }
 
   el.querySelectorAll(".output").forEach(function (out) {
+    if (out.dataset.index != null && !out.getAttribute("data-port-id")) {
+      out.setAttribute("data-port-id", String(out.dataset.index));
+    }
+    out.classList.add("node-port");
     out.style.cursor = "crosshair";
     out.onmousedown = function (e) {
       e.preventDefault();
       e.stopPropagation();
       if (pendingConnection && pendingConnection._upHandler) {
-        pendingConnection._upHandler();
+        pendingConnection._upHandler(true);
       }
       pendingConnection = {
         from: id,
-        outputIndex: out.dataset.index || "0",
+        outputIndex: out.dataset.index || out.getAttribute("data-port-id") || "0",
         mouseX: e.clientX,
-        mouseY: e.clientY
+        mouseY: e.clientY,
       };
       var moveHandler = function (ev) {
         if (pendingConnection) {
@@ -641,15 +781,55 @@ function renderBlock(blockData) {
           scheduleDrawConnections();
         }
       };
-      var upHandler = function () {
+      var upHandler = function (evOrSkip) {
         window.removeEventListener("mousemove", moveHandler);
         window.removeEventListener("mouseup", upHandler);
-        if (pendingConnection) {
-          pendingConnection._moveHandler = null;
-          pendingConnection._upHandler = null;
-          pendingConnection = null;
-          drawConnections();
+        var pending = pendingConnection;
+        if (!pending) return;
+        pendingConnection = null;
+        pending._moveHandler = null;
+        pending._upHandler = null;
+
+        var skipConnect = evOrSkip === true;
+        if (!skipConnect) {
+          var dropX =
+            pending.mouseX != null
+              ? pending.mouseX
+              : evOrSkip && evOrSkip.clientX != null
+                ? evOrSkip.clientX
+                : 0;
+          var dropY =
+            pending.mouseY != null
+              ? pending.mouseY
+              : evOrSkip && evOrSkip.clientY != null
+                ? evOrSkip.clientY
+                : 0;
+          var hit =
+            typeof document.elementFromPoint === "function"
+              ? document.elementFromPoint(dropX, dropY)
+              : null;
+          var toBlock = hit && hit.closest ? hit.closest(".block") : null;
+          if (
+            toBlock &&
+            toBlock.dataset.id &&
+            toBlock.dataset.id !== pending.from &&
+            toBlock.dataset.type !== "note"
+          ) {
+            pushUndoSnapshot();
+            connections = connections.filter(function (c) {
+              return !(
+                c.from === pending.from &&
+                String(c.outputIndex) === String(pending.outputIndex)
+              );
+            });
+            connections.push({
+              from: pending.from,
+              outputIndex: pending.outputIndex,
+              to: toBlock.dataset.id,
+            });
+          }
         }
+        drawConnections();
       };
       pendingConnection._moveHandler = moveHandler;
       pendingConnection._upHandler = upHandler;
@@ -1260,14 +1440,23 @@ function getRowForIndex(index, rowBreaks, totalLen) {
 }
 
 function getOutputColor(blockId, outputIndex) {
-  var block = blocks.find(function (b) { return b.id === blockId; });
+  var block = blocks.find(function (b) {
+    return b.id === blockId;
+  });
   if (!block) return "#888";
   var outIdx = parseInt(String(outputIndex), 10);
   if (block.type === "condition") return outIdx === 0 ? "#16a34a" : "#dc2626";
-  if (block.type === "data" && block.data && block.data.action === "issue") {
+  if (block.type === "app_bridge") return outIdx === 0 ? "#16a34a" : "#dc2626";
+  if (block.type === "payment_universal" || String(block.type || "").indexOf("payment") === 0) {
     return outIdx === 0 ? "#16a34a" : "#dc2626";
   }
-  var btns = block.type === "message" ? (block.data.inlineButtons || []) : (block.data.buttons || []);
+  if (block.data && block.data.action === "issue") {
+    return outIdx === 0 ? "#16a34a" : "#dc2626";
+  }
+  var btns =
+    block.type === "message"
+      ? block.data.inlineButtons || []
+      : block.data.buttons || [];
   if (btns.length === 0) return "#888";
   var rowBreaks = getRowBreaks(block);
   var row = getRowForIndex(outIdx, rowBreaks, btns.length);
@@ -1276,19 +1465,34 @@ function getOutputColor(blockId, outputIndex) {
 }
 
 function getConnectionStart(blockId, outputIndex) {
-  var blockEl = document.querySelector("[data-id=\"" + blockId + "\"]");
-  var block = blocks.find(function (b) { return b.id === blockId; });
-  var outEl = blockEl ? blockEl.querySelector(".output[data-index=\"" + outputIndex + "\"]") : null;
+  var blockEl = document.querySelector('[data-id="' + blockId + '"]');
+  var block = blocks.find(function (b) {
+    return b.id === blockId;
+  });
+  var outEl = blockEl
+    ? blockEl.querySelector('.output[data-index="' + outputIndex + '"]')
+    : null;
   if (!outEl) return null;
   var outIdx = parseInt(String(outputIndex), 10);
-  var btns = block && block.type === "message" ? (block.data.inlineButtons || []) : (block && block.type === "menu" ? (block.data.buttons || []) : []);
+  var btns =
+    block && block.type === "message"
+      ? block.data.inlineButtons || []
+      : block && block.type === "menu"
+        ? block.data.buttons || []
+        : [];
   if (btns.length && block) {
     var rowBreaks = getRowBreaks(block);
     var row = getRowForIndex(outIdx, rowBreaks, btns.length);
     if (row.rowLen > 1) {
       var blockRect = blockEl.getBoundingClientRect();
-      var firstInRow = blockEl.querySelector(".output[data-index=\"" + row.rowStart + "\"]");
-      var rowCenterY = firstInRow ? (firstInRow.getBoundingClientRect().top + firstInRow.getBoundingClientRect().bottom) / 2 : blockRect.top + blockRect.height / 2;
+      var firstInRow = blockEl.querySelector(
+        '.output[data-index="' + row.rowStart + '"]'
+      );
+      var rowCenterY = firstInRow
+        ? (firstInRow.getBoundingClientRect().top +
+            firstInRow.getBoundingClientRect().bottom) /
+          2
+        : blockRect.top + blockRect.height / 2;
       return { x: blockRect.right, y: rowCenterY };
     }
   }
@@ -1356,6 +1560,572 @@ function startDrag(e, el, blockData) {
   document.addEventListener("mouseup", stop);
 }
 
+/** Sugiyama-style layered auto-layout (dynamic sizes, barycenter crossing reduction). */
+var AUTO_LAYOUT_GAP_X = 120;
+var AUTO_LAYOUT_GAP_Y = 60;
+var AUTO_LAYOUT_BASE_X = 100;
+var AUTO_LAYOUT_BASE_Y = 100;
+var AUTO_LAYOUT_DEFAULT_W = 240;
+var AUTO_LAYOUT_DEFAULT_H = 120;
+var AUTO_LAYOUT_ROOT_TYPES = { start: true, command: true };
+var AUTO_LAYOUT_BARY_SWEEPS = 4;
+var AUTO_LAYOUT_ANIM_MS = 220;
+
+function _autoLayoutMeasure(block) {
+  var el = block && block.el;
+  var w = el && el.offsetWidth ? el.offsetWidth : AUTO_LAYOUT_DEFAULT_W;
+  var h = el && el.offsetHeight ? el.offsetHeight : AUTO_LAYOUT_DEFAULT_H;
+  if (!w || w < 40) w = AUTO_LAYOUT_DEFAULT_W;
+  if (!h || h < 24) h = AUTO_LAYOUT_DEFAULT_H;
+  return { w: w, h: h };
+}
+
+function _autoLayoutPortIndex(edge) {
+  var raw = edge && edge.outputIndex != null ? edge.outputIndex : "0";
+  var n = parseInt(String(raw), 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** DFS back-edge detection so ranking never loops on cycles. */
+function _autoLayoutFindBackEdges(nodeIds, adj) {
+  var WHITE = 0;
+  var GRAY = 1;
+  var BLACK = 2;
+  var color = {};
+  var back = {};
+  nodeIds.forEach(function (id) {
+    color[id] = WHITE;
+  });
+
+  function dfs(u) {
+    color[u] = GRAY;
+    var outs = adj[u] || [];
+    for (var i = 0; i < outs.length; i++) {
+      var v = outs[i].to;
+      if (color[v] === GRAY) {
+        back[u + "\0" + v + "\0" + outs[i].key] = true;
+        continue;
+      }
+      if (color[v] === WHITE) dfs(v);
+    }
+    color[u] = BLACK;
+  }
+
+  nodeIds.forEach(function (id) {
+    if (color[id] === WHITE) dfs(id);
+  });
+  return back;
+}
+
+/**
+ * Longest-path layering on an acyclic subgraph.
+ * rank[v] = 0 for roots / sources; otherwise max(rank[pred]) + 1.
+ */
+function _autoLayoutAssignRanks(nodeIds, preds, roots) {
+  var succ = {};
+  var indeg = {};
+  var rootSet = {};
+  var rank = {};
+
+  nodeIds.forEach(function (id) {
+    succ[id] = [];
+    indeg[id] = 0;
+  });
+  roots.forEach(function (id) {
+    rootSet[id] = true;
+  });
+
+  nodeIds.forEach(function (id) {
+    (preds[id] || []).forEach(function (e) {
+      if (!succ[e.from]) return;
+      succ[e.from].push(id);
+      indeg[id] += 1;
+    });
+  });
+
+  // Explicit roots ignore inbound edges for topo seeding (cycle remnants)
+  var indegWork = {};
+  nodeIds.forEach(function (id) {
+    indegWork[id] = rootSet[id] ? 0 : indeg[id];
+  });
+
+  var queue = [];
+  nodeIds.forEach(function (id) {
+    if (indegWork[id] === 0) queue.push(id);
+  });
+  // Stable: prefer declared roots first
+  queue.sort(function (a, b) {
+    if (rootSet[a] && !rootSet[b]) return -1;
+    if (rootSet[b] && !rootSet[a]) return 1;
+    return String(a).localeCompare(String(b));
+  });
+
+  var topo = [];
+  var seen = {};
+  while (queue.length) {
+    var u = queue.shift();
+    if (seen[u]) continue;
+    seen[u] = true;
+    topo.push(u);
+    (succ[u] || []).forEach(function (v) {
+      indegWork[v] -= 1;
+      if (indegWork[v] <= 0 && !seen[v]) queue.push(v);
+    });
+  }
+  nodeIds.forEach(function (id) {
+    if (!seen[id]) topo.push(id);
+  });
+
+  // Pass 1: longest path
+  topo.forEach(function (id) {
+    if (rootSet[id]) {
+      rank[id] = 0;
+      return;
+    }
+    var best = 0;
+    var hasPred = false;
+    (preds[id] || []).forEach(function (e) {
+      if (rank[e.from] == null) return;
+      hasPred = true;
+      var cand = rank[e.from] + 1;
+      if (cand > best) best = cand;
+    });
+    rank[id] = hasPred ? best : 0;
+  });
+
+  // Pass 2: re-assert roots at 0 and propagate (handles root with forced indeg wipe)
+  roots.forEach(function (id) {
+    rank[id] = 0;
+  });
+  topo.forEach(function (id) {
+    if (rootSet[id]) {
+      rank[id] = 0;
+      return;
+    }
+    var best = 0;
+    var hasPred = false;
+    (preds[id] || []).forEach(function (e) {
+      if (rank[e.from] == null) return;
+      hasPred = true;
+      var cand = rank[e.from] + 1;
+      if (cand > best) best = cand;
+    });
+    rank[id] = hasPred ? best : 0;
+  });
+
+  return rank;
+}
+
+function _autoLayoutBarycenterOrder(layers, preds, succs, sweeps) {
+  var maxRank = layers.length - 1;
+  var orderIndex = {};
+
+  function reindex(rank) {
+    var layer = layers[rank] || [];
+    for (var i = 0; i < layer.length; i++) orderIndex[layer[i]] = i;
+  }
+
+  for (var r = 0; r <= maxRank; r++) reindex(r);
+
+  function sortByBary(rank, usePreds) {
+    var layer = layers[rank];
+    if (!layer || layer.length < 2) return;
+
+    var scored = layer.map(function (id, fallback) {
+      var neigh = usePreds ? preds[id] || [] : succs[id] || [];
+      var sum = 0;
+      var count = 0;
+      for (var i = 0; i < neigh.length; i++) {
+        var other = usePreds ? neigh[i].from : neigh[i].to;
+        if (orderIndex[other] == null) continue;
+        var portBias = 0.12 * _autoLayoutPortIndex(neigh[i]);
+        sum += orderIndex[other] + (usePreds ? portBias : -portBias);
+        count += 1;
+      }
+      return {
+        id: id,
+        bary: count ? sum / count : orderIndex[id] != null ? orderIndex[id] : fallback,
+        fallback: fallback,
+      };
+    });
+
+    scored.sort(function (a, b) {
+      if (a.bary !== b.bary) return a.bary - b.bary;
+      return a.fallback - b.fallback;
+    });
+    layers[rank] = scored.map(function (s) {
+      return s.id;
+    });
+    reindex(rank);
+  }
+
+  var pass;
+  for (pass = 0; pass < sweeps; pass++) {
+    // Left → right (order by predecessors)
+    for (var r1 = 1; r1 <= maxRank; r1++) sortByBary(r1, true);
+    // Right → left (order by successors)
+    for (var r2 = maxRank - 1; r2 >= 0; r2--) sortByBary(r2, false);
+  }
+}
+
+function _autoLayoutApplyPositions(positions, animate) {
+  var ids = Object.keys(positions);
+  ids.forEach(function (id) {
+    var block = positions[id].block;
+    if (!block || !block.el) return;
+    if (animate) block.el.classList.add("auto-layout-anim");
+    // Force style flush so transition starts from current position
+    void block.el.offsetWidth;
+  });
+
+  ids.forEach(function (id) {
+    var p = positions[id];
+    var block = p.block;
+    if (!block || !block.el) return;
+    block.el.style.left = p.x + "px";
+    block.el.style.top = p.y + "px";
+    block.x = p.x;
+    block.y = p.y;
+  });
+
+  if (!animate) {
+    drawConnections();
+    return;
+  }
+
+  var start = typeof performance !== "undefined" ? performance.now() : Date.now();
+  function tick(now) {
+    drawConnections();
+    var t = typeof now === "number" ? now : Date.now();
+    if (t - start < AUTO_LAYOUT_ANIM_MS) {
+      window.requestAnimationFrame(tick);
+      return;
+    }
+    ids.forEach(function (id) {
+      var block = positions[id].block;
+      if (block && block.el) block.el.classList.remove("auto-layout-anim");
+    });
+    drawConnections();
+  }
+  window.requestAnimationFrame(tick);
+}
+
+function runCanvasAutoLayout() {
+  if (!Array.isArray(blocks) || !blocks.length) return;
+
+  pushUndoSnapshot();
+
+  var gapX = AUTO_LAYOUT_GAP_X;
+  var gapY = AUTO_LAYOUT_GAP_Y;
+
+  var byId = {};
+  var sizes = {};
+  var allIds = [];
+
+  blocks.forEach(function (b) {
+    if (!b || !b.id) return;
+    byId[b.id] = b;
+    sizes[b.id] = _autoLayoutMeasure(b);
+    allIds.push(b.id);
+  });
+
+  // --- Build adjacency (port-aware edges) ---
+  var adj = {};
+  var connected = {};
+  allIds.forEach(function (id) {
+    adj[id] = [];
+  });
+
+  var edgeKey = 0;
+  var rawEdges = [];
+  (connections || []).forEach(function (c) {
+    if (!c || !c.from || !c.to) return;
+    if (!byId[c.from] || !byId[c.to]) return;
+    if (c.from === c.to) return;
+    var edge = {
+      from: c.from,
+      to: c.to,
+      outputIndex: c.outputIndex != null ? c.outputIndex : "0",
+      key: String(edgeKey++),
+    };
+    rawEdges.push(edge);
+    adj[c.from].push(edge);
+    connected[c.from] = true;
+    connected[c.to] = true;
+  });
+
+  // --- Roots & orphans ---
+  var inCount = {};
+  allIds.forEach(function (id) {
+    inCount[id] = 0;
+  });
+  rawEdges.forEach(function (e) {
+    inCount[e.to] += 1;
+  });
+
+  var graphIds = [];
+  var orphans = [];
+  allIds.forEach(function (id) {
+    var b = byId[id];
+    var isRootType = !!(b && AUTO_LAYOUT_ROOT_TYPES[b.type]);
+    if (!connected[id]) {
+      if (isRootType) graphIds.push(id);
+      else orphans.push(id);
+      return;
+    }
+    graphIds.push(id);
+  });
+
+  var roots = [];
+  var seenRoot = {};
+  graphIds.forEach(function (id) {
+    var b = byId[id];
+    var isRootType = !!(b && AUTO_LAYOUT_ROOT_TYPES[b.type]);
+    if (isRootType || !inCount[id]) {
+      if (!seenRoot[id]) {
+        seenRoot[id] = true;
+        roots.push(id);
+      }
+    }
+  });
+  roots.sort(function (a, b) {
+    var ta = byId[a] && byId[a].type;
+    var tb = byId[b] && byId[b].type;
+    if (ta === "start" && tb !== "start") return -1;
+    if (tb === "start" && ta !== "start") return 1;
+    return String(a).localeCompare(String(b));
+  });
+  if (!roots.length && graphIds.length) roots.push(graphIds[0]);
+
+  // --- Cycle break + longest-path ranks ---
+  var backEdges = _autoLayoutFindBackEdges(graphIds, adj);
+  var preds = {};
+  var succs = {};
+  graphIds.forEach(function (id) {
+    preds[id] = [];
+    succs[id] = [];
+  });
+  rawEdges.forEach(function (e) {
+    var key = e.from + "\0" + e.to + "\0" + e.key;
+    if (backEdges[key]) return; // ignore back-edges for ranking / bary within layers
+    preds[e.to].push(e);
+    succs[e.from].push(e);
+  });
+
+  var rankMap = graphIds.length
+    ? _autoLayoutAssignRanks(graphIds, preds, roots)
+    : {};
+
+  // Build layer arrays
+  var maxRank = 0;
+  Object.keys(rankMap).forEach(function (id) {
+    if (rankMap[id] > maxRank) maxRank = rankMap[id];
+  });
+  var layers = [];
+  var r;
+  for (r = 0; r <= maxRank; r++) layers[r] = [];
+  graphIds.forEach(function (id) {
+    var rk = rankMap[id];
+    if (rk == null) return;
+    layers[rk].push(id);
+  });
+  // Deterministic initial order within layer
+  for (r = 0; r <= maxRank; r++) {
+    layers[r].sort(function (a, b) {
+      return String(a).localeCompare(String(b));
+    });
+  }
+
+  // Restrict preds/succs to adjacent ranks for barycenter (Sugiyama)
+  var predsAdj = {};
+  var succsAdj = {};
+  graphIds.forEach(function (id) {
+    predsAdj[id] = [];
+    succsAdj[id] = [];
+  });
+  rawEdges.forEach(function (e) {
+    var key = e.from + "\0" + e.to + "\0" + e.key;
+    if (backEdges[key]) return;
+    var rf = rankMap[e.from];
+    var rt = rankMap[e.to];
+    if (rf == null || rt == null) return;
+    if (rt === rf + 1) {
+      predsAdj[e.to].push(e);
+      succsAdj[e.from].push(e);
+    } else if (rf === rt + 1) {
+      // reverse-direction within layering (rare after longest-path) — treat swapped
+      predsAdj[e.from].push({
+        from: e.to,
+        to: e.from,
+        outputIndex: e.outputIndex,
+        key: e.key,
+      });
+      succsAdj[e.to].push({
+        from: e.to,
+        to: e.from,
+        outputIndex: e.outputIndex,
+        key: e.key,
+      });
+    }
+    // Long-span edges ignored for ordering (still drawn on canvas)
+  });
+
+  _autoLayoutBarycenterOrder(layers, predsAdj, succsAdj, AUTO_LAYOUT_BARY_SWEEPS);
+
+  // --- Column widths & X positions ---
+  var colWidth = [];
+  for (r = 0; r <= maxRank; r++) {
+    var mw = 0;
+    (layers[r] || []).forEach(function (id) {
+      var w = sizes[id] ? sizes[id].w : AUTO_LAYOUT_DEFAULT_W;
+      if (w > mw) mw = w;
+    });
+    colWidth[r] = mw || AUTO_LAYOUT_DEFAULT_W;
+  }
+  var colX = [];
+  colX[0] = AUTO_LAYOUT_BASE_X;
+  for (r = 1; r <= maxRank; r++) {
+    colX[r] = colX[r - 1] + colWidth[r - 1] + gapX;
+  }
+
+  // --- Y packing + parent-centered alignment ---
+  var pos = {};
+  var graphMaxBottom = AUTO_LAYOUT_BASE_Y;
+
+  for (r = 0; r <= maxRank; r++) {
+    var layer = layers[r] || [];
+    var yCursor = AUTO_LAYOUT_BASE_Y;
+    var packed = [];
+
+    layer.forEach(function (id, idx) {
+      var h = sizes[id] ? sizes[id].h : AUTO_LAYOUT_DEFAULT_H;
+      var y = yCursor;
+      packed.push({ id: id, y: y, h: h });
+      yCursor = y + h + gapY;
+    });
+
+    // Center-align this rank to parent bbox (ranks ≥ 1)
+    if (r > 0 && packed.length) {
+      var pMin = Infinity;
+      var pMax = -Infinity;
+      var hasParent = false;
+      packed.forEach(function (item) {
+        (predsAdj[item.id] || []).forEach(function (e) {
+          var pp = pos[e.from];
+          if (!pp) return;
+          hasParent = true;
+          if (pp.y < pMin) pMin = pp.y;
+          var pb = pp.y + (sizes[e.from] ? sizes[e.from].h : AUTO_LAYOUT_DEFAULT_H);
+          if (pb > pMax) pMax = pb;
+        });
+      });
+      if (hasParent && pMax >= pMin) {
+        var first = packed[0];
+        var last = packed[packed.length - 1];
+        var rankTop = first.y;
+        var rankBottom = last.y + last.h;
+        var rankCenter = (rankTop + rankBottom) / 2;
+        var parentCenter = (pMin + pMax) / 2;
+        var shift = parentCenter - rankCenter;
+        packed.forEach(function (item) {
+          item.y += shift;
+        });
+        // Keep layout from going above base
+        var minY = packed[0].y;
+        packed.forEach(function (item) {
+          if (item.y < minY) minY = item.y;
+        });
+        if (minY < AUTO_LAYOUT_BASE_Y) {
+          var bump = AUTO_LAYOUT_BASE_Y - minY;
+          packed.forEach(function (item) {
+            item.y += bump;
+          });
+        }
+      }
+    }
+
+    packed.forEach(function (item) {
+      pos[item.id] = {
+        block: byId[item.id],
+        x: colX[r] || AUTO_LAYOUT_BASE_X,
+        y: item.y,
+      };
+      var bottom = item.y + item.h;
+      if (bottom > graphMaxBottom) graphMaxBottom = bottom;
+    });
+  }
+
+  // --- Orphans: rightmost column, stacked from top with dynamic heights ---
+  var orphanX =
+    graphIds.length && maxRank >= 0
+      ? colX[maxRank] + colWidth[maxRank] + gapX * 2
+      : AUTO_LAYOUT_BASE_X;
+  var orphanY = AUTO_LAYOUT_BASE_Y;
+  var orphanSeen = {};
+  orphans.forEach(function (id) {
+    if (orphanSeen[id] || pos[id]) return;
+    orphanSeen[id] = true;
+    var h = sizes[id] ? sizes[id].h : AUTO_LAYOUT_DEFAULT_H;
+    pos[id] = {
+      block: byId[id],
+      x: orphanX,
+      y: orphanY,
+    };
+    orphanY += h + gapY;
+  });
+
+  _autoLayoutApplyPositions(pos, true);
+}
+
+window.runCanvasAutoLayout = runCanvasAutoLayout;
+
+/**
+ * Pan/zoom so all nodes fit in #canvas-wrapper with inner padding.
+ */
+function zoomToFitCanvas(padding) {
+  padding = padding != null ? padding : 32;
+  if (!Array.isArray(blocks) || !blocks.length || !canvasWrapper) return;
+
+  var minX = Infinity;
+  var minY = Infinity;
+  var maxX = -Infinity;
+  var maxY = -Infinity;
+  blocks.forEach(function (b) {
+    if (!b || !b.el) return;
+    var x = parseFloat(b.el.style.left) || 0;
+    var y = parseFloat(b.el.style.top) || 0;
+    var w = b.el.offsetWidth || AUTO_LAYOUT_DEFAULT_W;
+    var h = b.el.offsetHeight || AUTO_LAYOUT_DEFAULT_H;
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x + w > maxX) maxX = x + w;
+    if (y + h > maxY) maxY = y + h;
+  });
+  if (!isFinite(minX) || !isFinite(minY)) return;
+
+  var bw = Math.max(1, maxX - minX);
+  var bh = Math.max(1, maxY - minY);
+  var rect = canvasWrapper.getBoundingClientRect();
+  var vw = Math.max(1, rect.width);
+  var vh = Math.max(1, rect.height);
+  // Prefer viewport aspect: if canvas is wide, allow more horizontal room already via layout
+  var fitScale = Math.min(
+    (vw - padding * 2) / bw,
+    (vh - padding * 2) / bh
+  );
+  fitScale = Math.max(0.12, Math.min(1.35, fitScale));
+  scale = fitScale;
+
+  var worldCX = minX + bw / 2;
+  var worldCY = minY + bh / 2;
+  panX = vw / 2 + 50000 - worldCX * scale;
+  panY = vh / 2 + 50000 - worldCY * scale;
+  updateTransform();
+  scheduleDrawConnections();
+}
+
+window.zoomToFitCanvas = zoomToFitCanvas;
+
 function drawConnections() {
   if (!svg) return;
   var wrapperRect = canvasWrapper.getBoundingClientRect();
@@ -1398,7 +2168,7 @@ function drawConnections() {
   function toSvg(x, y) {
     return {
       x: (x - wrapperRect.left + offsetX - panX) / scale,
-      y: (y - wrapperRect.top + offsetY - panY) / scale
+      y: (y - wrapperRect.top + offsetY - panY) / scale,
     };
   }
 
@@ -1410,7 +2180,7 @@ function drawConnections() {
       var y1 = (start.y - wrapperRect.top + offsetY - panY) / scale;
       var p2 = toSvg(pendingConnection.mouseX, pendingConnection.mouseY);
       var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", "M" + x1 + "," + y1 + " C" + (x1 + 50) + "," + y1 + " " + (p2.x - 50) + "," + p2.y + " " + p2.x + "," + p2.y);
+      path.setAttribute("d", cubicWirePath(x1, y1, p2.x, p2.y));
       path.setAttribute("stroke", "#555");
       path.setAttribute("stroke-width", "2");
       path.setAttribute("stroke-dasharray", "6 4");
@@ -1425,20 +2195,22 @@ function drawConnections() {
     var outIdx = conn.outputIndex != null ? String(conn.outputIndex) : "0";
     var color = getOutputColor(conn.from, outIdx);
     var start = getConnectionStart(conn.from, outIdx);
-    const toEl = document.querySelector("[data-id=\"" + conn.to + "\"]");
+    var toEl = document.querySelector('[data-id="' + conn.to + '"]');
     if (!start || !toEl) return;
-    const tr = toEl.getBoundingClientRect();
-    const x1 = (start.x - wrapperRect.left + offsetX - panX) / scale;
-    const y1 = (start.y - wrapperRect.top + offsetY - panY) / scale;
-    const x2 = (tr.left - 6 - wrapperRect.left + offsetX - panX) / scale;
-    const y2 = (tr.top + tr.height / 2 - wrapperRect.top + offsetY - panY) / scale;
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", "M" + x1 + "," + y1 + " C" + (x1 + 50) + "," + y1 + " " + (x2 - 50) + "," + y2 + " " + x2 + "," + y2);
+    var tr = toEl.getBoundingClientRect();
+    var x1 = (start.x - wrapperRect.left + offsetX - panX) / scale;
+    var y1 = (start.y - wrapperRect.top + offsetY - panY) / scale;
+    var x2 = (tr.left - 6 - wrapperRect.left + offsetX - panX) / scale;
+    var y2 = (tr.top + tr.height / 2 - wrapperRect.top + offsetY - panY) / scale;
+    var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", cubicWirePath(x1, y1, x2, y2));
     path.setAttribute("stroke", color);
     path.setAttribute("stroke-width", "2");
     path.setAttribute("fill", "none");
     path.setAttribute("marker-end", "url(#arrow-" + idx + ")");
     path.dataset.connectionIndex = idx;
+    path.dataset.from = conn.from;
+    path.dataset.to = conn.to;
     path.style.cursor = "pointer";
     path.onclick = function (ev) {
       ev.stopPropagation();
@@ -1458,6 +2230,11 @@ function openSidebar(blockData) {
     selectedBlockIds.add(blockData.id);
     syncBlockSelectionStyles();
   }
+  try {
+    document.dispatchEvent(
+      new CustomEvent("bb:node-select", { detail: { id: blockData.id } })
+    );
+  } catch (errOpen) {}
 
   var registry = typeof CanvasView !== "undefined" ? CanvasView.getRegistry() : [];
   var phantom =
@@ -2106,9 +2883,8 @@ function renderDatabaseToolPanel() {
         return;
       }
       pushUndoSnapshot();
-      var x = panX + 100;
-      var y = panY + 100;
-      createBlock("data", x, y, {
+      var spawn = getSpawnPositionInViewport(240, 120);
+      createBlock("data", spawn.x, spawn.y, {
         action: "set",
         fieldType: type,
         fieldName: name,
@@ -2502,10 +3278,7 @@ window.saveScenario = function () {
     }
     var payload = window.collectScenarioPayload();
     var saveBtn = document.getElementById("save-scenario-btn");
-    if (saveBtn) {
-      saveBtn.disabled = true;
-      saveBtn.textContent = SCENARIO_SAVE_LOADING_ICON;
-    }
+    setSaveScenarioBusy(true);
     var url, method;
     if (template_id) {
       url = API_BASE + "/api/templates/" + encodeURIComponent(template_id) + "?user_id=" + encodeURIComponent(user_id);
@@ -2531,10 +3304,7 @@ window.saveScenario = function () {
         return res.text().then(function (text) { return { ok: false, status: res.status, data: text }; });
       })
       .then(function (r) {
-        if (saveBtn) {
-          saveBtn.disabled = false;
-          saveBtn.textContent = SCENARIO_SAVE_ICON;
-        }
+        setSaveScenarioBusy(false);
         if (r.ok) {
           showScenarioToast(
             template_id ? "Шаблон сохранён" : "Сценарий сохранён"
@@ -2560,25 +3330,12 @@ window.saveScenario = function () {
         }
       })
       .catch(function (err) {
-        if (saveBtn) {
-          saveBtn.disabled = false;
-          saveBtn.textContent = SCENARIO_SAVE_ICON;
-        }
+        setSaveScenarioBusy(false);
         alert("Ошибка: " + (err && err.message ? err.message : "нет связи с сервером. Запустите backend (например uvicorn)."));
       });
   } catch (e) {
     alert("Ошибка: " + (e && e.message ? e.message : String(e)));
   }
-};
-
-window.addNode = function (type) {
-  pushUndoSnapshot();
-  var x = 100 + blocks.length * 40;
-  var y = 100 + blocks.length * 40;
-  var defaults = typeof CanvasView !== "undefined"
-    ? CanvasView.applyDefaults(type, {}, CanvasView.getRegistry())
-    : {};
-  createBlock(type, x, y, defaults);
 };
 
 function updateTransform() {
@@ -2588,14 +3345,193 @@ function updateTransform() {
     svg.style.transform = t;
     svg.style.left = "-50000px";
     svg.style.top = "-50000px";
-    svg.style.width = 200000 / scale + "px";
-    svg.style.height = 200000 / scale + "px";
+    svg.style.width = "200000px";
+    svg.style.height = "200000px";
+    svg.style.overflow = "visible";
   }
+  syncCanvasGridOverlay();
+  syncCanvasZoomLod();
+}
+
+function syncCanvasZoomLod() {
+  var cw = document.getElementById("canvas-wrapper") || canvasWrapper;
+  if (!cw) return;
+  cw.classList.toggle("canvas-zoomed-out", scale < 0.55);
+  cw.classList.toggle("canvas-far-zoom", scale < 0.5);
+}
+
+/** Unproject viewport center → world coords (matches wheel-zoom math). */
+function getViewportCenterWorld() {
+  var wrap = document.getElementById("canvas-wrapper") || canvasWrapper;
+  if (!wrap) {
+    return { x: 100, y: 100 };
+  }
+  var rect = wrap.getBoundingClientRect();
+  var screenCenterX = rect.width / 2;
+  var screenCenterY = rect.height / 2;
+  var worldX = (screenCenterX + 50000 - panX) / scale;
+  var worldY = (screenCenterY + 50000 - panY) / scale;
+  return { x: worldX, y: worldY };
+}
+
+/** Spawn position centered on current view (fallback block size 240×120). */
+function getSpawnPositionInViewport(blockW, blockH) {
+  var w = blockW != null ? blockW : 240;
+  var h = blockH != null ? blockH : 120;
+  var c = getViewportCenterWorld();
+  return {
+    x: Math.round(c.x - w / 2),
+    y: Math.round(c.y - h / 2),
+  };
+}
+
+window.addNode = function (type) {
+  pushUndoSnapshot();
+  var spawn = getSpawnPositionInViewport(240, 120);
+  var defaults = typeof CanvasView !== "undefined"
+    ? CanvasView.applyDefaults(type, {}, CanvasView.getRegistry())
+    : {};
+  createBlock(type, spawn.x, spawn.y, defaults);
+};
+
+function cubicWirePath(x1, y1, x2, y2) {
+  var dx = Math.abs(x2 - x1);
+  var isBackEdge = x1 > x2;
+  // Clamp control points so long back-edges don't tear on zoom-out
+  var maxOffset = isBackEdge ? 250 : Math.max(300, dx * 0.7);
+  var offset = Math.min(dx * 0.6, maxOffset);
+  var finalOffset = Math.max(offset, 60);
+  return (
+    "M " +
+    x1 +
+    " " +
+    y1 +
+    " C " +
+    (x1 + finalOffset) +
+    " " +
+    y1 +
+    ", " +
+    (x2 - finalOffset) +
+    " " +
+    y2 +
+    ", " +
+    x2 +
+    " " +
+    y2
+  );
+}
+
+function styleWirePath(path) {
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke-linecap", "round");
+  path.setAttribute("stroke-linejoin", "round");
+}
+
+/** World units per grid cell at 100% zoom — pattern lives on #grid-overlay (not scaled via transform). */
+var GRID_BASE_SIZE = 40;
+var CANVAS_WORLD_ORIGIN = 50000;
+var GRID_MODE_STORAGE_KEY = "bb_canvas_grid_mode";
+/** @type {'none'|'lines'|'dots'} */
+var canvasGridMode = "none";
+
+function gridLodOpacities(zoom) {
+  var z = Number(zoom) || 1;
+  if (z >= 1) return { line: 0.06, dot: 0.15, overlay: 1 };
+  if (z >= 0.5) return { line: 0.03, dot: 0.08, overlay: 1 };
+  return { line: 0.015, dot: 0.04, overlay: 1 };
+}
+
+function syncCanvasGridOverlay() {
   var gridOverlay = document.getElementById("grid-overlay");
-  if (gridOverlay && canvasWrapper && canvasWrapper.classList.contains("grid-on")) {
-    gridOverlay.style.setProperty("--grid-x", panX + "px");
-    gridOverlay.style.setProperty("--grid-y", panY + "px");
+  if (!gridOverlay) return;
+  var currentGridSize = GRID_BASE_SIZE * scale;
+  // Screen position of world (0,0): canvas left(-50000) + pan + 0*scale
+  var gx = panX - CANVAS_WORLD_ORIGIN;
+  var gy = panY - CANVAS_WORLD_ORIGIN;
+  var lod = gridLodOpacities(scale);
+  gridOverlay.style.setProperty("--grid-size", currentGridSize + "px");
+  gridOverlay.style.setProperty("--grid-x", gx + "px");
+  gridOverlay.style.setProperty("--grid-y", gy + "px");
+  gridOverlay.style.setProperty("--grid-line-opacity", String(lod.line));
+  gridOverlay.style.setProperty("--grid-dot-opacity", String(lod.dot));
+  gridOverlay.style.setProperty("--grid-opacity", String(lod.overlay));
+  gridOverlay.style.backgroundSize = currentGridSize + "px " + currentGridSize + "px";
+  gridOverlay.style.backgroundPosition = gx + "px " + gy + "px";
+}
+
+function gridModeLabel(mode) {
+  var key =
+    mode === "lines"
+      ? "editor.grid_mode_lines"
+      : mode === "dots"
+        ? "editor.grid_mode_dots"
+        : "editor.grid_mode_none";
+  var fallback =
+    mode === "lines"
+      ? "Сетка: Линии"
+      : mode === "dots"
+        ? "Сетка: Точки"
+        : "Сетка: Выкл";
+  if (typeof t === "function") {
+    var v = t(key);
+    if (v && v !== key) return v;
   }
+  return fallback;
+}
+
+function loadCanvasGridMode() {
+  try {
+    var stored = localStorage.getItem(GRID_MODE_STORAGE_KEY);
+    if (stored === "none" || stored === "lines" || stored === "dots") return stored;
+    // Migrate legacy boolean toggle
+    if (localStorage.getItem("scenario_grid") === "1") return "lines";
+  } catch (e) {}
+  return "none";
+}
+
+function saveCanvasGridMode(mode) {
+  try {
+    localStorage.setItem(GRID_MODE_STORAGE_KEY, mode);
+    // Keep legacy key in sync for older builds
+    localStorage.setItem("scenario_grid", mode === "none" ? "0" : "1");
+  } catch (e) {}
+}
+
+function applyCanvasGridMode(mode, options) {
+  options = options || {};
+  if (mode !== "none" && mode !== "lines" && mode !== "dots") mode = "none";
+  canvasGridMode = mode;
+
+  var cw = document.getElementById("canvas-wrapper") || canvasWrapper;
+  if (cw) {
+    cw.classList.remove("canvas-grid-none", "canvas-grid-lines", "canvas-grid-dots", "grid-on");
+    cw.classList.add("canvas-grid-" + mode);
+    if (mode !== "none") cw.classList.add("grid-on");
+  }
+
+  var gridToggle = document.getElementById("grid-toggle");
+  if (gridToggle) {
+    gridToggle.classList.remove("active", "mode-none", "mode-lines", "mode-dots");
+    gridToggle.classList.add("mode-" + mode);
+    if (mode !== "none") gridToggle.classList.add("active");
+    var label = gridModeLabel(mode);
+    gridToggle.setAttribute("title", label);
+    gridToggle.setAttribute("aria-label", label);
+    gridToggle.setAttribute("aria-pressed", mode !== "none" ? "true" : "false");
+  }
+
+  syncCanvasGridOverlay();
+  saveCanvasGridMode(mode);
+
+  if (options.toast && typeof showScenarioToast === "function") {
+    showScenarioToast(gridModeLabel(mode), "ok");
+  }
+}
+
+function cycleCanvasGridMode() {
+  var next =
+    canvasGridMode === "none" ? "lines" : canvasGridMode === "lines" ? "dots" : "none";
+  applyCanvasGridMode(next, { toast: true });
 }
 
 canvasWrapper.addEventListener("wheel", function (e) {
@@ -2606,7 +3542,7 @@ canvasWrapper.addEventListener("wheel", function (e) {
   var worldX = (centerX - rect.left + 50000 - panX) / scale;
   var worldY = (centerY - rect.top + 50000 - panY) / scale;
   var delta = e.deltaY > 0 ? -0.1 : 0.1;
-  scale = Math.max(0.2, Math.min(2, scale * (1 + delta)));
+  scale = Math.max(0.1, Math.min(3, scale * (1 + delta)));
   panX = centerX - rect.left + 50000 - worldX * scale;
   panY = centerY - rect.top + 50000 - worldY * scale;
   updateTransform();
@@ -2650,19 +3586,6 @@ if (canvasWrapper) {
     if (!e.target.closest(".block")) {
       closeSidebar();
     }
-  });
-  canvasWrapper.addEventListener("mouseup", function (e) {
-    if (!pendingConnection) return;
-    var toBlock = e.target.closest(".block");
-    if (!toBlock || toBlock.dataset.id === pendingConnection.from) return;
-    if (toBlock.dataset.type === "note") return;
-    if (pendingConnection._moveHandler) window.removeEventListener("mousemove", pendingConnection._moveHandler);
-    if (pendingConnection._upHandler) window.removeEventListener("mouseup", pendingConnection._upHandler);
-    pushUndoSnapshot();
-    connections = connections.filter(function (c) { return !(c.from === pendingConnection.from && c.outputIndex === pendingConnection.outputIndex); });
-    connections.push({ from: pendingConnection.from, outputIndex: pendingConnection.outputIndex, to: toBlock.dataset.id });
-    pendingConnection = null;
-    drawConnections();
   });
 }
 
@@ -3055,6 +3978,89 @@ function initScenarioEditorPlugins() {
 
   window.rebuildScenarioPalette = rebuildScenarioPalette;
 
+  window.reloadPlugins = function () {
+    return fetch((typeof getApiOrigin === "function" ? getApiOrigin() : "") + "/api/plugins/reload", {
+      method: "POST",
+      headers: typeof jsonApiHeaders === "function" ? jsonApiHeaders() : { "Content-Type": "application/json" },
+    })
+      .catch(function () {})
+      .then(function () {
+        return CanvasView.loadPlugins();
+      })
+      .then(function () {
+        rebuildScenarioPalette();
+        // Ensure custom plugins visible after AI create
+        try {
+          if (localStorage.getItem(CUSTOM_PLUGINS_LS_KEY) !== "1") {
+            setCustomPluginsVisible(true);
+            rebuildScenarioPalette();
+          }
+        } catch (e) {}
+      });
+  };
+
+  window.loadScenarioData = function (scenario) {
+    if (typeof window.applyScenarioPayload === "function") {
+      window.applyScenarioPayload(scenario);
+    }
+  };
+
+  window.createBlock = createBlock;
+
+  window.getScenarioData = function () {
+    return {
+      blocks: (blocks || []).map(function (b) {
+        var data = {};
+        if (b && b.data && typeof b.data === "object") {
+          Object.keys(b.data).forEach(function (k) {
+            if (k === "el") return;
+            data[k] = b.data[k];
+          });
+        }
+        return {
+          id: b.id,
+          type: b.type,
+          x: b.el ? parseFloat(b.el.style.left) || 0 : b.x || 0,
+          y: b.el ? parseFloat(b.el.style.top) || 0 : b.y || 0,
+          data: data,
+        };
+      }),
+      connections: (connections || []).map(function (c) {
+        return {
+          from: c.from,
+          to: c.to,
+          outputIndex: String(c.outputIndex != null ? c.outputIndex : "0"),
+        };
+      }),
+      tags: Array.isArray(scenarioTags) ? scenarioTags.slice() : [],
+    };
+  };
+
+  window.editor = window.editor || {};
+  window.editor.getScenarioData = window.getScenarioData;
+  window.editor.createBlock = createBlock;
+  window.editor.loadScenarioData = window.loadScenarioData;
+  window.editor.pushUndoSnapshot = pushUndoSnapshot;
+  window.editor.undoLastAction = undoLastAction;
+  window.editor.runCanvasAutoLayout = runCanvasAutoLayout;
+  window.editor.zoomToFitCanvas = zoomToFitCanvas;
+  window.editor.patchScenario = function (scenario) {
+    pushUndoSnapshot();
+    window.loadScenarioData(Object.assign({}, scenario || {}, { _autoLayout: true }));
+    return true;
+  };
+  window.editor.reloadScenarioGraph = loadScenario;
+
+  window.addEventListener("workspace-updated", function (ev) {
+    var detail = (ev && ev.detail) || {};
+    if (!detail.refresh_canvas) return;
+    if (detail.canvas_applied) {
+      scheduleDrawConnections();
+      return;
+    }
+    loadScenario();
+  });
+
   CanvasView.loadPlugins().then(function () {
     rebuildScenarioPalette();
     var toggle = document.getElementById("custom-plugins-toggle");
@@ -3142,11 +4148,26 @@ setTimeout(function () {
   if (saveTemplateClose) saveTemplateClose.addEventListener("click", closeSaveTemplateModal);
   var saveTemplateBackdrop = document.getElementById("save-template-modal-backdrop");
   if (saveTemplateBackdrop) saveTemplateBackdrop.addEventListener("click", closeSaveTemplateModal);
+
+  if (typeof AiPanel === "function") {
+    window.aiPanel = new AiPanel();
+  }
+
+  if (typeof WorkspaceChrome === "function") {
+    window.workspaceChrome = new WorkspaceChrome({ botId: bot_id }).mount();
+  }
+
   if (template_id) {
     var backLink = document.getElementById("scenario-back-link");
     if (backLink) {
       backLink.href = "/templates/";
       backLink.textContent = tr("editor.back_to_templates");
+    }
+    var wsBack = document.getElementById("ws-back-btn");
+    if (wsBack) {
+      wsBack.href = "/templates/";
+      var lbl = wsBack.querySelector(".ws-back-label");
+      if (lbl) lbl.textContent = tr("editor.back_to_templates");
     }
   }
   var scrollEl = document.getElementById("toolbar-scroll");
@@ -3221,18 +4242,17 @@ setTimeout(function () {
 
   var gridToggle = document.getElementById("grid-toggle");
   var themeToggle = document.getElementById("theme-toggle");
+  var autoLayoutBtn = document.getElementById("btn-auto-layout");
   var cw = document.getElementById("canvas-wrapper");
+  if (autoLayoutBtn) {
+    autoLayoutBtn.addEventListener("click", function () {
+      runCanvasAutoLayout();
+    });
+  }
   if (gridToggle && cw) {
-    var stored = localStorage.getItem("scenario_grid");
-    if (stored === "1") {
-      cw.classList.add("grid-on");
-      gridToggle.classList.add("active");
-    }
+    applyCanvasGridMode(loadCanvasGridMode(), { toast: false });
     gridToggle.addEventListener("click", function () {
-      cw.classList.toggle("grid-on");
-      gridToggle.classList.toggle("active", cw.classList.contains("grid-on"));
-      localStorage.setItem("scenario_grid", cw.classList.contains("grid-on") ? "1" : "0");
-      updateTransform();
+      cycleCanvasGridMode();
     });
   }
   if (themeToggle && typeof AppTheme !== "undefined") {
@@ -3341,7 +4361,9 @@ setTimeout(function () {
             briefEl.style.display = "block";
           }
           if (r.data && r.data.scenario) {
-            window.applyScenarioPayload(r.data.scenario);
+            window.applyScenarioPayload(
+              Object.assign({}, r.data.scenario, { _autoLayout: true })
+            );
             dismissAiScenarioOffer();
             closeAiScenarioModal();
           }
@@ -3358,7 +4380,11 @@ setTimeout(function () {
     var btn = document.getElementById("ai-scenario-btn");
     if (btn) {
       btn.onclick = function () {
-        showScenarioToast(tr("editor.ai_coming_soon"));
+        if (window.aiPanel && typeof window.aiPanel.toggle === "function") {
+          window.aiPanel.toggle();
+        } else {
+          showScenarioToast(tr("editor.ai_coming_soon"));
+        }
       };
     }
     document.addEventListener("keydown", function (ev) {

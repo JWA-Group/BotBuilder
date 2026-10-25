@@ -1,8 +1,12 @@
-import os
 import json
-from jinja2 import Template
+import logging
+import os
+
+from jinja2 import Template, TemplateSyntaxError
 
 from backend.core.app_paths import PROJECTS_DIR as BASE_DIR
+
+_compile_log = logging.getLogger("botbuilder.compile")
 
 
 def get_bot_platform(bot_id: int) -> str:
@@ -141,12 +145,20 @@ async def main():
         log.error("Таймаут подключения к Telegram API (45с).")
         raise SystemExit(1)
     log.info("Start polling as @%s (id=%s) [moderator]", me.username, me.id)
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        try:
+            await bot.session.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        pass
     except Exception as exc:
         log.exception("Bot stopped: %s", exc)
         raise
@@ -221,6 +233,92 @@ log = logging.getLogger("bot")
 with open(os.path.join(BASE_DIR, "config.json"), encoding="utf-8") as f:
     config = json.load(f)
 TOKEN = config.get("api_key") or config.get("token") or ""
+try:
+    BOT_ID = int(config.get("bot_id") or config.get("id") or 0)
+except (TypeError, ValueError):
+    BOT_ID = 0
+if not BOT_ID:
+    try:
+        BOT_ID = int(os.path.basename(BASE_DIR).replace("bot_", "") or "0")
+    except (TypeError, ValueError):
+        BOT_ID = 0
+# Optional sidecar URL for live telemetry (falls back to bot.log marker only).
+API_SIDECAR = (
+    os.environ.get("BOTBUILDER_API_URL")
+    or config.get("api_url")
+    or "http://127.0.0.1:8000"
+).rstrip("/")
+
+
+def _redact_runtime_value(val, depth=0):
+    if depth > 3:
+        return "[truncated]"
+    if isinstance(val, dict):
+        out = {}
+        for k, v in list(val.items())[:30]:
+            ks = str(k).lower()
+            if any(s in ks for s in ("token", "password", "secret", "api_key", "authorization")):
+                out[str(k)] = "[REDACTED]"
+            else:
+                out[str(k)] = _redact_runtime_value(v, depth + 1)
+        return out
+    if isinstance(val, list):
+        return [_redact_runtime_value(x, depth + 1) for x in val[:20]]
+    if isinstance(val, str):
+        s = val
+        if len(s) > 400:
+            s = s[:399] + "…"
+        return s
+    if isinstance(val, (int, float, bool)) or val is None:
+        return val
+    return str(val)[:200]
+
+
+def _report_node_runtime_error(user_id, block_id, typ, data, ctx, exc):
+    """Zero-cost on happy path: only called from except around node dispatch."""
+    import traceback
+    import urllib.request
+
+    payload = {
+        "bot_id": BOT_ID,
+        "user_id": user_id,
+        "failing_node_id": str(block_id or ""),
+        "node_type": str(typ or ""),
+        "exception_type": type(exc).__name__,
+        "stack_trace": traceback.format_exc(),
+        "message": str(exc)[:500],
+        "local_variables_snapshot": {
+            "data": _redact_runtime_value(data if isinstance(data, dict) else {}),
+            "ctx": _redact_runtime_value(
+                {
+                    k: (ctx or {}).get(k)
+                    for k in (
+                        "trigger_text",
+                        "accept_input",
+                        "force_await_input",
+                        "last_chat_id",
+                    )
+                    if isinstance(ctx, dict)
+                }
+            ),
+        },
+    }
+    try:
+        log.error("BB_RUNTIME_ERROR:%s", json.dumps(payload, ensure_ascii=False))
+    except Exception:
+        log.exception("node runtime error (unserializable payload)")
+    # Best-effort push to IDE sidecar (non-blocking short timeout).
+    try:
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(
+            API_SIDECAR + "/api/ai/runtime-errors",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=0.4)
+    except Exception:
+        pass
 
 
 class ProxyAwareSession(AiohttpSession):
@@ -245,6 +343,81 @@ bot = Bot(
 )
 dp = Dispatcher(storage=MemoryStorage())
 
+# --- Inbound / outbound dedupe (prevent double menu dispatch & duplicate bubbles) ---
+_OUTBOUND_DEDUP = {}  # (chat_id, text) -> monotonic ts
+_INBOUND_DEDUP = {}  # user_id -> (message_id, text, ts)
+_DEDUP_WINDOW_SEC = 1.0
+
+
+def _claim_outbound_text(chat_id, text) -> bool:
+    """Return False if the same text was already sent to chat_id within 1s."""
+    import time
+
+    body = (text if text is not None else "")
+    if isinstance(body, str):
+        body = body.strip()
+    else:
+        body = str(body).strip()
+    if not body:
+        return True
+    key = (int(chat_id or 0), body)
+    now = time.monotonic()
+    prev = _OUTBOUND_DEDUP.get(key)
+    if prev is not None and (now - prev) < _DEDUP_WINDOW_SEC:
+        log.info("Suppress duplicate outbound chat=%s within 1s", chat_id)
+        return False
+    _OUTBOUND_DEDUP[key] = now
+    if len(_OUTBOUND_DEDUP) > 400:
+        cutoff = now - 5.0
+        stale = [k for k, v in _OUTBOUND_DEDUP.items() if v < cutoff]
+        for k in stale:
+            _OUTBOUND_DEDUP.pop(k, None)
+    return True
+
+
+def _claim_inbound_event(user_id, message_id, text) -> bool:
+    """
+    Single-dispatch debounce: the same Telegram message (or same button text
+    within a short race window) is processed only once across menu/text handlers.
+    """
+    import time
+
+    now = time.monotonic()
+    uid = int(user_id or 0)
+    mid = int(message_id or 0)
+    txt = (text or "").strip()[:200]
+    prev = _INBOUND_DEDUP.get(uid)
+    if prev:
+        p_mid, p_txt, p_ts = prev
+        if mid and p_mid == mid and (now - p_ts) < _DEDUP_WINDOW_SEC:
+            log.info("Suppress duplicate inbound user=%s message_id=%s", uid, mid)
+            return False
+        if txt and p_txt == txt and (now - p_ts) < 0.4:
+            log.info("Suppress duplicate inbound race user=%s text=%r", uid, txt[:40])
+            return False
+    _INBOUND_DEDUP[uid] = (mid, txt, now)
+    if len(_INBOUND_DEDUP) > 400:
+        cutoff = now - 5.0
+        stale = [k for k, v in _INBOUND_DEDUP.items() if v[2] < cutoff]
+        for k in stale:
+            _INBOUND_DEDUP.pop(k, None)
+    return True
+
+
+_raw_bot_send_message = bot.send_message
+
+
+async def _bot_send_message_deduped(chat_id, text=None, *args, **kwargs):
+    body = text if text is not None else kwargs.get("text")
+    if body is not None and not _claim_outbound_text(chat_id, body):
+        return None
+    if text is not None:
+        return await _raw_bot_send_message(chat_id, text, *args, **kwargs)
+    return await _raw_bot_send_message(chat_id, *args, **kwargs)
+
+
+bot.send_message = _bot_send_message_deduped
+
 
 class ScenarioState(StatesGroup):
     in_menu = State()
@@ -266,8 +439,22 @@ NEXT_MAP = {}
 for c in CONNECTIONS:
     out = c.get("outputIndex", 0)
     if isinstance(out, str):
-        out = int(out) if out.isdigit() else 0
-    NEXT_MAP[(c["from"], out)] = c["to"]
+        out = out.strip()
+        if not out.isdigit():
+            # Named ports are not drawn on the canvas; never route them silently to port 0.
+            logging.getLogger("bot.scenario").error(
+                "BB_SCENARIO_ERROR invalid outputIndex %r on %s -> %s, edge ignored",
+                out, c.get("from"), c.get("to"),
+            )
+            continue
+        out = int(out)
+    key = (c.get("from"), out)
+    if key in NEXT_MAP and NEXT_MAP[key] != c.get("to"):
+        logging.getLogger("bot.scenario").warning(
+            "BB_SCENARIO_WARNING %s port %s has several targets, using %s (dropped %s)",
+            key[0], out, c.get("to"), NEXT_MAP[key],
+        )
+    NEXT_MAP[key] = c.get("to")
 
 
 def normalize_button_row_breaks(breaks, count):
@@ -614,6 +801,76 @@ def get_next_block(block_id, output_index=0):
     return NEXT_MAP.get((block_id, output_index))
 
 
+def _fsm_resume_accept_input(origin_block_id, next_id) -> bool:
+    """
+    F2: only feed last_message_text into the NEXT node when it is a self-reentry
+    (weather / svoy / ai_director / forward). After Data Input the downstream
+    node must NOT see the just-saved text (cascade pollution).
+    """
+    if not next_id:
+        return False
+    return str(next_id) == str(origin_block_id or "")
+
+
+async def handle_unwired_port(bot, chat_id, user_id, block_id, port_index, ctx=None):
+    """
+    F4/F5: branch/condition port with no outgoing edge.
+    Log BB_RUNTIME_ERROR, notify the user — never silent-drop or clear FSM.
+    """
+    blk = BLOCKS_BY_ID.get(block_id) or {}
+    typ = str(blk.get("type") or "")
+    payload = {
+        "bot_id": BOT_ID,
+        "user_id": user_id,
+        "failing_node_id": str(block_id or ""),
+        "node_type": typ,
+        "exception_type": "UnwiredPort",
+        "stack_trace": "",
+        "message": f"Port {port_index} has no outgoing connection on block {block_id}",
+        "local_variables_snapshot": {
+            "port_index": port_index,
+            "ctx": _redact_runtime_value(
+                {
+                    k: (ctx or {}).get(k)
+                    for k in (
+                        "trigger_text",
+                        "accept_input",
+                        "force_await_input",
+                        "input_origin_block",
+                    )
+                    if isinstance(ctx, dict)
+                }
+            ),
+        },
+    }
+    try:
+        log.error("BB_RUNTIME_ERROR:%s", json.dumps(payload, ensure_ascii=False))
+    except Exception:
+        log.warning("Unwired port %s on block %s (user=%s)", port_index, block_id, user_id)
+    try:
+        import urllib.request
+
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(
+            API_SIDECAR + "/api/ai/runtime-errors",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=0.4)
+    except Exception:
+        pass
+    try:
+        await bot.send_message(
+            chat_id,
+            "Действие не настроено. Этот выход сценария не подключён. "
+            "Обратитесь к администратору или отправьте /start.",
+        )
+    except Exception:
+        pass
+    return None
+
+
 def _format_value_for_display(val: str) -> str:
     """Форматирование числа: 200.0 → 200, 200.1 → 200.1."""
     if val is None or val == "":
@@ -669,8 +926,79 @@ async def execute_block(bot: Bot, chat_id: int, user_id: int, block_id: str, ctx
         log_block_visit(user_id, block_id, "visit")
     except Exception:
         pass
+    try:
+        return await _dispatch_block(bot, chat_id, user_id, block_id, ctx, data, disable, typ)
+    except Exception as _bb_exc:
+        _report_node_runtime_error(user_id, block_id, typ, data, ctx, _bb_exc)
+        try:
+            await bot.send_message(
+                chat_id,
+                "Ошибка сценария: технический сбой в блоке ["
+                + str(typ or block_id or "?")
+                + "]. Отправьте /start или проверьте логи запуска.",
+            )
+        except Exception:
+            pass
+        return
 
+
+async def _dispatch_block(bot, chat_id, user_id, block_id, ctx, data, disable, typ):
 __PLUGIN_EXECUTE_DISPATCH__
+
+
+async def _register_await_input(
+    bot: Bot,
+    chat_id: int,
+    user_id: int,
+    state: FSMContext,
+    info: dict,
+):
+    """
+    Persist FSM wait for a specific Input node. Re-entrant safe: loops that
+    return to the same Wait/Input block re-register without wiping user_data.
+    """
+    blk = BLOCKS_BY_ID.get(info.get("block_id"))
+    dd = (blk.get("data") or {}) if blk else {}
+    prompt = (info.get("input_prompt") or dd.get("inputPrompt") or "").strip()
+    skip_prompt = bool(info.get("skip_prompt"))
+    pending = {
+        "data_block_id": info["block_id"],
+        "data_field": info["field"],
+        "data_field_type": info.get("field_type", "string"),
+        "data_next_id": info.get("next_id"),
+    }
+    had_reply_kb = bool(get_current_menu_id(user_id))
+    # Re-attach wait handler for this user (loop-safe). Keep other FSM keys.
+    await state.set_state(ScenarioState.awaiting_data_input)
+    await state.update_data(**pending)
+    save_pending_input(user_id, pending)
+    _clear_last_reply_keyboard(chat_id, user_id=user_id)
+
+    # Smart prompting: a Message node in the same tick already asked the user —
+    # only register FSM, do not send a second prompt bubble.
+    if skip_prompt:
+        if had_reply_kb:
+            # Strip reply keyboard without repeating the Message prompt text.
+            try:
+                await bot.send_message(
+                    chat_id,
+                    "\u2060",
+                    reply_markup=ReplyKeyboardRemove(),
+                )
+            except Exception:
+                pass
+        return
+
+    if prompt:
+        msg_text = resolve_text(prompt, user_id)
+    else:
+        input_type = info.get("field_type", "string")
+        msg_text = temporal_input_hint(input_type) or "Введите значение:"
+    await bot.send_message(
+        chat_id,
+        msg_text,
+        reply_markup=ReplyKeyboardRemove(),
+    )
 
 
 async def run_from_block(
@@ -682,16 +1010,38 @@ async def run_from_block(
     last_text: str = "",
     last_message_id: int | None = None,
     last_from_chat_id: int | None = None,
+    *,
+    accept_input: bool = False,
+    input_origin_block: str | None = None,
 ):
-    """Запуск цепочки с блока. Для menu — только показать, не продолжать."""
+    """
+    Run the scenario chain starting at block_id.
+
+    accept_input=False (default): transition was triggered by a button/callback/
+    command — NEVER feed that trigger text into Wait/Input nodes. Input blocks
+    must pause and wait for a *new* user event.
+
+    accept_input=True: continuing after a completed FSM wait (e.g. weather /
+    svoy_blok self-reentry) — last_text is the captured user value.
+    Only pass accept_input=True when next_id == awaiting block (self-reentry).
+    """
     block = BLOCKS_BY_ID.get(block_id)
     if not block:
         return
     typ = block.get("type")
+    # Split trigger vs consumable input. Input nodes must not see button labels.
+    # F2: when accept_input is False, last_message_text stays empty for downstream.
     ctx = {
-        "last_message_text": last_text,
-        "last_message_id": last_message_id,
+        "last_message_text": last_text if accept_input else "",
+        "trigger_text": last_text or "",
+        "last_message_id": last_message_id if accept_input else None,
         "last_chat_id": last_from_chat_id if last_from_chat_id is not None else chat_id,
+        "accept_input": bool(accept_input),
+        "force_await_input": not bool(accept_input),
+        "input_origin_block": (
+            str(input_origin_block) if accept_input and input_origin_block else None
+        ),
+        "_tick_input_visits": [],
     }
 
     if typ == "menu":
@@ -701,56 +1051,26 @@ async def run_from_block(
         return
 
     if typ == "message":
-        await execute_block(bot, chat_id, user_id, block_id, ctx)
-        msg_data = block.get("data") or {}
-        if msg_data.get("inlineButtons"):
-            return
-        next_id = get_next_block(block_id, 0)
-        if next_id:
-            await run_from_block(
-                bot,
-                chat_id,
-                user_id,
-                next_id,
-                state,
-                last_text,
-                last_message_id=last_message_id,
-                last_from_chat_id=last_from_chat_id,
-            )
-    elif typ not in ("menu", "message"):
+        # F1: chain continue lives in _type_handler_message via execute_block.
+        # Do not recurse here — that would double-fire the next node.
         result = await execute_block(bot, chat_id, user_id, block_id, ctx)
         if result and result[0] == "await_input":
             _, info = result
-            blk = BLOCKS_BY_ID.get(info["block_id"])
-            dd = (blk.get("data") or {}) if blk else {}
-            prompt = (info.get("input_prompt") or dd.get("inputPrompt") or "").strip()
-            if prompt:
-                msg_text = resolve_text(prompt, user_id)
-            else:
-                input_type = info.get("field_type", "string")
-                msg_text = temporal_input_hint(input_type) or "Введите значение:"
-            await state.set_state(ScenarioState.awaiting_data_input)
-            await state.update_data(
-                data_block_id=info["block_id"],
-                data_field=info["field"],
-                data_field_type=info.get("field_type", "string"),
-                data_next_id=info.get("next_id"),
-            )
-            save_pending_input(
-                user_id,
-                {
-                    "data_block_id": info["block_id"],
-                    "data_field": info["field"],
-                    "data_field_type": info.get("field_type", "string"),
-                    "data_next_id": info.get("next_id"),
-                },
-            )
-            _clear_last_reply_keyboard(chat_id, user_id=user_id)
-            await bot.send_message(
-                chat_id,
-                msg_text,
-                reply_markup=ReplyKeyboardRemove(),
-            )
+            await _register_await_input(bot, chat_id, user_id, state, info)
+        elif result and result[0] == "entered_menu":
+            await state.set_state(ScenarioState.in_menu)
+            await state.update_data(block_id=result[1])
+        return
+
+    if typ not in ("menu", "message"):
+        result = await execute_block(bot, chat_id, user_id, block_id, ctx)
+        if result and result[0] == "await_input":
+            _, info = result
+            await _register_await_input(bot, chat_id, user_id, state, info)
+            return
+        if result and result[0] == "entered_menu":
+            await state.set_state(ScenarioState.in_menu)
+            await state.update_data(block_id=result[1])
             return
         return
 
@@ -915,7 +1235,7 @@ async def on_inline(callback: types.CallbackQuery, state: FSMContext):
         ):
             await callback.answer("Заявка уже обработана", show_alert=True)
             return
-        status_text = "✅ Принята" if status == "accepted" else "❌ Отклонена"
+        status_text = "Принята" if status == "accepted" else "Отклонена"
         await callback.answer(status_text)
         if callback.message:
             try:
@@ -926,9 +1246,9 @@ async def on_inline(callback: types.CallbackQuery, state: FSMContext):
             except Exception:
                 pass
         user_message = (
-            f"✅ Ваша заявка №{appointment_id} подтверждена."
+            f"Ваша заявка №{appointment_id} подтверждена."
             if status == "accepted"
-            else f"❌ Ваша заявка №{appointment_id} отклонена."
+            else f"Ваша заявка №{appointment_id} отклонена."
         )
         try:
             await bot.send_message(int(appointment["user_id"]), user_message)
@@ -963,15 +1283,20 @@ async def on_awaiting_data_contact(message: types.Message, state: FSMContext):
     await state.clear()
     clear_pending_input(user_id)
     if next_id:
+        # F2: clear consumable input for downstream; self-reentry keeps accept_input.
+        origin = data.get("data_block_id") or ""
+        resume_accept = _fsm_resume_accept_input(origin, next_id)
         await run_from_block(
             bot,
             message.chat.id,
             user_id,
             next_id,
             state,
-            phone,
-            last_message_id=message.message_id,
+            phone if resume_accept else "",
+            last_message_id=message.message_id if resume_accept else None,
             last_from_chat_id=message.chat.id,
+            accept_input=resume_accept,
+            input_origin_block=origin if resume_accept else None,
         )
     else:
         await message.answer("Данные сохранены.")
@@ -994,15 +1319,19 @@ async def on_awaiting_data_location(message: types.Message, state: FSMContext):
     await state.clear()
     clear_pending_input(user_id)
     if next_id:
+        origin = data.get("data_block_id") or ""
+        resume_accept = _fsm_resume_accept_input(origin, next_id)
         await run_from_block(
             bot,
             message.chat.id,
             user_id,
             next_id,
             state,
-            val,
-            last_message_id=message.message_id,
+            val if resume_accept else "",
+            last_message_id=message.message_id if resume_accept else None,
             last_from_chat_id=message.chat.id,
+            accept_input=resume_accept,
+            input_origin_block=origin if resume_accept else None,
         )
     else:
         await message.answer("Данные сохранены.")
@@ -1054,18 +1383,26 @@ async def on_awaiting_data_input(message: types.Message, state: FSMContext):
     else:
         val = txt
     apply_scoped_field_value(user_id, field, val)
+    # Clear wait BEFORE continuing; if the graph loops back to an Input node,
+    # run_from_block will re-register awaiting_data_input for this user.
     await state.clear()
     clear_pending_input(user_id)
     if next_id:
+        # F2: Data Input already persisted the value. Downstream nodes must NOT
+        # see last_message_text unless this is a self-reentry (weather/svoy/ai).
+        origin = data_block_id
+        resume_accept = _fsm_resume_accept_input(origin, next_id)
         await run_from_block(
             bot,
             message.chat.id,
             user_id,
             next_id,
             state,
-            txt,
-            last_message_id=message.message_id,
+            txt if resume_accept else "",
+            last_message_id=message.message_id if resume_accept else None,
             last_from_chat_id=message.chat.id,
+            accept_input=resume_accept,
+            input_origin_block=origin if resume_accept else None,
         )
     else:
         await message.answer("Данные сохранены.")
@@ -1097,6 +1434,9 @@ async def on_callback_while_awaiting_input(callback: types.CallbackQuery, state:
 @dp.message(ScenarioState.in_menu, F.text)
 async def on_menu_choice(message: types.Message, state: FSMContext):
     user_id = message.from_user.id if message.from_user else 0
+    last_text = (message.text or "").strip()
+    if not _claim_inbound_event(user_id, message.message_id, last_text):
+        return
     ensure_user_registered(user_id,
         tg_username=message.from_user.username if message.from_user else None,
         tg_first_name=message.from_user.first_name if message.from_user else None)
@@ -1110,8 +1450,6 @@ async def on_menu_choice(message: types.Message, state: FSMContext):
     btn_list = buttons.get("buttons") or []
     if btn_list and isinstance(btn_list[0], str):
         btn_list = [{"text": t} for t in btn_list]
-    user_id = message.from_user.id if message.from_user else 0
-    last_text = (message.text or "").strip()
     # Ignore Telegram system "Главное меню"
     if last_text.lower().rstrip(":") in ("главное меню", "main menu"):
         return
@@ -1284,6 +1622,12 @@ async def on_text_message(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     pending = await state.get_data()
     user_id = message.from_user.id if message.from_user else 0
+    txt = (message.text or "").strip()
+
+    # in_menu is owned exclusively by on_menu_choice — never run a parallel path.
+    if current_state == ScenarioState.in_menu.state:
+        return
+
     if not pending.get("data_field"):
         restored = await restore_pending_input_state(state, user_id)
         if restored:
@@ -1295,10 +1639,13 @@ async def on_text_message(message: types.Message, state: FSMContext):
     ):
         await on_awaiting_data_input(message, state)
         return
+
+    if not _claim_inbound_event(user_id, message.message_id, txt):
+        return
+
     ensure_user_registered(user_id,
         tg_username=message.from_user.username if message.from_user else None,
         tg_first_name=message.from_user.first_name if message.from_user else None)
-    txt = (message.text or "").strip()
     txt_key = txt.lower() if txt.startswith("/") else txt
 
     # Slash commands: always log inbound + entry-node block_id (fixes 0% heatmap).
@@ -1371,12 +1718,41 @@ async def main():
         )
         raise SystemExit(1)
     log.info("Start polling as @%s (id=%s)", me.username, me.id)
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await _bb_shutdown(bot)
+
+
+async def _bb_shutdown(bot_obj=None):
+    import inspect
+    import sys
+
+    for name, mod in list(sys.modules.items()):
+        if not str(name).startswith("bb_app_"):
+            continue
+        fn = getattr(mod, "stop", None) or getattr(mod, "shutdown", None)
+        if not callable(fn):
+            continue
+        try:
+            if inspect.iscoroutinefunction(fn):
+                await fn()
+            else:
+                fn()
+        except Exception:
+            log.exception("app shutdown failed: %s", name)
+    try:
+        if bot_obj is not None:
+            await bot_obj.session.close()
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        pass
     except Exception as exc:
         log.exception("Bot stopped: %s", exc)
         raise
@@ -1425,6 +1801,8 @@ def generate_main_from_scenario(bot_id: int, platform: str | None = None) -> boo
 
     bot_path = os.path.join(BASE_DIR, f"bot_{bot_id}")
     os.makedirs(bot_path, exist_ok=True)
+    # Ensure scripts/ exists for app_bridge standalone apps
+    os.makedirs(os.path.join(bot_path, "scripts"), exist_ok=True)
 
     if platform is None:
         platform = get_bot_platform(bot_id)
@@ -1439,17 +1817,46 @@ def generate_main_from_scenario(bot_id: int, platform: str | None = None) -> boo
         except (OSError, json.JSONDecodeError):
             pass
 
-    code = CodeGenerator().build_python_script(
-        scenario,
-        SCENARIO_MAIN_TEMPLATE,
-        platform="telegram",
-    )
+    try:
+        code = CodeGenerator().build_python_script(
+            scenario,
+            SCENARIO_MAIN_TEMPLATE,
+            platform="telegram",
+        )
+    except TemplateSyntaxError as exc:
+        # Last-resort: do not abort the whole save with an unhandled alert
+        block_hint = getattr(exc, "name", None) or getattr(exc, "filename", None) or "unknown"
+        _compile_log.error(
+            "Jinja TemplateSyntaxError while compiling bot_%s (template=%s): %s",
+            bot_id,
+            block_hint,
+            exc,
+        )
+        # Retry with plugin stubs already handled inside PluginManager; if shell
+        # itself failed, re-raise a clear RuntimeError (still caught by API layer).
+        raise RuntimeError(
+            f"Scenario compile failed for block/template '{block_hint}': {exc}"
+        ) from exc
 
     _validate_generated_bot_main(code)
 
     main_path = os.path.join(bot_path, "main.py")
     with open(main_path, "w", encoding="utf-8") as f:
         f.write(code)
+    # Ensure config.json carries bot_id for telemetry
+    try:
+        cfg_path = os.path.join(bot_path, "config.json")
+        if os.path.isfile(cfg_path):
+            with open(cfg_path, encoding="utf-8") as cf:
+                cfg = json.load(cf)
+            if not isinstance(cfg, dict):
+                cfg = {}
+            if cfg.get("bot_id") != bot_id:
+                cfg["bot_id"] = bot_id
+                with open(cfg_path, "w", encoding="utf-8") as cf:
+                    json.dump(cfg, cf, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
     try:
         _copy_scenario_plugin_assets(bot_path, scenario)
     except Exception:
@@ -1640,10 +2047,19 @@ async def main():
 
     me = await bot.get_me()
     print(f"Start polling as @{me.username}")
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        try:
+            await bot.session.close()
+        except Exception:
+            pass
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        pass
 
 """
 

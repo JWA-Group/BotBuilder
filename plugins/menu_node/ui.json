@@ -10,8 +10,15 @@
   "defaults": {
     "name": "Меню",
     "text": "Выберите",
-    "buttons": [{ "text": "Кнопка 1", "url": "" }],
-    "buttonRowBreaks": [0],
+    "buttons": [
+      {
+        "text": "Кнопка 1",
+        "url": ""
+      }
+    ],
+    "buttonRowBreaks": [
+      0
+    ],
     "disableWebPagePreview": false,
     "tagId": ""
   },
@@ -46,5 +53,20 @@
       "label": "Кнопки",
       "hint": "Перетаскивайте на карточке: на кнопку — замена мест; в зону между рядами — перенос в ряд"
     }
-  ]
+  ],
+  "ai_capabilities": {
+    "summary": "Reply-клавиатура с кнопками; каждая кнопка — отдельный выход.",
+    "can": [
+      "кнопки меню",
+      "request_contact",
+      "request_location",
+      "ветки 0..N-1"
+    ],
+    "cannot": [
+      "сохранять произвольный текст без data",
+      "HTTP"
+    ],
+    "when_to_use": "Главное меню, выбор опций reply-кнопками.",
+    "data_shape_hint": "name, text, buttons[{text,url,request_contact?,request_location?}], buttonRowBreaks"
+  }
 }

@@ -80,6 +80,54 @@
             </p>
           </div>
         </section>
+
+        <section class="settings-section">
+          <h2 class="settings-section-title" data-i18n="settings.ai.legend">AI Assistant</h2>
+          <div class="settings-field">
+            <label class="settings-check-row" for="ai-enabled">
+              <input type="checkbox" id="ai-enabled" />
+              <span data-i18n="settings.ai.enabled">Enable AI assistant</span>
+            </label>
+            <p class="settings-hint" data-i18n="settings.ai.hint">
+              OpenAI-compatible providers. DeepSeek: chat → planner/scenario, reasoner → coder. Key stays in settings.json only.
+            </p>
+          </div>
+          <div class="settings-field">
+            <label for="ai-provider-preset" data-i18n="settings.ai.provider">Provider preset</label>
+            <select id="ai-provider-preset" class="settings-input">
+              <option value="deepseek">DeepSeek</option>
+              <option value="openai">OpenAI</option>
+              <option value="openrouter">OpenRouter</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="settings-field">
+            <label for="ai-endpoint" data-i18n="settings.ai.endpoint">API Endpoint</label>
+            <input id="ai-endpoint" class="settings-input" type="url" placeholder="https://api.deepseek.com/v1" />
+          </div>
+          <div class="settings-field">
+            <label for="ai-key" data-i18n="settings.ai.key">API Key</label>
+            <input id="ai-key" class="settings-input" type="password" autocomplete="off" />
+          </div>
+          <div class="settings-field">
+            <label for="ai-model-planner" data-i18n="settings.ai.model_planner">Planner model (chat / intent)</label>
+            <input id="ai-model-planner" class="settings-input" type="text" placeholder="deepseek-chat" />
+          </div>
+          <div class="settings-field">
+            <label for="ai-model-coder" data-i18n="settings.ai.model_coder">Coder model (plugins)</label>
+            <input id="ai-model-coder" class="settings-input" type="text" placeholder="deepseek-reasoner" />
+          </div>
+          <div class="settings-field">
+            <label for="ai-model-scenario" data-i18n="settings.ai.model_scenario">Scenario model (replace / patch)</label>
+            <input id="ai-model-scenario" class="settings-input" type="text" placeholder="deepseek-chat" />
+          </div>
+          <div class="settings-field">
+            <label for="ai-model-worker" data-i18n="settings.ai.model_worker">Worker model (parts of large tasks)</label>
+            <input id="ai-model-worker" class="settings-input" type="text" placeholder="deepseek-chat" />
+            <p class="settings-hint" data-i18n="settings.ai.model_worker_hint">Cheaper model that writes the parts of a split task. Empty = same as planner.</p>
+          </div>
+          <input type="hidden" id="ai-model" value="" />
+        </section>
       </div>
 
       <footer class="settings-footer">
@@ -111,6 +159,75 @@
 
         portInput.value = String(bridge ? bridge.initialPort : 8000);
         undoInput.value = String(bridge ? bridge.initialUndoSteps : 30);
+
+        var aiEnabled = document.getElementById("ai-enabled");
+        var aiProvider = document.getElementById("ai-provider-preset");
+        var aiEndpoint = document.getElementById("ai-endpoint");
+        var aiModel = document.getElementById("ai-model");
+        var aiModelPlanner = document.getElementById("ai-model-planner");
+        var aiModelCoder = document.getElementById("ai-model-coder");
+        var aiModelScenario = document.getElementById("ai-model-scenario");
+        var aiModelWorker = document.getElementById("ai-model-worker");
+        var aiKey = document.getElementById("ai-key");
+
+        var AI_PRESETS = {
+          deepseek: {
+            endpoint: "https://api.deepseek.com/v1",
+            planner: "deepseek-chat",
+            coder: "deepseek-reasoner",
+            scenario: "deepseek-chat",
+            worker: "deepseek-chat",
+          },
+          openai: {
+            endpoint: "https://api.openai.com/v1",
+            planner: "gpt-4o-mini",
+            coder: "gpt-4o",
+            scenario: "gpt-4o-mini",
+            worker: "gpt-4o-mini",
+          },
+          openrouter: {
+            endpoint: "https://openrouter.ai/api/v1",
+            planner: "openai/gpt-4o-mini",
+            coder: "openai/gpt-4o",
+            scenario: "openai/gpt-4o-mini",
+            worker: "openai/gpt-4o-mini",
+          },
+          custom: null,
+        };
+
+        function applyAiPreset(id, force) {
+          var preset = AI_PRESETS[id];
+          if (!preset || !force) return;
+          if (aiEndpoint) aiEndpoint.value = preset.endpoint;
+          if (aiModelPlanner) aiModelPlanner.value = preset.planner;
+          if (aiModelCoder) aiModelCoder.value = preset.coder;
+          if (aiModelScenario) aiModelScenario.value = preset.scenario;
+          if (aiModelWorker) aiModelWorker.value = preset.worker || "";
+          if (aiModel) aiModel.value = preset.planner;
+        }
+
+        if (aiEnabled) aiEnabled.checked = !!(bridge && bridge.initialAiEnabled);
+        if (aiEndpoint) aiEndpoint.value = (bridge && bridge.initialAiEndpoint) || "https://api.openai.com/v1";
+        if (aiModel) aiModel.value = (bridge && bridge.initialAiModel) || "gpt-4o";
+        if (aiModelPlanner)
+          aiModelPlanner.value =
+            (bridge && bridge.initialAiModelPlanner) || (bridge && bridge.initialAiModel) || "gpt-4o";
+        if (aiModelCoder)
+          aiModelCoder.value =
+            (bridge && bridge.initialAiModelCoder) || (bridge && bridge.initialAiModel) || "gpt-4o";
+        if (aiModelScenario)
+          aiModelScenario.value =
+            (bridge && bridge.initialAiModelScenario) || (bridge && bridge.initialAiModel) || "gpt-4o";
+        if (aiModelWorker) aiModelWorker.value = (bridge && bridge.initialAiModelWorker) || "";
+        if (aiKey) aiKey.value = (bridge && bridge.initialAiKey) || "";
+        if (aiProvider) {
+          var p = (bridge && bridge.initialAiProvider) || "custom";
+          if (!AI_PRESETS[p]) p = "custom";
+          aiProvider.value = p;
+          aiProvider.addEventListener("change", function () {
+            applyAiPreset(aiProvider.value, true);
+          });
+        }
 
         if (window.AppTheme) {
           AppTheme.apply(currentTheme, { silent: true });
@@ -154,6 +271,15 @@
             undoSteps: Number(undoInput.value),
             lang: langSelect ? langSelect.value : "en",
             theme: currentTheme,
+            aiEnabled: !!(aiEnabled && aiEnabled.checked),
+            aiProvider: aiProvider ? aiProvider.value : "custom",
+            aiEndpoint: aiEndpoint ? aiEndpoint.value.trim() : "",
+            aiModel: (aiModelPlanner && aiModelPlanner.value.trim()) || (aiModel ? aiModel.value.trim() : ""),
+            aiModelPlanner: aiModelPlanner ? aiModelPlanner.value.trim() : "",
+            aiModelCoder: aiModelCoder ? aiModelCoder.value.trim() : "",
+            aiModelScenario: aiModelScenario ? aiModelScenario.value.trim() : "",
+            aiModelWorker: aiModelWorker ? aiModelWorker.value.trim() : "",
+            aiKey: aiKey ? aiKey.value : "",
           });
         });
 

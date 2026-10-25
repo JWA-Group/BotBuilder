@@ -9,6 +9,8 @@ const {
   dialog,
   Menu,
   shell,
+  Tray,
+  nativeImage,
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -42,8 +44,17 @@ let ownsSidecar = false;
 let mainWindow = null;
 /** @type {BrowserWindow | null} */
 let settingsWindow = null;
+/** @type {import('electron').Tray | null} */
+let tray = null;
 /** @type {boolean} */
 let isQuitting = false;
+app.isQuitting = false;
+
+function setAppQuitting(value) {
+  isQuitting = !!value;
+  app.isQuitting = !!value;
+}
+
 /** @type {boolean} — suppress app.quit() while first-run setup is open (no main window yet). */
 let startupPhase = true;
 /** @type {number} */
@@ -120,11 +131,68 @@ function getAppIconPath() {
     path.join(__dirname, "BBico.ico"),
     path.join(getAppRoot(), "BBico.ico"),
     path.join(__dirname, "frontend", "icons", "BBico.ico"),
+    path.join(__dirname, "frontend", "shared", "icons", "BBico.ico"),
+    path.join(__dirname, "packaging", "icon.ico"),
+    path.join(__dirname, "packaging", "BBico.ico"),
   ];
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;
   }
   return undefined;
+}
+
+function showMainWindowFromTray() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function createSystemTray() {
+  if (tray) return;
+  const iconPath = getAppIconPath();
+  let image = iconPath ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
+  if (!image.isEmpty() && process.platform === "win32") {
+    try {
+      image = image.resize({ width: 16, height: 16 });
+    } catch (_) {
+      /* keep original */
+    }
+  }
+  try {
+    tray = image.isEmpty() && iconPath ? new Tray(iconPath) : new Tray(image);
+  } catch (err) {
+    console.warn("[tray] failed to create Tray:", err && err.message ? err.message : err);
+    return;
+  }
+  tray.setToolTip("BotBuilder");
+
+  const rebuildMenu = () => {
+    const lang = resolveAppLang(loadSettings());
+    const pack = MENU_LOCALES[lang] || MENU_LOCALES.en;
+    const openLabel = pack.tray_open || pack.win_home || "Открыть BotBuilder";
+    const quitLabel = pack.menu_quit || "Выход";
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: openLabel,
+        click: () => showMainWindowFromTray(),
+      },
+      { type: "separator" },
+      {
+        label: quitLabel,
+        click: () => {
+          // Let before-quit set isQuitting, stop sidecar, then exit cleanly
+          app.quit();
+        },
+      },
+    ]);
+    tray.setContextMenu(contextMenu);
+  };
+
+  rebuildMenu();
+  tray.on("click", () => showMainWindowFromTray());
+  tray.on("double-click", () => showMainWindowFromTray());
+  createSystemTray._rebuildMenu = rebuildMenu;
 }
 
 function settingsPath() {
@@ -137,6 +205,15 @@ function loadSettings() {
     undoSteps: DEFAULT_UNDO_STEPS,
     theme: "light",
     lang: null,
+    aiEnabled: false,
+    aiProvider: "custom",
+    aiEndpoint: "https://api.openai.com/v1",
+    aiModel: "gpt-4o",
+    aiModelPlanner: "gpt-4o",
+    aiModelCoder: "gpt-4o",
+    aiModelScenario: "gpt-4o",
+    aiModelWorker: "",
+    aiKey: "",
   };
   try {
     const raw = fs.readFileSync(settingsPath(), "utf8");
@@ -148,6 +225,15 @@ function loadSettings() {
       typeof parsed.lang === "string" && SUPPORTED_LANGS.has(parsed.lang.slice(0, 2))
         ? parsed.lang.slice(0, 2)
         : null;
+    const aiModel =
+      typeof parsed.aiModel === "string" && parsed.aiModel.trim()
+        ? parsed.aiModel.trim()
+        : defaults.aiModel;
+    const providerRaw =
+      typeof parsed.aiProvider === "string" ? parsed.aiProvider.trim().toLowerCase() : "";
+    const aiProvider = ["deepseek", "openai", "openrouter", "custom"].includes(providerRaw)
+      ? providerRaw
+      : defaults.aiProvider;
     return {
       port: Number.isFinite(port) && port > 0 && port < 65536 ? port : DEFAULT_PORT,
       undoSteps:
@@ -156,6 +242,27 @@ function loadSettings() {
           : DEFAULT_UNDO_STEPS,
       theme,
       lang,
+      aiEnabled: !!parsed.aiEnabled,
+      aiProvider,
+      aiEndpoint:
+        typeof parsed.aiEndpoint === "string" && parsed.aiEndpoint.trim()
+          ? parsed.aiEndpoint.trim()
+          : defaults.aiEndpoint,
+      aiModel,
+      aiModelPlanner:
+        typeof parsed.aiModelPlanner === "string" && parsed.aiModelPlanner.trim()
+          ? parsed.aiModelPlanner.trim()
+          : aiModel,
+      aiModelCoder:
+        typeof parsed.aiModelCoder === "string" && parsed.aiModelCoder.trim()
+          ? parsed.aiModelCoder.trim()
+          : aiModel,
+      aiModelScenario:
+        typeof parsed.aiModelScenario === "string" && parsed.aiModelScenario.trim()
+          ? parsed.aiModelScenario.trim()
+          : aiModel,
+      aiModelWorker: typeof parsed.aiModelWorker === "string" ? parsed.aiModelWorker.trim() : "",
+      aiKey: typeof parsed.aiKey === "string" ? parsed.aiKey : "",
     };
   } catch {
     return defaults;
@@ -237,6 +344,11 @@ function setAppLanguage(lang, options) {
   }
   applyLangToAllWindows(next, options && options.exceptWebContentsId);
   if (currentPort) buildMenu(currentPort);
+  if (typeof createSystemTray._rebuildMenu === "function") {
+    try {
+      createSystemTray._rebuildMenu();
+    } catch (_) {}
+  }
   return next;
 }
 
@@ -730,6 +842,15 @@ function openSettingsDialog(initialSettings) {
           `--initial-undo-steps=${settings.undoSteps}`,
           `--initial-lang=${resolveAppLang(settings)}`,
           `--initial-theme=${settings.theme === "dark" ? "dark" : "light"}`,
+          `--initial-ai-enabled=${settings.aiEnabled ? "1" : "0"}`,
+          `--initial-ai-provider=${encodeURIComponent(settings.aiProvider || "custom")}`,
+          `--initial-ai-endpoint=${encodeURIComponent(settings.aiEndpoint || "")}`,
+          `--initial-ai-model=${encodeURIComponent(settings.aiModel || "")}`,
+          `--initial-ai-model-planner=${encodeURIComponent(settings.aiModelPlanner || settings.aiModel || "")}`,
+          `--initial-ai-model-coder=${encodeURIComponent(settings.aiModelCoder || settings.aiModel || "")}`,
+          `--initial-ai-model-scenario=${encodeURIComponent(settings.aiModelScenario || settings.aiModel || "")}`,
+          `--initial-ai-model-worker=${encodeURIComponent(settings.aiModelWorker || "")}`,
+          `--initial-ai-key=${encodeURIComponent(settings.aiKey || "")}`,
         ],
       },
     });
@@ -767,11 +888,33 @@ function openSettingsDialog(initialSettings) {
         return;
       }
       const prev = loadSettings();
+      const pickStr = (v, fallback) =>
+        typeof v === "string" && v.trim() ? v.trim() : fallback || "";
+      const aiModel = pickStr(payload && payload.aiModel, prev.aiModel || "gpt-4o");
+      const providerRaw = pickStr(payload && payload.aiProvider, prev.aiProvider || "custom").toLowerCase();
+      const aiProvider = ["deepseek", "openai", "openrouter", "custom"].includes(providerRaw)
+        ? providerRaw
+        : "custom";
       const saved = {
+        ...prev,
         port,
         undoSteps: Math.floor(undoSteps),
         theme,
         lang,
+        aiEnabled: !!(payload && payload.aiEnabled),
+        aiProvider,
+        aiEndpoint: pickStr(payload && payload.aiEndpoint, prev.aiEndpoint || "https://api.openai.com/v1"),
+        aiModel,
+        aiModelPlanner: pickStr(payload && payload.aiModelPlanner, prev.aiModelPlanner || aiModel),
+        aiModelCoder: pickStr(payload && payload.aiModelCoder, prev.aiModelCoder || aiModel),
+        aiModelScenario: pickStr(payload && payload.aiModelScenario, prev.aiModelScenario || aiModel),
+        // Empty means "same as planner", so clearing the field must be kept.
+        aiModelWorker:
+          payload && typeof payload.aiModelWorker === "string"
+            ? payload.aiModelWorker.trim()
+            : prev.aiModelWorker || "",
+        aiKey:
+          payload && typeof payload.aiKey === "string" ? payload.aiKey : prev.aiKey || "",
       };
       saveSettings(saved);
       setAppTheme(theme, { forceBroadcast: true });
@@ -983,6 +1126,29 @@ function isLocalAppUrl(url) {
   }
 }
 
+function isGoogleOAuthUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.hostname === "accounts.google.com" ||
+      parsed.pathname.startsWith("/api/auth/google")
+    );
+  } catch {
+    return /accounts\.google\.com|\/api\/auth\/google/i.test(String(url || ""));
+  }
+}
+
+function attachWindowOpenHandler(win) {
+  if (!win || !win.webContents) return;
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isLocalAppUrl(url) || isGoogleOAuthUrl(url)) {
+      return { action: "deny" };
+    }
+    shell.openExternal(url);
+    return { action: "deny" };
+  });
+}
+
 async function createChildWindow(port, spec, options) {
   options = options || {};
   const query = options.query || "";
@@ -1013,10 +1179,7 @@ async function createChildWindow(port, spec, options) {
     },
   });
 
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: "deny" };
-  });
+  attachWindowOpenHandler(win);
 
   win.once("ready-to-show", () => win.show());
 
@@ -1072,10 +1235,7 @@ async function openCurrentPageInNewWindow(port) {
       additionalArguments: getRendererAdditionalArgs(port),
     },
   });
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: "deny" };
-  });
+  attachWindowOpenHandler(win);
   win.once("ready-to-show", () => win.show());
   win.on("closed", () => childWindows.delete(windowKey));
   await loadAppUrl(win, currentUrl);
@@ -1106,12 +1266,16 @@ async function createMainWindow(port) {
 
   buildMenu(port);
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: "deny" };
-  });
+  attachWindowOpenHandler(mainWindow);
 
   mainWindow.once("ready-to-show", () => mainWindow?.show());
+
+  mainWindow.on("close", (event) => {
+    if (!app.isQuitting && !isQuitting) {
+      event.preventDefault();
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
+    }
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -1121,6 +1285,7 @@ async function createMainWindow(port) {
   const bootSettings = loadSettings();
   applyThemeToWindow(mainWindow, bootSettings.theme);
   applyLangToWindow(mainWindow, resolveAppLang(bootSettings));
+  createSystemTray();
 }
 
 ipcMain.handle("pdf:export", async (event, payload = {}) => {
@@ -1180,6 +1345,7 @@ ipcMain.handle("save-settings", (_event, settings) => {
   }
   const prev = loadSettings();
   saveSettings({
+    ...prev,
     port,
     undoSteps: Math.floor(undoSteps),
     theme: settings?.theme === "dark" ? "dark" : prev.theme === "dark" ? "dark" : "light",
@@ -1337,7 +1503,9 @@ if (!gotLock) {
   app.on("window-all-closed", async () => {
     if (process.platform !== "darwin") {
       if (startupPhase) return;
-      isQuitting = true;
+      // Close-to-tray: hidden main window still counts; only quit when explicitly exiting
+      if (!isQuitting && mainWindow && !mainWindow.isDestroyed()) return;
+      setAppQuitting(true);
       await stopSidecar(loadSettings().port);
       app.quit();
     }
@@ -1346,12 +1514,16 @@ if (!gotLock) {
   app.on("before-quit", async (event) => {
     if (isQuitting) return;
     event.preventDefault();
-    isQuitting = true;
+    setAppQuitting(true);
     await stopSidecar(loadSettings().port);
     app.quit();
   });
 
   app.on("activate", async () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      showMainWindowFromTray();
+      return;
+    }
     if (BrowserWindow.getAllWindows().length === 0) {
       const port = await resolveRuntimePort();
       if (port != null) await createMainWindow(port);

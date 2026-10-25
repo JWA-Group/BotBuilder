@@ -1,0 +1,545 @@
+/* Bot Workspace chrome — top header + left drawer (design tokens) */
+
+body.ws-ready {
+  --ws-header-h: 48px;
+  --ws-drawer-w: 240px;
+}
+
+#ws-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  height: var(--ws-header-h, 48px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.ws-header-left,
+.ws-header-center,
+.ws-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ws-header-left {
+  flex: 1 1 0;
+  justify-content: flex-start;
+}
+
+.ws-header-center {
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+.ws-header-right {
+  flex: 1 1 0;
+  justify-content: flex-end;
+}
+
+.ws-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-elevated, var(--bg-card));
+  color: var(--text-main);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.ws-back-btn:hover {
+  background: var(--bg-hover, var(--accent-ui-soft));
+  border-color: var(--border-strong, var(--border-main));
+  color: var(--accent-ui-text, var(--text-main));
+  text-decoration: none;
+}
+
+.ws-back-btn svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.ws-bot-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-left: 2px;
+}
+
+.ws-bot-name {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(220px, 28vw);
+}
+
+.ws-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated, var(--bg-card));
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ws-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.ws-status-pill.is-running {
+  color: var(--success-text, #166534);
+  border-color: color-mix(in srgb, var(--success-text, #166534) 28%, var(--border-subtle));
+  background: var(--success-bg, rgba(22, 101, 52, 0.1));
+}
+
+.ws-status-pill.is-running .ws-status-dot {
+  background: var(--success-text, #166534);
+  box-shadow: 0 0 0 2px var(--success-bg, rgba(22, 101, 52, 0.18));
+}
+
+.ws-mode-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-muted, var(--bg-elevated));
+}
+
+.ws-mode-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.ws-mode-btn svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.ws-mode-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-hover, rgba(127, 127, 127, 0.08));
+}
+
+.ws-mode-btn.is-active {
+  background: var(--bg-panel);
+  color: var(--text-main);
+  box-shadow: var(--shadow-panel, 0 1px 2px rgba(0, 0, 0, 0.06));
+}
+
+.ws-mode-btn.is-active svg {
+  color: var(--accent-ui);
+  opacity: 1;
+}
+
+.ws-icon-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-elevated, var(--bg-card));
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.ws-icon-btn:hover {
+  background: var(--accent-ui-soft);
+  border-color: color-mix(in srgb, var(--accent-ui) 40%, var(--border-subtle));
+  color: var(--accent-ui-text, var(--text-main));
+}
+
+.ws-icon-btn.is-active {
+  background: var(--accent-ui-soft);
+  border-color: var(--accent-ui);
+  color: var(--accent-ui-text, var(--text-main));
+}
+
+.ws-icon-btn svg {
+  flex-shrink: 0;
+}
+
+#ws-shell {
+  position: fixed;
+  top: var(--ws-header-h, 48px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  z-index: 1;
+}
+
+#ws-drawer {
+  position: relative;
+  flex: 0 0 0;
+  width: 0;
+  max-width: var(--ws-drawer-w, 240px);
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-panel);
+  border-right: 1px solid transparent;
+  color: var(--text-main);
+  transform: translateX(0);
+  transition:
+    flex-basis 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    width 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  z-index: 30;
+}
+
+body.ws-drawer-open #ws-drawer {
+  flex-basis: var(--ws-drawer-w, 240px);
+  width: var(--ws-drawer-w, 240px);
+  border-right-color: var(--border-subtle);
+}
+
+/* Overlay drawer over canvas while staying in scenario mode (Ctrl/Cmd+B) */
+body.ws-drawer-overlay #ws-drawer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  flex-basis: var(--ws-drawer-w, 240px);
+  width: var(--ws-drawer-w, 240px);
+  border-right-color: var(--border-subtle);
+  box-shadow: var(--shadow-panel, 0 8px 24px rgba(0, 0, 0, 0.12));
+  z-index: 80;
+}
+
+#ws-drawer-inner {
+  width: var(--ws-drawer-w, 240px);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ws-drawer-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 12px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ws-drawer-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-main);
+}
+
+.ws-drawer-hint {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.ws-drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, rgba(128, 128, 128, 0.35)) transparent;
+}
+
+.ws-tree,
+.ws-table-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ws-tree-item,
+.ws-table-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  border-radius: 7px;
+  padding: 7px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ws-tree-item:hover,
+.ws-table-item:hover {
+  background: var(--bg-hover, rgba(127, 127, 127, 0.08));
+}
+
+.ws-tree-item.is-active,
+.ws-table-item.is-active {
+  background: var(--accent-ui-soft);
+  color: var(--accent-ui-text, var(--text-main));
+}
+
+.ws-tree-item svg,
+.ws-table-item svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.ws-tree-folder {
+  margin-top: 6px;
+  padding: 4px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+#ws-main {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Editor fills main stage in scenario mode */
+body.ws-ready #editor {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  width: auto;
+}
+
+body.ws-mode-scenario #editor {
+  display: block;
+  visibility: visible;
+}
+
+body.ws-mode-scenario #ws-stage {
+  display: none;
+}
+
+body:not(.ws-mode-scenario) #editor {
+  display: none;
+}
+
+body:not(.ws-mode-scenario) #ws-stage {
+  display: flex;
+}
+
+#ws-stage {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  background: var(--bg-canvas, var(--bg-panel));
+  color: var(--text-main);
+  overflow: hidden;
+}
+
+.ws-stage-panel {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  padding: 20px 24px;
+  overflow: auto;
+}
+
+.ws-stage-panel.is-active {
+  display: flex;
+}
+
+.ws-stage-panel--flush {
+  padding: 0 !important;
+  overflow: hidden;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.ws-stage-panel--flush .ds-root,
+.ws-stage-panel--flush .rl-root,
+.ws-stage-panel--flush .rs-root {
+  position: absolute;
+  inset: 0;
+}
+
+body.ws-mode-database #ws-stage,
+body.ws-mode-run #ws-stage,
+body.ws-mode-repository #ws-stage {
+  padding: 0;
+}
+
+.ws-stage-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.ws-stage-lead {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 56ch;
+  line-height: 1.45;
+}
+
+.ws-stage-card {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.ws-run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ws-run-btn {
+  appearance: none;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-main, var(--border-subtle));
+  background: var(--bg-elevated, var(--bg-card));
+  color: var(--text-main);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ws-run-btn.primary {
+  background: var(--btn-primary-bg, var(--accent-ui));
+  color: var(--btn-primary-text, #fff);
+  border-color: transparent;
+}
+
+.ws-run-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ws-log-view {
+  flex: 1;
+  min-height: 220px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-muted, var(--bg-elevated));
+  color: var(--text-main);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+}
+
+/* Hide legacy floating back link — replaced by header */
+body.ws-ready .scenario-editor-back-link {
+  display: none !important;
+}
+
+/* Timeline sits under workspace header */
+body.ws-ready .timeline-bar-root {
+  top: var(--ws-header-h, 48px);
+}
+
+body.ws-ready.timeline-bar-active #editor {
+  padding-top: 104px;
+}
+
+/* AI island sits under header with 12px gap */
+body.ws-ready .ai-sidebar,
+body.ws-ready #ai-sidebar {
+  top: calc(var(--ws-header-h, 48px) + 12px);
+  height: calc(100vh - var(--ws-header-h, 48px) - 24px);
+  max-height: calc(100vh - var(--ws-header-h, 48px) - 24px);
+}
+
+@media (max-width: 960px) {
+  .ws-mode-btn .ws-mode-label {
+    display: none;
+  }
+
+  .ws-mode-btn {
+    padding: 0 9px;
+  }
+
+  .ws-bot-name {
+    max-width: 120px;
+  }
+
+  .ws-back-btn .ws-back-label {
+    display: none;
+  }
+}

@@ -1,32 +1,38 @@
 {# Handler for block type: condition #}
-
 async def _type_handler_condition(bot, chat_id, user_id, block_id, ctx, data, disable):
-
     raw_field = (data.get("fieldName") or "").strip()
-
-    op = data.get("operator", "eq")
+    op_raw = str(data.get("operator") or "eq").strip().lower()
+    # Normalize aliases used by AI / UI
+    _OP_ALIASES = {
+        "equals": "eq",
+        "==": "eq",
+        "=": "eq",
+        "not_equals": "ne",
+        "!=": "ne",
+        "<>": "ne",
+        "include": "contains",
+        "includes": "contains",
+        "in": "contains",
+        "not_include": "not_contains",
+        "excludes": "not_contains",
+        "startswith": "starts_with",
+        "endswith": "ends_with",
+        "not_empty": "exists",
+        "is_null": "empty",
+    }
+    op = _OP_ALIASES.get(op_raw, op_raw)
 
     compare_val = resolve_text(str(data.get("compareValue", "")), user_id)
-
     actual = resolve_field_value(user_id, raw_field) if raw_field else None
 
     if actual is None and raw_field:
-
         scope, name = _parse_placeholder_key(raw_field)
-
         if scope == "bot":
-
             actual = get_bot_global(name)
-
         elif scope == "user":
-
             actual = get_user_field(user_id, name)
-
         else:
-
             actual = get_user_field(user_id, _normalize_user_field(raw_field))
-
-
 
     def _parse_num(val):
         if val is None or val == "":
@@ -61,40 +67,49 @@ async def _type_handler_condition(bot, chat_id, user_id, block_id, ctx, data, di
         text = str(val).strip()
         return text == "" or text.lower() in ("null", "none")
 
+    def _as_str(val):
+        if val is None:
+            return ""
+        return str(val).strip()
+
     ok = False
 
     if op in ("empty", "is_null"):
         ok = _is_empty(actual)
     elif op in ("exists", "not_empty"):
         ok = not _is_empty(actual)
-
     elif op == "role":
         ok = str(actual) == "admin" or str(actual) == str(compare_val)
-
+    elif op in ("contains", "not_contains", "starts_with", "ends_with"):
+        # Substring / prefix / suffix — always string-safe, never numeric exact-match.
+        left = _as_str(actual)
+        right = _as_str(compare_val)
+        if op == "contains":
+            ok = right != "" and right in left
+        elif op == "not_contains":
+            ok = right == "" or right not in left
+        elif op == "starts_with":
+            ok = right != "" and left.startswith(right)
+        elif op == "ends_with":
+            ok = right != "" and left.endswith(right)
     else:
-
         an = _parse_num(actual)
-
         cn = _parse_num(compare_val)
 
-        if an is not None and cn is not None:
-
+        if an is not None and cn is not None and op in ("eq", "ne", "gt", "lt", "gte", "lte"):
             ok = (
-
                 (op == "eq" and an == cn)
-
                 or (op == "ne" and an != cn)
-
                 or (op == "gt" and an > cn)
-
                 or (op == "lt" and an < cn)
-
                 or (op == "gte" and an >= cn)
-
                 or (op == "lte" and an <= cn)
-
             )
-        elif _parse_temporal(actual) is not None and _parse_temporal(compare_val) is not None:
+        elif (
+            _parse_temporal(actual) is not None
+            and _parse_temporal(compare_val) is not None
+            and op in ("eq", "ne", "gt", "lt", "gte", "lte")
+        ):
             actual_time = _parse_temporal(actual)
             compare_time = _parse_temporal(compare_val)
             ok = (
@@ -105,43 +120,29 @@ async def _type_handler_condition(bot, chat_id, user_id, block_id, ctx, data, di
                 or (op == "gte" and actual_time >= compare_time)
                 or (op == "lte" and actual_time <= compare_time)
             )
-
         elif op == "eq":
-            left = "" if _is_empty(actual) else str(actual).strip()
-            right = "" if _is_empty(compare_val) else str(compare_val).strip()
+            left = _as_str(actual)
+            right = _as_str(compare_val)
             ok = left == right
-
         elif op == "ne":
-            left = "" if _is_empty(actual) else str(actual).strip()
-            right = "" if _is_empty(compare_val) else str(compare_val).strip()
+            left = _as_str(actual)
+            right = _as_str(compare_val)
             ok = left != right
-
         elif op in ("gt", "lt", "gte", "lte"):
-
             try:
-
                 a, c = float(actual or 0), float(compare_val or 0)
-
                 ok = (
-
                     (op == "gt" and a > c)
-
                     or (op == "lt" and a < c)
-
                     or (op == "gte" and a >= c)
-
                     or (op == "lte" and a <= c)
-
                 )
-
             except (ValueError, TypeError):
-
                 ok = False
 
     out_idx = 0 if ok else 1
-
     next_id = get_next_block(block_id, out_idx)
-
     if next_id:
-
         return await execute_block(bot, chat_id, user_id, next_id, ctx)
+    # F4/F5: unwired true/false port — notify, do not silent-drop or clear FSM
+    return await handle_unwired_port(bot, chat_id, user_id, block_id, out_idx, ctx)

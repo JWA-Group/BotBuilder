@@ -478,41 +478,32 @@ async def _type_handler_weather(bot, chat_id, user_id, block_id, ctx, data, disa
 
 
 
-    city = (ctx.get("last_message_text") or "").strip()
+    # Only consume text from a completed FSM wait that originated for THIS node.
+    # Never treat a menu/inline button label or a prior Data Input value as the city.
+    city = ""
+    if ctx.get("accept_input") and not ctx.get("force_await_input"):
+        origin = ctx.get("input_origin_block")
+        if origin is None or str(origin) == str(block_id):
+            city = (ctx.get("last_message_text") or "").strip()
 
-    if not city:
-
+    if not city and not ctx.get("accept_input"):
+        # Arrived via button/command transition: may reuse saved city,
+        # but never the trigger button label (stripped from last_message_text).
         saved = get_user_field(user_id, city_field)
-
         if saved:
-
             city = str(saved).strip()
 
-
-
     if not city:
-
         return (
-
             "await_input",
-
             {
-
                 "block_id": block_id,
-
                 "field": city_field,
-
                 "field_type": "string",
-
                 "next_id": block_id,
-
                 "input_prompt": prompt,
-
             },
-
         )
-
-
 
     set_user_field(user_id, city_field, city)
 

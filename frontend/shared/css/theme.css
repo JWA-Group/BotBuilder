@@ -52,8 +52,13 @@ html:not(.theme-light):not(.theme-dark) {
   --warning-border: #fde68a;
   --warning-text: #92400e;
 
-  --grid-size: 48px;
+  --grid-size: 40px;
   --grid-line: rgba(0, 0, 0, 0.05);
+  --grid-dot: rgba(0, 0, 0, 0.15);
+  --grid-line-rgb: 0, 0, 0;
+  --grid-dot-rgb: 0, 0, 0;
+  --grid-line-opacity: 0.06;
+  --grid-dot-opacity: 0.15;
   --bg-toolbar: rgba(255, 255, 255, 0.94);
   --border-toolbar: #d4d4d8;
   --icon-color: #18181b;
@@ -61,6 +66,9 @@ html:not(.theme-light):not(.theme-dark) {
   --toolbar-btn-border: rgba(24, 24, 27, 0.12);
   --toolbar-btn-hover-bg: #ffffff;
   --toolbar-label: #2563eb;
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(24, 24, 27, 0.1);
+  --primary-accent: var(--accent-ui);
 
   --scrollbar-track: #eef0f3;
   --scrollbar-thumb: #c4cad4;
@@ -129,8 +137,13 @@ html.theme-dark {
   --warning-border: rgba(252, 211, 77, 0.28);
   --warning-text: #fcd34d;
 
-  --grid-size: 48px;
+  --grid-size: 40px;
   --grid-line: rgba(255, 255, 255, 0.05);
+  --grid-dot: rgba(255, 255, 255, 0.15);
+  --grid-line-rgb: 255, 255, 255;
+  --grid-dot-rgb: 255, 255, 255;
+  --grid-line-opacity: 0.06;
+  --grid-dot-opacity: 0.15;
   --bg-toolbar: #1e1e24;
   --border-toolbar: #2e2e38;
   --icon-color: #f4f4f5;
@@ -138,6 +151,9 @@ html.theme-dark {
   --toolbar-btn-border: #2e2e38;
   --toolbar-btn-hover-bg: #3f3f46;
   --toolbar-label: #93c5fd;
+  --glass-bg: rgba(28, 28, 34, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --primary-accent: var(--accent-ui);
 
   --scrollbar-track: #1a1a22;
   --scrollbar-thumb: #3f3f4a;

@@ -1,0 +1,26 @@
+/* Scenario canvas SVG connections — keep layer aligned with #canvas; stroke set in JS */
+
+#connections-layer,
+svg.connections,
+#connections {
+  position: absolute;
+  left: -50000px;
+  top: -50000px;
+  width: 200000px;
+  height: 200000px;
+  overflow: visible;
+  pointer-events: none;
+  transform-origin: 0 0;
+  z-index: 1;
+}
+
+/* Only wire paths (not marker <path> inside defs) — fill:none on markers hides arrows */
+#connections-layer > path,
+svg.connections > path,
+#connections > path {
+  pointer-events: stroke;
+  cursor: pointer;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

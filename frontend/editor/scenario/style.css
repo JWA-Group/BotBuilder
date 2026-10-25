@@ -143,14 +143,16 @@ html.theme-dark .toolbar-shell {
   --toolbar-edge-pad: calc(var(--toolbar-fade) * 0.35); /* same as top tools inset */
   position: relative;
   z-index: 2;
-  width: var(--toolbar-rail);
+  width: var(--toolbar-viewport);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
+  gap: var(--toolbar-gap);
   flex-shrink: 0;
   background: transparent;
   pointer-events: auto;
   padding: var(--toolbar-gap) 0 var(--toolbar-edge-pad);
+  padding-left: 12px; /* align with .toolbar-tools */
   box-sizing: border-box;
 }
 
@@ -264,14 +266,17 @@ html.theme-dark .tool-icon-circle {
 }
 
 .tool-btn:hover .tool-label,
-.tool-btn:focus-visible .tool-label {
+.tool-btn:focus-visible .tool-label,
+.toolbar-save:hover .tool-label,
+.toolbar-save:focus-visible .tool-label {
   opacity: 1;
   max-width: 140px;
   margin-left: 10px;
   transition-delay: 0.06s;
 }
 
-.tool-btn:not(:hover):not(:focus-visible) .tool-label {
+.tool-btn:not(:hover):not(:focus-visible) .tool-label,
+.toolbar-save:not(:hover):not(:focus-visible) .tool-label {
   transition-delay: 0s;
 }
 
@@ -313,59 +318,100 @@ html.theme-dark .tool-btn.tool-toggle.is-active:focus-visible {
   box-shadow: 0 0 0 1px rgba(234, 88, 12, 0.35);
 }
 
-/* Кнопка «Сохранить» — вне mask-зоны, не растворяется */
+/* Save / Template — same Sliding Expand as .tool-btn */
 .toolbar-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
   width: var(--toolbar-circle);
   height: var(--toolbar-circle);
   margin: 0;
   padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: clamp(18px, 2vw, 22px);
-  color: #fff;
-  background: rgba(37, 99, 235, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 50%;
+  box-sizing: border-box;
+  border: 1px solid var(--toolbar-btn-border);
   cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--toolbar-btn-bg);
+  color: var(--icon-color);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition:
+    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    padding 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.2s ease;
+  will-change: width;
   pointer-events: auto;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
 }
 
-.toolbar-actions .toolbar-save + .toolbar-save {
-  margin-top: var(--toolbar-gap);
+.toolbar-save .tool-icon-circle {
+  color: var(--primary-accent, var(--accent-ui));
 }
 
-.toolbar-save:hover {
-  background: rgba(29, 78, 216, 0.95);
-  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  transform: scale(1.05);
+.toolbar-save .toolbar-save-icon {
+  display: block;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.toolbar-save:hover,
+.toolbar-save:focus-visible {
+  z-index: 30;
+  width: var(--toolbar-btn-expanded);
+  justify-content: flex-start;
+  padding: 10px;
+  border-radius: 22px;
+  background: var(--toolbar-btn-hover-bg);
+  border-color: var(--accent-ui);
+  color: var(--icon-color);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.16), 0 2px 6px var(--accent-ui-soft);
+  outline: none;
+  transform: none;
+}
+
+html.theme-dark .toolbar-save {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #f4f4f5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+html.theme-dark .toolbar-save:hover,
+html.theme-dark .toolbar-save:focus-visible {
+  background: #3f3f46;
+  border-color: #71717a;
+  color: #fafafa;
+}
+
+.toolbar-save.is-saving {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.toolbar-save.is-saving:hover,
+.toolbar-save.is-saving:focus-visible {
+  width: var(--toolbar-circle);
+  padding: 0;
+  justify-content: center;
+  z-index: 1;
 }
 
 .toolbar-template {
-  background: rgba(21, 94, 249, 0.92);
   margin-bottom: 0;
 }
 
-.toolbar-template:hover {
-  background: rgba(18, 80, 217, 0.96);
-  box-shadow: 0 2px 12px rgba(21, 94, 249, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-}
-
-/* Канвас на всё доступное место; тулбар поверх него (position: absolute) */
-
-#grid-overlay {
-  /* Use background-color only — never the `background` shorthand,
-     or theme token updates wipe background-size and change grid scale. */
-  background-color: transparent;
-  background-image: none;
-  background-size: var(--grid-size, 48px) var(--grid-size, 48px);
-  background-position: var(--grid-x, 0) var(--grid-y, 0);
-  background-repeat: repeat;
-}
-
+/* Grid overlay — size/position driven by JS (--grid-size / --grid-x / --grid-y)
+   LOD opacities via --grid-line-opacity / --grid-dot-opacity (fade on zoom-out). */
 #grid-overlay {
   position: absolute;
   top: 0;
@@ -375,18 +421,54 @@ html.theme-dark .tool-btn.tool-toggle.is-active:focus-visible {
   pointer-events: none;
   z-index: 0;
   opacity: 0;
-  transition: opacity 0.2s, background-image 0.2s;
-}
-
-#canvas-wrapper.grid-on #grid-overlay {
-  opacity: 1;
+  /* Never use the `background` shorthand — it wipes size/position. */
   background-color: transparent;
-  background-image:
-    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
-  background-size: var(--grid-size, 48px) var(--grid-size, 48px);
+  background-image: none;
+  background-size: var(--grid-size, 40px) var(--grid-size, 40px);
   background-position: var(--grid-x, 0) var(--grid-y, 0);
   background-repeat: repeat;
+  transition: opacity 0.2s ease;
+}
+
+#canvas-wrapper.canvas-grid-none #grid-overlay {
+  opacity: 0;
+  background-image: none;
+}
+
+#canvas-wrapper.canvas-grid-lines #grid-overlay,
+#canvas-wrapper.grid-on.canvas-grid-lines #grid-overlay {
+  opacity: 1;
+  background-image:
+    linear-gradient(
+      to right,
+      rgba(var(--grid-line-rgb, 255, 255, 255), var(--grid-line-opacity, 0.06)) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(var(--grid-line-rgb, 255, 255, 255), var(--grid-line-opacity, 0.06)) 1px,
+      transparent 1px
+    );
+  background-size: var(--grid-size, 40px) var(--grid-size, 40px);
+  background-position: var(--grid-x, 0) var(--grid-y, 0);
+  background-repeat: repeat;
+}
+
+#canvas-wrapper.canvas-grid-dots #grid-overlay {
+  opacity: 1;
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--grid-dot-rgb, 255, 255, 255), var(--grid-dot-opacity, 0.15)) 1.2px,
+    transparent 1.2px
+  );
+  background-size: var(--grid-size, 40px) var(--grid-size, 40px);
+  background-position: var(--grid-x, 0) var(--grid-y, 0);
+  background-repeat: repeat;
+}
+
+/* Legacy class kept for history-ghost compat; pattern comes from canvas-grid-* */
+#canvas-wrapper.grid-on:not(.canvas-grid-none):not(.canvas-grid-dots) #grid-overlay {
+  opacity: 1;
 }
 
 .theme-toggle-btn {
@@ -412,6 +494,46 @@ html.theme-dark .tool-btn.tool-toggle.is-active:focus-visible {
 
 .theme-toggle-btn:hover {
   transform: scale(1.05);
+}
+
+.auto-layout-btn {
+  position: absolute;
+  bottom: 16px;
+  right: 120px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-toolbar, var(--border-subtle));
+  background: var(--bg-elevated);
+  color: var(--icon-color, var(--text-main));
+  cursor: pointer;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-card);
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+
+.auto-layout-btn:hover {
+  background: var(--toolbar-btn-hover-bg, var(--bg-hover));
+  transform: scale(1.05);
+}
+
+.auto-layout-btn:active {
+  transform: scale(0.97);
+  background: var(--accent-ui-soft);
+  border-color: var(--accent-ui);
+  box-shadow: 0 0 12px var(--accent-ui-soft);
+}
+
+.auto-layout-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  color: var(--icon-color, var(--text-main));
+  pointer-events: none;
 }
 
 html.theme-dark .theme-toggle-icon::before {
@@ -449,23 +571,53 @@ html:not(.theme-dark) .theme-toggle-icon::before {
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-card);
-  transition: background 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, box-shadow 0.2s, opacity 0.2s, border-color 0.2s, color 0.2s;
+  opacity: 0.72;
 }
 
 .grid-toggle-btn:hover {
   background: var(--toolbar-btn-hover-bg);
+  opacity: 1;
 }
 
-.grid-toggle-btn.active {
+.grid-toggle-btn.active,
+.grid-toggle-btn.mode-lines,
+.grid-toggle-btn.mode-dots {
+  opacity: 1;
   background: var(--accent-ui-soft);
   border-color: var(--accent-ui);
+  color: var(--accent-ui-text, var(--accent-ui));
   box-shadow: 0 0 12px var(--accent-ui-soft);
+}
+
+.grid-toggle-btn.mode-none {
+  opacity: 0.62;
+  background: var(--bg-elevated);
+  border-color: var(--border-toolbar);
+  color: var(--icon-color);
+  box-shadow: var(--shadow-card);
 }
 
 .grid-toggle-icon {
   font-size: 18px;
   line-height: 1;
-  color: var(--icon-color);
+  color: inherit;
+}
+
+.grid-toggle-icon::before {
+  content: "⊞";
+  font-size: 18px;
+  line-height: 1;
+}
+
+.grid-toggle-btn.mode-dots .grid-toggle-icon {
+  font-size: 0;
+}
+
+.grid-toggle-btn.mode-dots .grid-toggle-icon::before {
+  content: "∷";
+  font-size: 20px;
+  letter-spacing: -0.02em;
 }
 
 #canvas {
@@ -483,21 +635,33 @@ html:not(.theme-dark) .theme-toggle-icon::before {
   pointer-events: none;
 }
 
-svg.connections {
+svg.connections,
+#connections-svg,
+#connections,
+#connections-layer {
+  /* Match #canvas world bounds so Bezier paths never clip under pan/zoom */
   position: absolute;
   left: -50000px;
   top: -50000px;
   width: 200000px;
   height: 200000px;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
   pointer-events: none;
   transform-origin: 0 0;
   z-index: 1;
-  overflow: visible;
 }
 
-svg.connections path {
-  pointer-events: auto;
+/* Wire paths only — never style defs/marker paths (fill:none hides arrowheads) */
+svg.connections > path,
+#connections > path,
+#connections-svg > path,
+#connections-layer > path {
+  pointer-events: stroke;
   cursor: pointer;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 #sidebar {
@@ -1424,7 +1588,11 @@ svg.connections path {
   border: 1px solid var(--border-subtle);
   border-left: 4px solid var(--block-accent, var(--border-subtle));
   border-radius: 8px;
-  box-shadow: var(--shadow-card);
+  /* Tight depth only — no oversized black halo / drop-shadow */
+  box-shadow:
+    0 2px 8px rgba(15, 23, 42, 0.08),
+    0 1px 2px rgba(15, 23, 42, 0.05);
+  filter: none;
   cursor: move;
   z-index: 3;
   overflow: visible;
@@ -1436,6 +1604,38 @@ svg.connections path {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+}
+
+html.theme-dark .block {
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left-color: var(--block-accent, rgba(255, 255, 255, 0.08));
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.28),
+    0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.block:hover {
+  border-color: color-mix(in srgb, var(--accent-ui, #6366f1) 35%, var(--border-subtle));
+  box-shadow:
+    0 0 12px color-mix(in srgb, var(--accent-ui, #6366f1) 14%, transparent),
+    0 3px 12px rgba(15, 23, 42, 0.1);
+}
+
+html.theme-dark .block:hover {
+  border-color: rgba(99, 102, 241, 0.45);
+  box-shadow:
+    0 0 14px rgba(99, 102, 241, 0.18),
+    0 4px 16px rgba(0, 0, 0, 0.32);
+}
+
+.block.auto-layout-anim {
+  transition:
+    left 0.22s cubic-bezier(0.2, 0, 0, 1),
+    top 0.22s cubic-bezier(0.2, 0, 0, 1),
+    min-width 0.15s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  will-change: left, top;
 }
 
 .block[data-type="note"] {
@@ -1490,11 +1690,23 @@ svg.connections path {
   max-width: 400px;
 }
 
-.block .title {
-  font-weight: bold;
+.block .title,
+.block .block-title {
+  font-weight: 700;
   margin-bottom: 6px;
   color: var(--text-main);
   font-size: 1em;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.block .preview-text,
+.block .block-description,
+.block .block-subtitle,
+.block .tag-label {
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
 }
 
 .block .preview-text {
@@ -1507,6 +1719,50 @@ svg.connections path {
   word-break: break-word;
   min-width: 0;
   border: 1px solid var(--border-subtle);
+}
+
+/* Zoom LOD — hide secondary clutter; keep titles crisp */
+#canvas-wrapper.canvas-zoomed-out .block .preview-text,
+#canvas-wrapper.canvas-zoomed-out .block .block-description,
+#canvas-wrapper.canvas-zoomed-out .block .block-subtitle,
+#canvas-wrapper.canvas-zoomed-out .block .tag-label,
+#canvas-wrapper.canvas-zoomed-out .block .note-preview,
+#canvas-wrapper.canvas-zoomed-out .block .menu-button span,
+#canvas-wrapper.canvas-zoomed-out .block .phantom-preview {
+  display: none !important;
+}
+
+#canvas-wrapper.canvas-zoomed-out .block .title,
+#canvas-wrapper.canvas-zoomed-out .block .block-title {
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text-main);
+  margin-bottom: 0;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+html.theme-dark #canvas-wrapper.canvas-zoomed-out .block .title,
+html.theme-dark #canvas-wrapper.canvas-zoomed-out .block .block-title {
+  color: #f8fafc;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* Extreme zoom-out — aggressively larger titles for screen legibility */
+#canvas-wrapper.canvas-far-zoom .block .title,
+#canvas-wrapper.canvas-far-zoom .block .block-title {
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0.01em;
+  margin-bottom: 0 !important;
+  color: var(--text-main) !important;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+html.theme-dark #canvas-wrapper.canvas-far-zoom .block .title,
+html.theme-dark #canvas-wrapper.canvas-far-zoom .block .block-title {
+  color: #f8fafc !important;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
 }
 
 /* Сообщение — сохранять переносы строк из редактора, текст расширяет блок */
@@ -1798,12 +2054,16 @@ html.theme-dark .block.card-dnd-active .row-end-drop-zone {
   transform: none;
 }
 
-.condition-outputs .output.condition-yes {
-  background: #16a34a;
+.condition-outputs .output.condition-yes,
+.condition-outputs .output.port-success {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
 }
 
-.condition-outputs .output.condition-no {
-  background: #dc2626;
+.condition-outputs .output.condition-no,
+.condition-outputs .output.port-fail {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
 }
 
 .help-modal {
@@ -1935,31 +2195,87 @@ html.theme-dark .block.card-dnd-active .row-end-drop-zone {
   transform: translateY(-50%);
 }
 
-.block-toolbar {
+.block-toolbar,
+.block-actions,
+.node-hover-panel {
   position: absolute;
-  top: -28px;
+  top: 0;
   right: 4px;
   display: flex;
   gap: 4px;
   z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+  /* Sit above the card; padding-bottom bridges the gap so mouseleave doesn't fire */
+  padding: 0 0 14px;
+  transform: translateY(calc(-100% + 4px));
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.block-toolbar button {
+.block-toolbar::before,
+.block-actions::before,
+.node-hover-panel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 14px;
+}
+
+.block:hover > .block-toolbar,
+.block:hover > .block-actions,
+.block:hover > .node-hover-panel,
+.block:focus-within > .block-toolbar,
+.block:focus-within > .block-actions,
+.block-actions:hover,
+.block-toolbar:hover,
+.node-hover-panel:hover,
+.block.block-selected:hover > .block-toolbar {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(calc(-100% + 4px));
+}
+
+.block-toolbar button,
+.block-actions button,
+.block-action-btn {
   width: 24px;
   height: 24px;
   padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
   background: var(--bg-card);
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   margin: 0;
-  box-shadow: var(--shadow-panel);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.block-toolbar button:hover {
+.block-toolbar button svg,
+.block-action-btn svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+.block-toolbar button:hover,
+.block-actions button:hover,
+.block-action-btn:hover {
   background: var(--bg-hover);
+  border-color: var(--accent-ui);
+}
+
+.block-action-delete:hover {
+  background: var(--danger-bg, #fef2f2);
+  border-color: var(--danger-border, #fecaca);
+  color: var(--danger-text, #b91c1c);
 }
 
 .ai-scenario-modal-content {
@@ -2112,9 +2428,18 @@ html.theme-dark .block.card-dnd-active .row-end-drop-zone {
 }
 
 .block.block-selected {
-  outline: 3px solid #6366f1;
-  outline-offset: 2px;
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35);
+  outline: none;
+  border-color: var(--primary-accent, rgba(99, 102, 241, 0.5));
+  box-shadow:
+    0 0 15px rgba(99, 102, 241, 0.2),
+    0 4px 16px rgba(15, 23, 42, 0.12);
+}
+
+html.theme-dark .block.block-selected {
+  border-color: rgba(99, 102, 241, 0.55);
+  box-shadow:
+    0 0 15px rgba(99, 102, 241, 0.22),
+    0 4px 18px rgba(0, 0, 0, 0.35);
 }
 
 .menu-spec-badge {
@@ -2489,13 +2814,34 @@ body.timeline-bar-active #editor {
 }
 
 #canvas-wrapper.history-ghost-mode #grid-overlay {
-  opacity: 0.12;
-  background-color: transparent;
+  /* Keep zoom-locked cell size; only soften / recolor lines in ghost mode */
+  opacity: 0.18;
+}
+
+#canvas-wrapper.history-ghost-mode.canvas-grid-lines #grid-overlay {
   background-image:
-    linear-gradient(rgba(129, 140, 248, 0.35) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(129, 140, 248, 0.35) 1px, transparent 1px);
-  /* Keep identical cell size — only line color differs in ghost mode */
-  background-size: var(--grid-size, 48px) var(--grid-size, 48px);
+    linear-gradient(
+      to right,
+      rgba(129, 140, 248, var(--grid-line-opacity, 0.35)) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(129, 140, 248, var(--grid-line-opacity, 0.35)) 1px,
+      transparent 1px
+    );
+  background-size: var(--grid-size, 40px) var(--grid-size, 40px);
+  background-position: var(--grid-x, 0) var(--grid-y, 0);
+  background-repeat: repeat;
+}
+
+#canvas-wrapper.history-ghost-mode.canvas-grid-dots #grid-overlay {
+  background-image: radial-gradient(
+    circle,
+    rgba(165, 180, 252, var(--grid-dot-opacity, 0.45)) 1.2px,
+    transparent 1.2px
+  );
+  background-size: var(--grid-size, 40px) var(--grid-size, 40px);
   background-position: var(--grid-x, 0) var(--grid-y, 0);
   background-repeat: repeat;
 }

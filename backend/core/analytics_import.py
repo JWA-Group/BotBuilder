@@ -78,7 +78,7 @@ def ensure_bot_user_db(bot_id: int) -> Path:
         )
         from backend.core.bot_data_store import ensure_extended_bot_tables
 
-        ensure_extended_bot_tables(conn)
+        ensure_extended_bot_tables(conn, bot_id=bot_id)
         conn.commit()
     finally:
         conn.close()

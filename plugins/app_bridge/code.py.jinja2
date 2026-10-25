@@ -1,0 +1,183 @@
+{# Handler for block type: app_bridge — dynamic load of scripts/<app>/ entrypoint #}
+async def _type_handler_app_bridge(bot, chat_id, user_id, block_id, ctx, data, disable):
+    import asyncio
+    import importlib.util
+    import inspect
+    import json
+    import os
+    import re
+    import sys
+    import traceback
+
+    app_folder = str((data or {}).get("appFolder") or "").strip().replace("\\", "/").lstrip("/")
+    entry_file = str((data or {}).get("entryFile") or "main.py").strip() or "main.py"
+    entry_fn = str((data or {}).get("entryFunction") or "main").strip() or "main"
+    entry_async = bool((data or {}).get("entryAsync", True))
+    input_map = (data or {}).get("inputMap") if isinstance((data or {}).get("inputMap"), dict) else {}
+
+    def _fail(msg):
+        detail = str(msg or "unknown error")
+        app_label = app_folder or entry_file or "app"
+        try:
+            log.error(
+                "app_bridge failed for %s: %s\n%s",
+                app_label,
+                detail,
+                traceback.format_exc()[-1200:],
+            )
+        except Exception:
+            pass
+        try:
+            set_user_field(user_id, "app_bridge_error", detail[:2000])
+        except Exception:
+            pass
+        return_msg = (
+            "Ошибка модуля ["
+            + str(app_label)
+            + "]: обработчик не найден или вернул сбой. "
+            + detail[:300]
+        )
+
+        async def _notify_and_continue():
+            # Wired error port owns the user-facing reply; otherwise notify explicitly (never silent).
+            next_id = get_next_block(block_id, 1)
+            if next_id:
+                return await execute_block(bot, chat_id, user_id, next_id, ctx)
+            try:
+                await bot.send_message(chat_id, return_msg, disable_web_page_preview=disable)
+            except Exception:
+                log.exception("app_bridge could not deliver error notice for %s", app_label)
+            return await handle_unwired_port(bot, chat_id, user_id, block_id, 1, ctx)
+        return _notify_and_continue()
+
+    if not app_folder:
+        return await _fail("appFolder is empty")
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    app_dir = os.path.normpath(os.path.join(base_dir, app_folder))
+    if not app_dir.startswith(os.path.normpath(base_dir)):
+        return await _fail("appFolder escapes bot directory")
+    script_path = os.path.join(app_dir, entry_file)
+    if not os.path.isfile(script_path):
+        return await _fail("entrypoint file not found: " + entry_file)
+
+    # Resolve mapped inputs from Mustache / FSM / DB
+    kwargs = {}
+    for key, raw in input_map.items():
+        name = str(key or "").strip()
+        if not name:
+            continue
+        src = "" if raw is None else str(raw)
+        # Mustache detect via brace concat (avoids Jinja print syntax)
+        if ("{" + "{") in src or "{" in src:
+            kwargs[name] = resolve_text(src, user_id)
+        else:
+            # bare field name → user field
+            val = resolve_field_value(user_id, src) if src else None
+            if val is None and src:
+                val = get_user_field(user_id, src)
+            kwargs[name] = "" if val is None else val
+
+    # Always expose runtime context (ignored if unused by signature)
+    kwargs.setdefault("user_id", user_id)
+    kwargs.setdefault("chat_id", chat_id)
+    kwargs.setdefault("telegram_id", user_id)
+
+    module_name = "bb_app_" + re.sub(r"[^a-zA-Z0-9_]", "_", app_folder.replace("/", "_"))
+    try:
+        spec = importlib.util.spec_from_file_location(module_name, script_path)
+        if spec is None or spec.loader is None:
+            return await _fail("cannot create module spec")
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = mod
+        # Load in thread so sync import / top-level work does not block loop hard
+        def _load():
+            spec.loader.exec_module(mod)
+        await asyncio.to_thread(_load)
+    except Exception as exc:
+        return await _fail("import failed: " + str(exc))
+
+    fn = getattr(mod, entry_fn, None)
+    if fn is None or not callable(fn):
+        return await _fail("entrypoint function missing: " + entry_fn)
+
+    # Filter kwargs to signature when possible
+    try:
+        sig = inspect.signature(fn)
+        accepted = set(sig.parameters.keys())
+        if accepted and not any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+            kwargs = {k: v for k, v in kwargs.items() if k in accepted}
+    except (TypeError, ValueError):
+        pass
+
+    result = None
+    err = None
+    try:
+        if inspect.iscoroutinefunction(fn) or entry_async:
+            result = await fn(**kwargs)
+        else:
+            result = await asyncio.to_thread(fn, **kwargs)
+    except TypeError:
+        # Retry positional-free / no kwargs
+        try:
+            if inspect.iscoroutinefunction(fn):
+                result = await fn()
+            else:
+                result = await asyncio.to_thread(fn)
+        except Exception as exc2:
+            err = exc2
+    except Exception as exc:
+        err = exc
+
+    if err is not None:
+        return await _fail(str(err) + "\n" + traceback.format_exc()[-800:])
+
+    # Normalize return → dict
+    payload = result
+    if payload is None:
+        payload = {"ok": True}
+    elif not isinstance(payload, dict):
+        payload = {"ok": True, "result": payload}
+
+    ok = payload.get("ok")
+    if ok is None:
+        ok = not bool(payload.get("error"))
+    ok = bool(ok)
+
+    # app_bridge_result is shown to users: the script's "result" value as plain text.
+    # The full payload stays available as app_bridge_json.
+    display = payload.get("result", payload) if "result" in payload else {
+        k: v for k, v in payload.items() if k not in ("ok", "error")
+    }
+    if isinstance(display, (dict, list)):
+        display_text = json.dumps(display, ensure_ascii=False) if display else ""
+    else:
+        display_text = "" if display is None else str(display)
+    try:
+        set_user_field(user_id, "app_bridge_result", display_text[:4000])
+        set_user_field(user_id, "app_bridge_json", json.dumps(payload, ensure_ascii=False)[:4000])
+    except Exception:
+        log.exception("app_bridge could not persist result for %s", app_folder)
+    for out_key, out_val in payload.items():
+        if out_key in ("ok",):
+            continue
+        field = "app_" + re.sub(r"[^a-zA-Z0-9_]", "_", str(out_key))[:48]
+        try:
+            if isinstance(out_val, (dict, list)):
+                set_user_field(user_id, field, json.dumps(out_val, ensure_ascii=False)[:2000])
+            else:
+                set_user_field(user_id, field, "" if out_val is None else str(out_val)[:2000])
+        except Exception:
+            pass
+
+    if ok:
+        try:
+            set_user_field(user_id, "app_bridge_error", "")
+        except Exception:
+            pass
+        next_id = get_next_block(block_id, 0)
+        if next_id:
+            return await execute_block(bot, chat_id, user_id, next_id, ctx)
+        return await handle_unwired_port(bot, chat_id, user_id, block_id, 0, ctx)
+
+    return await _fail(str(payload.get("error") or "app returned ok=false"))
