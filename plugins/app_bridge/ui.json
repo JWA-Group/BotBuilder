@@ -1,0 +1,75 @@
+{
+  "type": "app_bridge",
+  "name": "App Bridge",
+  "icon": "",
+  "color": "#2563eb",
+  "category": "Integration",
+  "description": "Run a standalone Python app from scripts/ and route success/error ports",
+  "palette": true,
+  "connectable": true,
+  "executable": true,
+  "outputs": 2,
+  "outputLabels": ["Success", "Error"],
+  "defaults": {
+    "appName": "Standalone App",
+    "appFolder": "scripts/my_app",
+    "entryFile": "main.py",
+    "entryFunction": "main",
+    "entryAsync": true,
+    "inputMap": {},
+    "description": ""
+  },
+  "fields": [
+    {
+      "key": "appName",
+      "type": "text",
+      "label": "App name",
+      "placeholder": "My Parser"
+    },
+    {
+      "key": "appFolder",
+      "type": "text",
+      "label": "App folder",
+      "hint": "Relative to bot root, e.g. scripts/my_parser",
+      "placeholder": "scripts/my_parser"
+    },
+    {
+      "key": "entryFile",
+      "type": "text",
+      "label": "Entrypoint file",
+      "placeholder": "main.py"
+    },
+    {
+      "key": "entryFunction",
+      "type": "text",
+      "label": "Entrypoint function",
+      "placeholder": "main"
+    },
+    {
+      "key": "entryAsync",
+      "type": "checkbox",
+      "label": "Async entrypoint"
+    },
+    {
+      "key": "description",
+      "type": "textarea",
+      "label": "Description",
+      "rows": 2
+    }
+  ],
+  "ai_capabilities": {
+    "summary": "Bridge to a standalone Python app under scripts/; maps inputs from FSM/DB and routes success/error.",
+    "can": [
+      "call external script",
+      "map {{user.*}} inputs",
+      "branch success/error"
+    ],
+    "cannot": [
+      "replace core message/menu plugins",
+      "edit arbitrary system files"
+    ],
+    "when_to_use": "When integrating a custom Python app from the bot repository scripts/ folder.",
+    "data_shape_hint": "appName, appFolder, entryFile, entryFunction, entryAsync, inputMap",
+    "ports": ["success", "error"]
+  }
+}

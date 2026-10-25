@@ -12,10 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.core.broadcast import BroadcastError, fetch_broadcast_filters, get_broadcast_job, normalize_telegram_html, start_broadcast
 from backend.core.database import (
     DatabaseManagerError,
+    clear_table_data,
     create_bot_custom_table,
     delete_row,
     delete_user_field_data,
     fetch_table_data,
+    get_schema_erd,
     import_database,
     insert_row,
     list_tables,
@@ -58,6 +60,10 @@ class DeleteRowPayload(BaseModel):
     primary_key: dict = Field(default_factory=dict)
 
 
+class ClearTablePayload(BaseModel):
+    table: str = Field(..., min_length=1)
+
+
 class InsertRowPayload(BaseModel):
     table: str
     values: dict = Field(default_factory=dict)
@@ -94,6 +100,20 @@ async def get_db_tables(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.get("/{bot_id}/db/schema")
+async def get_db_schema_erd(
+    bot_id: int,
+    user_id: int = Depends(get_current_user_id_required),
+    db: AsyncSession = Depends(get_db),
+):
+    """ERD-ready schema: tables, columns, affinities, foreign keys."""
+    await require_bot_access(db, bot_id, user_id)
+    try:
+        return get_schema_erd(bot_id)
+    except DatabaseManagerError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.get("/{bot_id}/db/data")
 async def get_db_table_data(
     bot_id: int,
@@ -121,7 +141,7 @@ async def create_db_row(
     try:
         return insert_row(bot_id, table=payload.table, values=payload.values or {})
     except DatabaseManagerError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": False, "ok": False, "error": str(exc)}
 
 
 @router.put("/{bot_id}/db/row")
@@ -140,7 +160,7 @@ async def put_db_row(
             values=payload.values or {},
         )
     except DatabaseManagerError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"success": False, "ok": False, "error": str(exc)}
 
 
 @router.delete("/{bot_id}/db/row")
@@ -153,6 +173,21 @@ async def remove_db_row(
     await require_bot_access(db, bot_id, user_id)
     try:
         return delete_row(bot_id, table=payload.table, primary_key=payload.primary_key)
+    except DatabaseManagerError as exc:
+        return {"success": False, "ok": False, "error": str(exc)}
+
+
+@router.post("/{bot_id}/db/clear")
+async def clear_db_table(
+    bot_id: int,
+    payload: ClearTablePayload,
+    user_id: int = Depends(get_current_user_id_required),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete all rows from a managed table (SSMS-style Clear Data)."""
+    await require_bot_access(db, bot_id, user_id)
+    try:
+        return clear_table_data(bot_id, table=payload.table)
     except DatabaseManagerError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

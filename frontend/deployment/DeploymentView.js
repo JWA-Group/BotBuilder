@@ -66,8 +66,8 @@
       "dep-console-line" +
       (kind === "ok" ? " dep-console-line-ok" : kind === "err" ? " dep-console-line-err" : "");
     span.textContent = line + "\n";
-    box.appendChild(span);
-    box.scrollTop = box.scrollHeight;
+    box.insertBefore(span, box.firstChild);
+    box.scrollTop = 0;
   }
 
   function setLogActionsEnabled(enabled) {

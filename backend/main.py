@@ -34,7 +34,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from backend.db.database import init_db
 from backend.core.app_paths import ensure_data_dirs, get_frontend_dir, resolve_plugin_folder
 from backend.core.plugin_manager import get_plugin_manager
-from backend.routes import auth, bots, commands, bot_runner, scenario, templates, analytics, miniapps, config, plugins, projects, deployment, monitor, inventory, channel_hub, publisher, broadcast_studio
+from backend.routes import auth, bots, commands, bot_runner, scenario, templates, analytics, miniapps, config, plugins, projects, deployment, monitor, inventory, channel_hub, publisher, broadcast_studio, ai_assistant, repository
 from backend.core.monitor import start_monitor_services, stop_monitor_services, MonitorAPIMiddleware
 
 
@@ -60,11 +60,6 @@ async def lifespan(app: FastAPI):
         start_publisher_scheduler()
     except Exception:
         pass
-    gid = os.environ.get("GOOGLE_CLIENT_ID", "")
-    if gid:
-        print("Google OAuth: настроен")
-    else:
-        print("Google OAuth: не настроен (GOOGLE_CLIENT_ID пуст). Создайте .env в корне проекта.")
     yield
     try:
         from backend.core.publisher import stop_publisher_scheduler
@@ -128,6 +123,8 @@ app.include_router(channel_hub.router)
 app.include_router(channel_hub.telegram_router)
 app.include_router(publisher.router)
 app.include_router(broadcast_studio.router)
+app.include_router(ai_assistant.router)
+app.include_router(repository.router)
 
 
 # Исходники плагинов (code.py.jinja2) — user plugins override bundled

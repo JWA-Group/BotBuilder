@@ -31,15 +31,58 @@
       "type": "select",
       "label": "Оператор",
       "options": [
-        { "value": "eq", "label": "Равно" },
-        { "value": "ne", "label": "Не равно" },
-        { "value": "empty", "label": "Пусто / null" },
-        { "value": "exists", "label": "Заполнено (не пусто)" },
-        { "value": "gt", "label": "Больше" },
-        { "value": "gte", "label": "Больше или равно" },
-        { "value": "lt", "label": "Меньше" },
-        { "value": "lte", "label": "Меньше или равно" },
-        { "value": "role", "label": "Роль (admin)" }
+        {
+          "value": "eq",
+          "label": "Равно"
+        },
+        {
+          "value": "ne",
+          "label": "Не равно"
+        },
+        {
+          "value": "contains",
+          "label": "Содержит / Включает"
+        },
+        {
+          "value": "not_contains",
+          "label": "Не содержит"
+        },
+        {
+          "value": "starts_with",
+          "label": "Начинается с"
+        },
+        {
+          "value": "ends_with",
+          "label": "Заканчивается на"
+        },
+        {
+          "value": "empty",
+          "label": "Пусто / null"
+        },
+        {
+          "value": "exists",
+          "label": "Заполнено (не пусто)"
+        },
+        {
+          "value": "gt",
+          "label": "Больше"
+        },
+        {
+          "value": "gte",
+          "label": "Больше или равно"
+        },
+        {
+          "value": "lt",
+          "label": "Меньше"
+        },
+        {
+          "value": "lte",
+          "label": "Меньше или равно"
+        },
+        {
+          "value": "role",
+          "label": "Роль (admin)"
+        }
       ]
     },
     {
@@ -47,7 +90,30 @@
       "type": "text",
       "label": "Значение для сравнения",
       "placeholder": "admin",
-      "hideWhen": { "operator": ["exists", "empty", "not_empty", "is_null"] }
+      "hideWhen": {
+        "operator": [
+          "exists",
+          "empty",
+          "not_empty",
+          "is_null"
+        ]
+      }
     }
-  ]
+  ],
+  "ai_capabilities": {
+    "summary": "Ветвление по значению поля (да/нет). Строковые операторы: contains/not_contains/starts_with/ends_with/eq/ne.",
+    "can": [
+      "contains / not_contains (подстрока, напр. '@' в email)",
+      "starts_with / ends_with",
+      "eq/ne/gt/lt/empty/exists",
+      "две ветки output 0=да 1=нет"
+    ],
+    "cannot": [
+      "сохранять данные",
+      "вызывать API",
+      "сложные выражения JS"
+    ],
+    "when_to_use": "Проверки роли, email (@), тегов (#), заполненности, порогов чисел. Для наличия символа в строке ВСЕГДА operator=contains, НЕ eq.",
+    "data_shape_hint": "fieldName, operator (eq|ne|contains|not_contains|starts_with|ends_with|empty|exists|gt|gte|lt|lte|role), compareValue"
+  }
 }

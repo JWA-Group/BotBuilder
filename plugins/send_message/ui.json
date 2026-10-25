@@ -9,9 +9,14 @@
   "outputs": "dynamic",
   "defaults": {
     "text": "Сообщение",
-    "media": { "type": null, "files": [] },
+    "media": {
+      "type": null,
+      "files": []
+    },
     "inlineButtons": [],
-    "inlineButtonRowBreaks": [0],
+    "inlineButtonRowBreaks": [
+      0
+    ],
     "disableWebPagePreview": false,
     "tagId": ""
   },
@@ -47,5 +52,20 @@
       "label": "Inline-кнопки",
       "hint": "Перетаскивайте: на кнопку — замена мест; в зону ряда — перенос"
     }
-  ]
+  ],
+  "ai_capabilities": {
+    "summary": "Отправляет пользователю текст, медиа и/или inline-кнопки.",
+    "can": [
+      "текст с {{полями}}",
+      "медиа",
+      "inline-кнопки и ветки по ним"
+    ],
+    "cannot": [
+      "сохранять ответы в БД",
+      "ветвление по полям без кнопок",
+      "внешний HTTP"
+    ],
+    "when_to_use": "Любой ответ бота пользователю, FAQ-тексты, кнопки-ссылки.",
+    "data_shape_hint": "text, media{type,files}, inlineButtons[], disableWebPagePreview"
+  }
 }

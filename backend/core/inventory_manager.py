@@ -25,7 +25,11 @@ def _connect(bot_id: int) -> sqlite3.Connection:
     ensure_bot_user_db(bot_id)
     conn = sqlite3.connect(str(ensure_bot_user_db(bot_id)))
     conn.row_factory = sqlite3.Row
-    ensure_extended_bot_tables(conn)
+    from backend.core.bot_data_store import detect_bot_db_features, ensure_feature_tables
+
+    feats = detect_bot_db_features(bot_id)
+    feats["inventory"] = True
+    ensure_feature_tables(conn, feats)
     conn.commit()
     return conn
 

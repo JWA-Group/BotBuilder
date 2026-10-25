@@ -43,5 +43,18 @@
       "type": "text",
       "label": "Сообщение: ошибка API"
     }
-  ]
+  ],
+  "ai_capabilities": {
+    "summary": "Получает погоду по городу через Open-Meteo и пишет результат пользователю.",
+    "can": [
+      "погода по городу",
+      "город из поля или запрос ввода"
+    ],
+    "cannot": [
+      "другие API кроме погоды",
+      "магазин/оплата"
+    ],
+    "when_to_use": "Когда нужна именно погода — не создавай новый weather-плагин.",
+    "data_shape_hint": "inputPrompt, cityField, errorNotFound, errorApi"
+  }
 }

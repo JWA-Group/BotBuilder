@@ -39,14 +39,18 @@ class LogPacket:
     layer: str
     bot_id: str | None
     message: str
+    detail: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "timestamp": self.timestamp,
             "layer": self.layer,
             "bot_id": self.bot_id,
             "message": self.message,
         }
+        if self.detail:
+            d["detail"] = self.detail
+        return d
 
 
 class LogHub:
@@ -70,6 +74,7 @@ class LogHub:
         *,
         layer: str = "API",
         bot_id: int | str | None = None,
+        detail: str | None = None,
     ) -> LogPacket:
         text = (message or "").strip()
         if not text:
@@ -78,11 +83,17 @@ class LogHub:
         if layer_norm not in ("API", "LLM", "BOT", "ERROR"):
             layer_norm = "API"
         bid = str(bot_id) if bot_id is not None else None
-        packet = LogPacket(_utc_iso(), layer_norm, bid, text)
+        detail_s = (detail or "").strip() or None
+        if detail_s and len(detail_s) > 24000:
+            detail_s = detail_s[:23999] + "…"
+        packet = LogPacket(_utc_iso(), layer_norm, bid, text, detail_s)
         with self._lock:
             self._history.append(packet)
             subscribers = list(self._subscribers)
         for sub in subscribers:
+            filt = getattr(sub, "_bot_id_filter", None)
+            if filt is not None and (bid is None or str(bid) != str(filt)):
+                continue
             self._enqueue_packet(sub, packet)
         return packet
 
@@ -116,15 +127,28 @@ class LogHub:
         except RuntimeError:
             pass
 
-    def subscribe_async(self, *, replay: int = 80) -> asyncio.Queue[LogPacket]:
+    def subscribe_async(
+        self, *, replay: int = 80, bot_id: int | str | None = None
+    ) -> asyncio.Queue[LogPacket]:
         q: asyncio.Queue[LogPacket] = asyncio.Queue(maxsize=self.MAX_SUBSCRIBER_QUEUE)
+        bid = str(bot_id) if bot_id is not None and str(bot_id) != "" else None
         try:
             self._loop = asyncio.get_running_loop()
         except RuntimeError:
             pass
         with self._lock:
             self._subscribers.append(q)
-            replay_packets = list(self._history)[-replay:]
+            # Store filter on queue object for iter filter fallback
+            setattr(q, "_bot_id_filter", bid)
+            replay_packets = list(self._history)[-max(replay * 4, replay) :]
+        if bid is not None:
+            replay_packets = [
+                p
+                for p in replay_packets
+                if p.bot_id is not None and str(p.bot_id) == bid
+            ][-replay:]
+        else:
+            replay_packets = replay_packets[-replay:]
         for packet in replay_packets:
             try:
                 q.put_nowait(packet)
@@ -139,16 +163,33 @@ class LogHub:
             except ValueError:
                 pass
 
-    def history(self, limit: int = 500) -> list[dict[str, Any]]:
+    def history(self, limit: int = 500, bot_id: int | str | None = None) -> list[dict[str, Any]]:
+        bid = str(bot_id) if bot_id is not None and str(bot_id) != "" else None
         with self._lock:
-            return [p.to_dict() for p in list(self._history)[-limit:]]
+            packets = list(self._history)
+        if bid is not None:
+            packets = [p for p in packets if p.bot_id is not None and str(p.bot_id) == bid]
+        return [p.to_dict() for p in packets[-limit:]]
 
-    def clear(self) -> int:
-        """Drop ring-buffer history and drain live subscriber queues."""
+    def clear(self, bot_id: int | str | None = None) -> int:
+        """Drop ring-buffer history. If bot_id set, remove only that bot's packets."""
+        bid = str(bot_id) if bot_id is not None and str(bot_id) != "" else None
         with self._lock:
-            cleared = len(self._history)
-            self._history.clear()
-            subscribers = list(self._subscribers)
+            if bid is None:
+                cleared = len(self._history)
+                self._history.clear()
+                subscribers = list(self._subscribers)
+            else:
+                before = len(self._history)
+                kept = [
+                    p
+                    for p in self._history
+                    if not (p.bot_id is not None and str(p.bot_id) == bid)
+                ]
+                self._history.clear()
+                self._history.extend(kept)
+                cleared = before - len(self._history)
+                subscribers = list(self._subscribers)
         for sub in subscribers:
             self._drain_queue(sub)
         return cleared
@@ -183,11 +224,12 @@ class LogHub:
         replay: int = 80,
         flush_interval: float = LOG_FLUSH_INTERVAL_SEC,
         keepalive_sec: float = SSE_KEEPALIVE_SEC,
+        bot_id: int | str | None = None,
     ) -> AsyncGenerator[str, None]:
         """Flush accumulated logs as a JSON array every flush_interval; skip empty ticks."""
         import json
 
-        q = self.subscribe_async(replay=replay)
+        q = self.subscribe_async(replay=replay, bot_id=bot_id)
         idle = 0.0
         try:
             while True:
@@ -878,6 +920,22 @@ class _BotLogTailer(threading.Thread):
             text = line.strip()
             if not text:
                 continue
+            # Structured runtime telemetry from bot process → BotErrorRegistry
+            try:
+                from backend.core.bot_error_registry import (
+                    bot_error_registry,
+                    try_parse_runtime_error_log_line,
+                )
+
+                runtime_payload = try_parse_runtime_error_log_line(text)
+                if runtime_payload is not None:
+                    if not runtime_payload.get("bot_id"):
+                        runtime_payload["bot_id"] = bot_id
+                    bot_error_registry.push(runtime_payload)
+                    emitted += 1
+                    continue
+            except Exception:
+                pass
             layer = default_layer
             low = text.lower()
             if "traceback" in low or "error" in low or "exception" in low:
@@ -918,8 +976,13 @@ def stop_monitor_services() -> None:
     log_hub.emit("Центр мониторинга остановлен", layer="API")
 
 
-def emit_llm(message: str, *, bot_id: int | None = None) -> None:
-    log_hub.emit(message, layer="LLM", bot_id=bot_id)
+def emit_llm(
+    message: str,
+    *,
+    bot_id: int | str | None = None,
+    detail: str | None = None,
+) -> None:
+    log_hub.emit(message, layer="LLM", bot_id=bot_id, detail=detail)
 
 
 def log_api(message: str, *, bot_id: int | None = None, error: bool = False) -> None:

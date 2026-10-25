@@ -43,6 +43,7 @@ module.exports = {
     dialog_db_title: "Select Database or JSON Export File",
     dialog_txt_title: "Select .txt File for Import",
     dialog_import_title: "Select Import File",
+    tray_open: "Open BotBuilder",
   },
   ru: {
     menu_settings: "Настройки",
@@ -87,6 +88,7 @@ module.exports = {
     dialog_db_title: "Выберите Файл Базы Данных или Экспорт JSON",
     dialog_txt_title: "Выберите .txt Файл для Импорта",
     dialog_import_title: "Выберите Файл для Импорта",
+    tray_open: "Открыть BotBuilder",
   },
   es: {
     menu_settings: "Ajustes",
@@ -131,5 +133,6 @@ module.exports = {
     dialog_db_title: "Seleccione Archivo De Base De Datos O Exportación JSON",
     dialog_txt_title: "Seleccione Archivo .txt Para Importar",
     dialog_import_title: "Seleccione Archivo Para Importar",
+    tray_open: "Abrir BotBuilder",
   },
 };

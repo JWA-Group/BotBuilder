@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from jinja2 import ChoiceLoader, Environment, FileSystemLoader, TemplateNotFound
+from jinja2 import (
+    ChoiceLoader,
+    Environment,
+    FileSystemLoader,
+    TemplateNotFound,
+    TemplateSyntaxError,
+)
+
+log = logging.getLogger(__name__)
 
 from backend.core.app_paths import (
     BUNDLED_PLUGINS_DIR,
@@ -26,6 +35,7 @@ BUILTIN_PLUGIN_FOLDERS = frozenset(
         "condition_node",
         "weather_node",
         "note_node",
+        "app_bridge",
     }
 )
 
@@ -69,12 +79,53 @@ class BlockPlugin:
             template = env.get_template(self.code_template_name)
         except TemplateNotFound:
             return ""
-        return template.render(
-            plugin=self.ui,
-            block=block or {},
-            data=(block or {}).get("data") or {},
-            scenario=scenario or {},
-        ).strip()
+        except TemplateSyntaxError as exc:
+            block_name = str((block or {}).get("id") or self.block_type or self.id)
+            log.error(
+                "Jinja TemplateSyntaxError loading plugin '%s' (block=%s, template=%s): %s",
+                self.id,
+                block_name,
+                self.code_template_name,
+                exc,
+            )
+            safe = str(self.block_type or self.id).replace("-", "_")
+            return (
+                f"async def _type_handler_{safe}"
+                f"(bot, chat_id, user_id, block_id, ctx, data, disable):\n"
+                f"    # Compiler skipped plugin {self.id!r}: TemplateSyntaxError on load\n"
+                f"    log.error('Plugin %s template broken for block %s', {self.id!r}, block_id)\n"
+                f"    next_id = get_next_block(block_id, 1)\n"
+                f"    if next_id:\n"
+                f"        return execute_block(bot, chat_id, user_id, next_id, ctx)\n"
+                f"    return handle_unwired_port(bot, chat_id, user_id, block_id, 1, ctx)"
+            )
+        try:
+            return template.render(
+                plugin=self.ui,
+                block=block or {},
+                data=(block or {}).get("data") or {},
+                scenario=scenario or {},
+            ).strip()
+        except TemplateSyntaxError as exc:
+            block_name = str((block or {}).get("id") or self.block_type or self.id)
+            log.error(
+                "Jinja TemplateSyntaxError rendering plugin '%s' (block=%s, template=%s): %s",
+                self.id,
+                block_name,
+                self.code_template_name,
+                exc,
+            )
+            safe = str(self.block_type or self.id).replace("-", "_")
+            return (
+                f"async def _type_handler_{safe}"
+                f"(bot, chat_id, user_id, block_id, ctx, data, disable):\n"
+                f"    # Compiler skipped plugin {self.id!r}: TemplateSyntaxError on render\n"
+                f"    log.error('Plugin %s template broken for block %s', {self.id!r}, block_id)\n"
+                f"    next_id = get_next_block(block_id, 1)\n"
+                f"    if next_id:\n"
+                f"        return execute_block(bot, chat_id, user_id, next_id, ctx)\n"
+                f"    return handle_unwired_port(bot, chat_id, user_id, block_id, 1, ctx)"
+            )
 
 
 class PluginManager:
@@ -152,6 +203,10 @@ class PluginManager:
         if plugins:
             self.plugins_dir = plugins[0].path.parent
         return plugins
+
+    def reload_user_plugins(self) -> list[BlockPlugin]:
+        """Hot-reload bundled + user plugins (AI assistant sync). Alias of reload()."""
+        return self.reload()
 
     def list_plugins(self) -> list[BlockPlugin]:
         if self._plugins is None:
@@ -235,7 +290,17 @@ class PluginManager:
         return (
             "    handler = _TYPE_HANDLERS.get(typ)\n"
             "    if handler:\n"
-            "        return await handler(bot, chat_id, user_id, block_id, ctx, data, disable)"
+            "        return await handler(bot, chat_id, user_id, block_id, ctx, data, disable)\n"
+            "    msg = (\n"
+            "        'Ошибка сценария: обработчик модуля [' + str(typ or '?') + '] '\n"
+            "        'не найден или не вернул значение.'\n"
+            "    )\n"
+            "    log.error('No handler registered for block type=%s id=%s', typ, block_id)\n"
+            "    try:\n"
+            "        await bot.send_message(chat_id, msg, disable_web_page_preview=disable)\n"
+            "    except Exception:\n"
+            "        pass\n"
+            "    return None"
         )
 
     def render_handlers_for_scenario(self, scenario: dict[str, Any]) -> str:

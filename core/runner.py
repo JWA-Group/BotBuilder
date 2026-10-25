@@ -7,6 +7,7 @@ so they do not depend on a globally installed system Python.
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -113,18 +114,49 @@ def process_alive(pid: int) -> bool:
         return False
 
 
+def _no_window_flags() -> int:
+    return subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+
+
 def kill_pid(pid: int) -> None:
+    """Kill one process. Prefer kill_process_tree so standalone scripts die too."""
+    kill_process_tree(pid)
+
+
+def kill_process_tree(pid: int) -> None:
+    """Stop a bot and every child it started (parsers, scanners, extra python.exe)."""
     if pid <= 0:
         return
     if os.name == "nt":
-        subprocess.run(
-            ["taskkill", "/PID", str(pid), "/F"],
-            capture_output=True,
-            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
-        )
-    else:
+        # Ask the process group to exit cleanly first (CTRL_BREAK), then force the tree.
         try:
-            os.kill(pid, 15)
+            os.kill(pid, signal.CTRL_BREAK_EVENT)
+        except Exception:
+            pass
+        subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
+            capture_output=True,
+            creationflags=_no_window_flags(),
+        )
+        return
+    try:
+        os.killpg(os.getpgid(pid), signal.SIGTERM)
+    except OSError:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+        return
+    deadline = time.time() + 2.0
+    while time.time() < deadline:
+        if not process_alive(pid):
+            return
+        time.sleep(0.1)
+    try:
+        os.killpg(os.getpgid(pid), signal.SIGKILL)
+    except OSError:
+        try:
+            os.kill(pid, signal.SIGKILL)
         except OSError:
             pass
 
@@ -206,18 +238,23 @@ class BotRunner:
 
     def terminate(self, bot_id: int) -> None:
         with self._lock:
+            pids: set[int] = set()
             proc = self.running_bots.pop(bot_id, None)
-            if proc is not None and proc.poll() is None:
-                proc.terminate()
+            if proc is not None and getattr(proc, "pid", None):
+                pids.add(int(proc.pid))
+            file_pid = self._read_pid_file(bot_id)
+            if file_pid:
+                pids.add(int(file_pid))
+            for pid in pids:
+                kill_process_tree(pid)
+            if proc is not None:
                 try:
-                    proc.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-                    proc.wait()
-
-            pid = self._read_pid_file(bot_id)
-            if pid:
-                kill_pid(pid)
+                    proc.wait(timeout=3)
+                except Exception:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
             self.clear_pid(bot_id)
 
     def _read_pid_file(self, bot_id: int) -> int | None:

@@ -106,8 +106,8 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
 @router.get("/google")
 async def google_login(request: Request):
     """Редирект на Google OAuth. Вызывается из фронта."""
-    from backend.routes.oauth import oauth, GOOGLE_CLIENT_ID
-    if not GOOGLE_CLIENT_ID:
+    from backend.routes.oauth import oauth, ensure_google
+    if not ensure_google():
         from urllib.parse import quote
         return RedirectResponse(
             url="/auth/login.html?error=oauth&msg=" + quote("Google OAuth не настроен"),
@@ -124,9 +124,9 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
     """Callback после авторизации в Google."""
     from urllib.parse import quote
     from authlib.integrations.starlette_client import OAuthError
-    from backend.routes.oauth import oauth, GOOGLE_CLIENT_ID
+    from backend.routes.oauth import oauth, ensure_google
 
-    if not GOOGLE_CLIENT_ID or not hasattr(oauth, "google"):
+    if not ensure_google() or not hasattr(oauth, "google"):
         return RedirectResponse(url="/auth/login.html?error=oauth", status_code=302)
 
     try:

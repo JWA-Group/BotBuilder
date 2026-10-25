@@ -248,7 +248,7 @@ async def get_user_data_schema(
     if os.path.exists(db_path):
         conn = sqlite3.connect(db_path)
         try:
-            ensure_extended_bot_tables(conn)
+            ensure_extended_bot_tables(conn, bot_id=bot_id)
             placeholders = list_placeholder_suggestions(conn, bot_id)
         finally:
             conn.close()

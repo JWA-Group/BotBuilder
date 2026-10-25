@@ -115,6 +115,7 @@ PROJECT_SPEC.md
 # -----------------------------------------------------------------------------
 
 GITHUB_PUSH.md
+ProjectStack.md
 *_test.json
 *_TEST.json
 test_*.json
@@ -148,3 +149,13 @@ _tmp_data_test/
 NGROK.md
 SMTP_GUIDE.md
 TECHNICAL_REPORT.md
+
+# -----------------------------------------------------------------------------
+# 8. WEBAPPS / CANVASLY (feature parked — not shipping yet)
+# Keep local WIP; do not commit until the feature is ready to release.
+# -----------------------------------------------------------------------------
+
+frontend/editor/webapps/
+frontend/webapps/
+backend/routes/webapp_bridge.py
+PROGRESS.md

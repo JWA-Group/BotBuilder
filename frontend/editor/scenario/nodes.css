@@ -1,0 +1,117 @@
+/* Scenario canvas — node cards & binary port dots (no text labels) */
+
+.block.block-app-bridge {
+  min-width: 220px;
+  border-color: color-mix(in srgb, var(--border-subtle) 80%, var(--text-muted));
+  background: var(--bg-panel, var(--bg-card));
+}
+
+.block.block-app-bridge .app-bridge-folder {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.9;
+}
+
+.block.block-app-bridge .app-bridge-inputs {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 100%;
+}
+
+.block.block-app-bridge .app-bridge-inputs li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--bg-muted, transparent);
+  border: 1px solid var(--border-subtle);
+}
+
+.block.block-app-bridge .app-bridge-key {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.block.block-app-bridge .app-bridge-src {
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+.block.block-app-bridge .app-bridge-more,
+.block.block-app-bridge .app-bridge-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.block.block-app-bridge .app-bridge-ports {
+  margin-top: 10px;
+}
+
+/* Hide all text labels on binary / condition / payment ports */
+.port-label,
+.port-text,
+.app-bridge-port-badge,
+.binary-ports .port-label,
+.binary-ports .port-text,
+.condition-outputs .port-label,
+.condition-outputs .port-text {
+  display: none !important;
+}
+
+/* Minimalist 10x10 semantic port dots */
+.node-port,
+.condition-outputs .output,
+.binary-ports .output,
+.block.block-app-bridge .output.condition-yes,
+.block.block-app-bridge .output.condition-no {
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  min-height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  font-size: 0;
+  line-height: 0;
+  color: transparent;
+  text-indent: -9999px;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.output.condition-yes,
+.output.port-success,
+.node-port.port-success,
+.output[data-port="ok"],
+.output[data-port="yes"],
+.output[data-port="true"],
+.output[data-port="success"] {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+  border-color: color-mix(in srgb, #22c55e 50%, var(--border-subtle));
+}
+
+.output.condition-no,
+.output.port-fail,
+.node-port.port-fail,
+.output[data-port="err"],
+.output[data-port="error"],
+.output[data-port="no"],
+.output[data-port="false"],
+.output[data-port="fail"] {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+  border-color: color-mix(in srgb, #ef4444 50%, var(--border-subtle));
+}

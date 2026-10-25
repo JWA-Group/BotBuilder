@@ -75,3 +75,20 @@ async def _type_handler_message(bot, chat_id, user_id, block_id, ctx, data, disa
             reply_markup=kb,
             disable_web_page_preview=disable,
         )
+
+    # Mark that a user-visible prompt/content was sent this tick (for smart Data Input).
+    if isinstance(ctx, dict):
+        ctx["_tick_message_sent"] = True
+
+    # F1: mid-chain continue — do not dead-end at Message when port 0 is wired
+    # and there are no inline buttons that require a user click.
+    if inline_buttons:
+        return
+    next_id = get_next_block(block_id, 0)
+    if not next_id:
+        return
+    ret = await execute_block(bot, chat_id, user_id, next_id, ctx)
+    nxt_blk = BLOCKS_BY_ID.get(next_id) or {}
+    if nxt_blk.get("type") == "menu":
+        return ("entered_menu", next_id)
+    return ret

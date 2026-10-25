@@ -30,10 +30,22 @@
       "type": "select",
       "label": "Действие",
       "options": [
-        { "value": "set", "label": "Записать значение" },
-        { "value": "add", "label": "Прибавить к числу" },
-        { "value": "subtract", "label": "Вычесть из числа" },
-        { "value": "issue", "label": "Выдать товар со склада" }
+        {
+          "value": "set",
+          "label": "Записать значение"
+        },
+        {
+          "value": "add",
+          "label": "Прибавить к числу"
+        },
+        {
+          "value": "subtract",
+          "label": "Вычесть из числа"
+        },
+        {
+          "value": "issue",
+          "label": "Выдать товар со склада"
+        }
       ]
     },
     {
@@ -41,13 +53,30 @@
       "type": "select",
       "label": "Тип поля",
       "options": [
-        { "value": "string", "label": "Строка" },
-        { "value": "number", "label": "Число" },
-        { "value": "date", "label": "Дата" },
-        { "value": "time", "label": "Время" },
-        { "value": "datetime", "label": "Дата и время" }
+        {
+          "value": "string",
+          "label": "Строка"
+        },
+        {
+          "value": "number",
+          "label": "Число"
+        },
+        {
+          "value": "date",
+          "label": "Дата"
+        },
+        {
+          "value": "time",
+          "label": "Время"
+        },
+        {
+          "value": "datetime",
+          "label": "Дата и время"
+        }
       ],
-      "hideWhen": { "action": "issue" }
+      "hideWhen": {
+        "action": "issue"
+      }
     },
     {
       "key": "fieldName",
@@ -55,7 +84,9 @@
       "label": "Имя поля",
       "placeholder": "user.balance, bot.price или table.prices.nitro.price",
       "hint": "user.* — данные пользователя; bot.* — общее значение; table.таблица.ключ.столбец — ячейка созданной таблицы.",
-      "hideWhen": { "action": "issue" }
+      "hideWhen": {
+        "action": "issue"
+      }
     },
     {
       "key": "productId",
@@ -63,54 +94,103 @@
       "label": "Product ID (склад)",
       "placeholder": "discord_nitro",
       "hint": "Совпадает с product_id в разделе «База данных».",
-      "showWhen": { "action": "issue" }
+      "showWhen": {
+        "action": "issue"
+      }
     },
     {
       "key": "issueGuide",
       "type": "info",
       "label": "Как выдать товар",
       "text": "Шаг 1: добавьте товары в «База данных» (Product ID + JSON).\nШаг 2: этот блок снимает один товар со склада (FIFO).\nШаг 3: подключите «Сообщение» к зелёному выходу и вставьте плейсхолдеры issued.* (см. ниже).",
-      "showWhen": { "action": "issue" }
+      "showWhen": {
+        "action": "issue"
+      }
     },
     {
       "key": "issuePlaceholders",
       "type": "info",
       "label": "Плейсхолдеры в сообщении",
       "text": "Ключи из JSON склада подставляются автоматически:\n{{issued.email}} — email из JSON\n{{issued.pass}} — пароль из JSON\nЕсли ключ другой (key, login) — используйте {{issued.key}}, {{issued.login}}.",
-      "showWhen": { "action": "issue" }
+      "showWhen": {
+        "action": "issue"
+      }
     },
     {
       "key": "valueSource",
       "type": "select",
       "label": "Источник значения",
       "options": [
-        { "value": "const", "label": "Константа / шаблон" },
-        { "value": "input", "label": "Запросить у пользователя" },
-        { "value": "current_datetime", "label": "Текущие дата и время" }
+        {
+          "value": "const",
+          "label": "Константа / шаблон"
+        },
+        {
+          "value": "input",
+          "label": "Запросить у пользователя"
+        },
+        {
+          "value": "current_datetime",
+          "label": "Текущие дата и время"
+        }
       ],
-      "showWhen": { "action": "set" }
+      "showWhen": {
+        "action": "set"
+      }
     },
     {
       "key": "fieldValue",
       "type": "text",
       "label": "Значение",
       "placeholder": "100 или {{поле}}",
-      "showWhen": { "action": ["set", "add", "subtract"] },
-      "hideWhen": { "valueSource": ["input", "current_datetime"] }
+      "showWhen": {
+        "action": [
+          "set",
+          "add",
+          "subtract"
+        ]
+      },
+      "hideWhen": {
+        "valueSource": [
+          "input",
+          "current_datetime"
+        ]
+      }
     },
     {
       "key": "inputPrompt",
       "type": "textarea",
       "label": "Текст запроса",
       "placeholder": "Введите ваше имя:",
-      "showWhen": { "action": "set", "valueSource": "input" }
+      "showWhen": {
+        "action": "set",
+        "valueSource": "input"
+      }
     },
     {
       "key": "inputOnlyIfEmpty",
       "type": "checkbox",
       "label": "Не спрашивать повторно, если поле уже заполнено",
       "hint": "Если значение уже есть в базе, бот сразу продолжит сценарий.",
-      "showWhen": { "action": "set", "valueSource": "input" }
+      "showWhen": {
+        "action": "set",
+        "valueSource": "input"
+      }
     }
-  ]
+  ],
+  "ai_capabilities": {
+    "summary": "Чтение/запись полей user_data: const, ввод пользователя, арифметика.",
+    "can": [
+      "set/add/subtract поля",
+      "valueSource input|const|current_datetime",
+      "спросить текст у пользователя"
+    ],
+    "cannot": [
+      "ветвление (нужен condition)",
+      "внешний API",
+      "отправка длинных сообщений (лучше message)"
+    ],
+    "when_to_use": "Сбор имени/телефона/числа, сохранение констант, счётчики.",
+    "data_shape_hint": "action, fieldName, fieldValue, fieldType, valueSource, inputPrompt, inputOnlyIfEmpty"
+  }
 }

@@ -1,4 +1,4 @@
-﻿/* System Monitor — light theme (matches deployment / dashboard) */
+/* System Monitor — light theme (matches deployment / dashboard) */
 
 .mon-page {
   display: flex;
@@ -6,6 +6,7 @@
   gap: 1.25rem;
   max-width: 1200px;
   margin: 0 auto;
+  min-height: calc(100vh - 120px);
 }
 
 .mon-alert {
@@ -126,10 +127,12 @@
 }
 
 .mon-logs {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 260px;
+  max-height: calc(1000px + 72px);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .mon-table-wrap {
@@ -237,10 +240,12 @@
 }
 
 .mon-terminal {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 280px;
-  max-height: 420px;
+  max-height: 1000px !important;
   overflow-y: auto;
+  overflow-x: auto;
+  overscroll-behavior: contain;
   background: var(--bg-muted);
   border: 1px solid var(--border-main);
   border-radius: 10px;
@@ -248,14 +253,37 @@
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.78rem;
   line-height: 1.45;
-  contain: strict;
 }
 
 .mon-log-line {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.5rem;
+  flex-direction: column;
+  gap: 0.2rem;
   padding: 0.12rem 0;
+}
+
+.mon-log-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.35rem 0.5rem;
+}
+
+.mon-log-expandable .mon-log-head {
+  cursor: pointer;
+}
+
+.mon-log-expandable .mon-log-head:hover .mon-log-msg {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.mon-log-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+  width: 0.75rem;
 }
 
 .mon-log-ts {
@@ -297,6 +325,53 @@
   word-break: break-word;
   flex: 1;
   min-width: 0;
+}
+
+.mon-fix-ai-btn {
+  flex-shrink: 0;
+  margin-left: 8px;
+  appearance: none;
+  border: 1px solid var(--border-main, #334155);
+  background: transparent;
+  color: var(--accent-ui-text, #2563eb);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.mon-fix-ai-btn:hover {
+  border-color: var(--accent-ui-text, #2563eb);
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.mon-log-detail {
+  margin: 0 0 0.35rem 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, #e4e4e7);
+  background: var(--bg-muted, #f4f4f5);
+  color: var(--text-main);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: none !important;
+  overflow: visible;
+}
+
+html.theme-dark .mon-badge-llm {
+  background: rgba(168, 85, 247, 0.22);
+  color: #e9d5ff;
+}
+
+html.theme-dark .mon-log-detail {
+  background: var(--bg-elevated, #1c1c22);
+  border-color: var(--border-main, #24242b);
 }
 
 .mon-log-line-error .mon-log-msg {

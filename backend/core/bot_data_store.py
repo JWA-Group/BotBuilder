@@ -60,10 +60,20 @@ ON appointments(status, scheduled_for, id)
 """
 
 
-def ensure_extended_bot_tables(conn: sqlite3.Connection) -> None:
+def ensure_core_bot_tables(conn: sqlite3.Connection) -> None:
+    """Always-on tables for FSM / user storage (no channel/admin clutter)."""
     conn.execute(BOT_GLOBALS_DDL)
+    from backend.core.custom_tables import ensure_custom_tables_meta
+
+    ensure_custom_tables_meta(conn)
+
+
+def ensure_inventory_tables(conn: sqlite3.Connection) -> None:
     conn.execute(INVENTORY_ITEMS_DDL)
     conn.execute(INVENTORY_INDEX_DDL)
+
+
+def ensure_appointment_tables(conn: sqlite3.Connection) -> None:
     conn.execute(APPOINTMENTS_DDL)
     conn.execute(APPOINTMENTS_INDEX_DDL)
     appointment_columns = {
@@ -73,11 +83,80 @@ def ensure_extended_bot_tables(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE appointments ADD COLUMN moderated_by INTEGER")
     if "moderated_at" not in appointment_columns:
         conn.execute("ALTER TABLE appointments ADD COLUMN moderated_at TEXT")
-    from backend.core.custom_tables import ensure_custom_tables_meta
-    from backend.core.channel_hub_store import ensure_channel_hub_tables
 
-    ensure_custom_tables_meta(conn)
-    ensure_channel_hub_tables(conn)
+
+# Block types / bot kinds that unlock optional SQLite feature tables
+_INVENTORY_TYPES = frozenset({"digital_shop", "payment", "inventory", "inventory_items"})
+_APPOINTMENT_TYPES = frozenset({"appointment_node", "appointment"})
+_CHANNEL_TYPES = frozenset(
+    {
+        "channel_hub",
+        "forward_to_chat",  # may use chats but not full hub schema — keep off by default
+    }
+)
+
+
+def detect_bot_db_features(bot_id: int) -> dict[str, bool]:
+    """Infer which optional DB feature packs this bot needs from scenario + config."""
+    features = {
+        "core": True,
+        "inventory": False,
+        "appointments": False,
+        "channel_hub": False,
+    }
+    bot_dir = PROJECTS_DIR / f"bot_{bot_id}"
+    cfg_path = bot_dir / "config.json"
+    try:
+        if cfg_path.is_file():
+            cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+            kind = str(cfg.get("kind") or cfg.get("bot_kind") or "").lower()
+            if kind in ("moderator", "channel", "channel_hub"):
+                features["channel_hub"] = True
+    except (OSError, json.JSONDecodeError, TypeError):
+        pass
+
+    scenario_path = bot_dir / "scenario.json"
+    try:
+        if scenario_path.is_file():
+            data = json.loads(scenario_path.read_text(encoding="utf-8"))
+            for block in data.get("blocks") or []:
+                typ = str(block.get("type") or "").strip()
+                if typ in _INVENTORY_TYPES:
+                    features["inventory"] = True
+                if typ in _APPOINTMENT_TYPES:
+                    features["appointments"] = True
+                # Explicit channel-related plugins only (not forward_to_chat alone)
+                if typ.startswith("channel_") or typ in ("moderation", "publisher"):
+                    features["channel_hub"] = True
+    except (OSError, json.JSONDecodeError, TypeError):
+        pass
+
+    return features
+
+
+def ensure_feature_tables(conn: sqlite3.Connection, features: dict[str, bool] | None = None) -> None:
+    """Create optional tables only when the bot's feature set requires them."""
+    ensure_core_bot_tables(conn)
+    feats = features or {}
+    if feats.get("inventory"):
+        ensure_inventory_tables(conn)
+    if feats.get("appointments"):
+        ensure_appointment_tables(conn)
+    if feats.get("channel_hub"):
+        from backend.core.channel_hub_store import ensure_channel_hub_tables
+
+        ensure_channel_hub_tables(conn)
+
+
+def ensure_extended_bot_tables(conn: sqlite3.Connection, bot_id: int | None = None) -> None:
+    """Backward-compatible entry: core always; optional packs when bot_id features say so.
+
+    Without bot_id, only core tables are ensured (no channel hub auto-create).
+    Callers that need channel tables must pass bot_id with channel features or call
+    ensure_channel_hub_tables explicitly (Channel Hub routes do).
+    """
+    features = detect_bot_db_features(bot_id) if bot_id is not None else {"core": True}
+    ensure_feature_tables(conn, features)
 
 
 def normalize_user_field_name(field: str) -> str:

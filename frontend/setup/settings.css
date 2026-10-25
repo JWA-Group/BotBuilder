@@ -97,6 +97,20 @@ body.settings-body {
   color: var(--text-main);
 }
 
+.settings-check-row {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  margin-bottom: 0 !important;
+}
+
+.settings-check-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-ui);
+}
+
 .settings-input {
   width: 100%;
   max-width: 100%;

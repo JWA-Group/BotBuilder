@@ -8,7 +8,7 @@ async def _type_handler_data(bot, chat_id, user_id, block_id, ctx, data, disable
         next_id = get_next_block(block_id, out_idx)
         if next_id:
             return await execute_block(bot, chat_id, user_id, next_id, ctx)
-        return
+        return await handle_unwired_port(bot, chat_id, user_id, block_id, out_idx, ctx)
     raw_field = (data.get("fieldName") or "").strip()
     field_type = data.get("fieldType", "string")
     scope, _ = _parse_placeholder_key(raw_field) if raw_field else ("legacy", "")
@@ -27,13 +27,40 @@ async def _type_handler_data(bot, chat_id, user_id, block_id, ctx, data, disable
         src = data.get("valueSource", "const")
         if src == "input":
             next_id = get_next_block(block_id, 0)
-            if data.get("inputOnlyIfEmpty", True):
+            # Track visits in this synchronous tick. A loop back to the same
+            # Input node (e.g. failed condition) MUST re-await a NEW message —
+            # never skip and never consume the trigger/previous tick text.
+            visits = ctx.setdefault("_tick_input_visits", [])
+            reentry = block_id in visits
+            visits.append(block_id)
+
+            # Skip-if-filled only on cold graph entry (button/start), never when
+            # continuing after an FSM wait (accept_input) or on same-tick reentry.
+            # Otherwise validation loops lose FSM and fall through to /start.
+            allow_skip = (
+                bool(data.get("inputOnlyIfEmpty", True))
+                and not reentry
+                and not ctx.get("accept_input")
+            )
+            if allow_skip:
                 existing = resolve_field_value(user_id, raw_field)
                 if existing is not None and str(existing).strip() != "":
                     if next_id:
                         return await execute_block(bot, chat_id, user_id, next_id, ctx)
                     return
-            return ("await_input", {"block_id": block_id, "field": raw_field, "field_type": field_type, "next_id": next_id})
+            # ALWAYS pause for a fresh user event. Do not read last_message_text
+            # here — button labels / prior tick values must not auto-fill.
+            # If a Message already sent a prompt in this tick, skip Data's prompt.
+            return (
+                "await_input",
+                {
+                    "block_id": block_id,
+                    "field": raw_field,
+                    "field_type": field_type,
+                    "next_id": next_id,
+                    "skip_prompt": bool(ctx.get("_tick_message_sent")),
+                },
+            )
         if src == "current_datetime":
             val = _msk_now_str()
         else:

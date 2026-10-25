@@ -22,7 +22,7 @@
     filterTimer: null,
     botFilterTimer: null,
     knownBotIds: {},
-    terminalScrollPinned: true,
+    terminalScrollPinned: true, // pinned to newest = top
   };
 
   function getApiOrigin() {
@@ -90,16 +90,74 @@
     filters = filters || getFilters();
     if (filters.layer && (packet.layer || "").toUpperCase() !== filters.layer) return false;
     if (filters.bot && String(packet.bot_id || "") !== filters.bot) return false;
-    if (filters.q && (packet.message || "").toLowerCase().indexOf(filters.q) < 0) return false;
+    if (filters.q) {
+      var hay = ((packet.message || "") + "\n" + (packet.detail || "")).toLowerCase();
+      if (hay.indexOf(filters.q) < 0) return false;
+    }
     return true;
+  }
+
+  function extractNodeIdFromPacket(packet) {
+    var detail = String((packet && packet.detail) || "");
+    var m = detail.match(/node_id:\s*(\S+)/i);
+    if (m) return m[1];
+    var msg = String((packet && packet.message) || "");
+    m = msg.match(/node\s+([A-Za-z0-9_\-]+)/i);
+    return m ? m[1] : "";
+  }
+
+  function isFixableRuntimeError(packet) {
+    if (!packet) return false;
+    var layer = (packet.layer || "").toUpperCase();
+    if (layer !== "ERROR") return false;
+    var hay = ((packet.message || "") + "\n" + (packet.detail || "")).toLowerCase();
+    return (
+      hay.indexOf("runtime error") >= 0 ||
+      hay.indexOf("node_id:") >= 0 ||
+      hay.indexOf("traceback") >= 0 ||
+      hay.indexOf("exception") >= 0
+    );
+  }
+
+  function openFixWithAi(packet) {
+    var botId = packet && packet.bot_id ? String(packet.bot_id) : "";
+    if (!botId) {
+      showAlert("Нет bot_id у этой ошибки — откройте редактор сценария вручную.");
+      return;
+    }
+    var nodeId = extractNodeIdFromPacket(packet);
+    var payload = {
+      bot_id: botId,
+      node_id: nodeId,
+      message: packet.message || "",
+      detail: packet.detail || "",
+      timestamp: packet.timestamp || "",
+    };
+    try {
+      global.sessionStorage.setItem("bb_ai_fix_request", JSON.stringify(payload));
+    } catch (e) {}
+    var url =
+      "/editor/scenario/index.html?bot_id=" +
+      encodeURIComponent(botId) +
+      "&ai_fix=1" +
+      (nodeId ? "&node_id=" + encodeURIComponent(nodeId) : "");
+    global.open(url, "_blank");
   }
 
   function createLogNode(packet) {
     var layer = (packet.layer || "API").toUpperCase();
+    var hasDetail = !!(packet.detail && String(packet.detail).trim());
+    var fixable = isFixableRuntimeError(packet);
     var line = document.createElement("div");
-    line.className = "mon-log-line" + (layer === "ERROR" ? " mon-log-line-error" : "");
+    line.className =
+      "mon-log-line" +
+      (layer === "ERROR" ? " mon-log-line-error" : "") +
+      (hasDetail ? " mon-log-expandable" : "");
     line.dataset.layer = layer;
     line.dataset.bot = packet.bot_id || "";
+
+    var head = document.createElement("div");
+    head.className = "mon-log-head";
 
     var ts = document.createElement("span");
     ts.className = "mon-log-ts";
@@ -121,27 +179,64 @@
     msg.className = "mon-log-msg";
     msg.textContent = packet.message || "";
 
-    line.appendChild(ts);
-    line.appendChild(badge);
-    line.appendChild(msg);
+    head.appendChild(ts);
+    head.appendChild(badge);
+    if (hasDetail) {
+      var chev = document.createElement("span");
+      chev.className = "mon-log-chevron";
+      chev.textContent = "▸";
+      head.appendChild(chev);
+    }
+    head.appendChild(msg);
+
+    if (fixable) {
+      var fixBtn = document.createElement("button");
+      fixBtn.type = "button";
+      fixBtn.className = "mon-fix-ai-btn";
+      fixBtn.title = "Fix with AI";
+      fixBtn.textContent = "✨ Fix with AI";
+      fixBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openFixWithAi(packet);
+      });
+      head.appendChild(fixBtn);
+    }
+
+    line.appendChild(head);
+
+    if (hasDetail) {
+      var detail = document.createElement("pre");
+      detail.className = "mon-log-detail";
+      detail.hidden = true;
+      detail.textContent = String(packet.detail);
+      line.appendChild(detail);
+      head.addEventListener("click", function (e) {
+        if (e.target && e.target.closest && e.target.closest(".mon-fix-ai-btn")) return;
+        var open = line.classList.toggle("is-open");
+        detail.hidden = !open;
+        var c = head.querySelector(".mon-log-chevron");
+        if (c) c.textContent = open ? "▾" : "▸";
+      });
+    }
     return line;
   }
 
-  /** Hard DOM cap: drop oldest nodes until <= MAX_VISIBLE_DOM. */
+  /** Hard DOM cap: drop oldest nodes (now at the bottom) until <= MAX_VISIBLE_DOM. */
   function enforceDomCap(term) {
     var excess = term.childNodes.length - MAX_VISIBLE_DOM;
-    while (excess > 0) {
-      term.removeChild(term.firstChild);
+    while (excess > 0 && term.lastChild) {
+      term.removeChild(term.lastChild);
       excess -= 1;
     }
   }
 
-  function isTerminalAtBottom(term) {
-    return term.scrollHeight - term.scrollTop - term.clientHeight < 40;
+  function isTerminalPinned(term) {
+    return term.scrollTop < 40;
   }
 
   /**
-   * Single layout pass: build nodes in a DocumentFragment, append once, then cap DOM.
+   * Newest logs go to the top. Batch is chronological, so insert newest-first.
    */
   function appendLogBatch(packets) {
     if (!packets || !packets.length || state.logPaused) return;
@@ -152,7 +247,7 @@
     var frag = document.createDocumentFragment();
     var added = 0;
 
-    for (var i = 0; i < packets.length; i++) {
+    for (var i = packets.length - 1; i >= 0; i--) {
       var packet = packets[i];
       if (!packet || !packet.message) continue;
       if (!passesFilters(packet, filters)) continue;
@@ -164,11 +259,11 @@
     var empty = term.querySelector(".mon-empty");
     if (empty) empty.remove();
 
-    term.appendChild(frag);
+    term.insertBefore(frag, term.firstChild);
     enforceDomCap(term);
 
     if (state.terminalScrollPinned) {
-      term.scrollTop = term.scrollHeight;
+      term.scrollTop = 0;
     }
   }
 
@@ -184,7 +279,7 @@
     }
 
     var frag = document.createDocumentFragment();
-    for (var i = 0; i < visible.length; i++) {
+    for (var i = visible.length - 1; i >= 0; i--) {
       frag.appendChild(createLogNode(visible[i]));
     }
 
@@ -198,7 +293,7 @@
       term.appendChild(empty);
     }
     if (state.terminalScrollPinned) {
-      term.scrollTop = term.scrollHeight;
+      term.scrollTop = 0;
     }
   }
 
@@ -516,7 +611,7 @@
     var term = el("mon-terminal");
     if (term) {
       term.addEventListener("scroll", function () {
-        state.terminalScrollPinned = isTerminalAtBottom(term);
+        state.terminalScrollPinned = isTerminalPinned(term);
       });
     }
 
